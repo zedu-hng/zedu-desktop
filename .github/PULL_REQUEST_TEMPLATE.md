@@ -22,11 +22,11 @@
 
 ## Test evidence
 
-<!-- Link to the passing CI run in your fork, and the PR in your fork where your team reviewed this.
-     Say whether unit/widget/integration tests were added or updated, and why if not. -->
+<!-- Link your passing Tier 1 run (Actions tab in your fork), and say which backend you tested against.
+     Say whether unit/widget/integration tests were added or updated for what this ticket changed, and why if not. -->
 
-- Fork CI run:
-- Fork PR (team review):
+- Tier 1 run (your fork):
+- Tested against:
 - Tests:
 
 ## Screenshots / recording
@@ -43,5 +43,5 @@
 - [ ] Only intended files changed
 - [ ] No secrets or debug code committed
 - [ ] Tests added/updated for what this ticket changed (not retroactive coverage of unrelated code)
-- [ ] Fork-side CI passing
+- [ ] Tier 1 CI passing in my fork
 - [ ] Self-reviewed (`git status` / `git diff`)
