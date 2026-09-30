@@ -58,8 +58,9 @@ jobs:
         include:
           - target: macos
             os: macos-15
+          # audioplayers_windows still builds with /await, which Visual Studio 18 (windows-latest) removed.
           - target: windows
-            os: windows-latest
+            os: windows-2022
           - target: linux
             os: ubuntu-latest
     defaults:
