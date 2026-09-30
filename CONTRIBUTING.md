@@ -48,7 +48,7 @@ flutter run
 
 See the README for configuration and platform setup. Never commit `.env`.
 
-> **Note:** the API base URL is currently fixed in `lib/core/config/app_config.dart`, so `API_BASE_URL` in `.env` is ignored. To test against your team's backend, change it locally, and don't commit that change.
+To use your team's backend, set `API_BASE_URL` in your `.env` (or pass `--dart-define=API_BASE_URL=...`). Without it, the app uses Zedu staging (`https://api.staging.zedu.chat/api/v1/`).
 
 ---
 

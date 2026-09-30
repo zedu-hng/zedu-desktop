@@ -113,7 +113,7 @@ Env keys are read from **dotenv** after `loadAppEnv()` in `main.dart`. The repo 
 2. Prefer CI variables or `--dart-define` for production secrets.
 
 ```txt
-API_BASE_URL=https://example.com/api
+API_BASE_URL=https://api.staging.zedu.chat/api/v1/
 USE_MOCK_DATA=false
 APP_FLAVOR=development
 ```
@@ -131,7 +131,7 @@ flutter run --dart-define=API_BASE_URL=https://api.example.com --dart-define=USE
 Defaults when neither `.env` / `.env.example` nor defines set a value (see `AppConfig.fromEnvironment` and `AppFlavorConfig`):
 
 ```txt
-API_BASE_URL=https://example.com/api
+API_BASE_URL=https://api.staging.zedu.chat/api/v1/
 USE_MOCK_DATA=false
 APP_FLAVOR=development
 ```
