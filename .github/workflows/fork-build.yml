@@ -108,6 +108,17 @@ jobs:
               continue
             fi
             conclusion=$(echo "$run" | jq -r .conclusion)
+            # A run whose build jobs were all skipped (pushed before the PR existed) is not a build.
+            if [ "$conclusion" = "success" ]; then
+              run_id=$(echo "$run" | jq -r .id)
+              built=$(gh api "repos/$HEAD_REPO/actions/runs/$run_id/jobs" \
+                --jq '[.jobs[] | select(.name != "Open PR check" and .conclusion != "skipped")] | length')
+              if [ "$built" -eq 0 ]; then
+                echo "found=false" >> "$GITHUB_OUTPUT"
+                status pending "No build yet for ${SHA:0:7}. In your fork: Actions > PR build > Run workflow." "$url"
+                exit 0
+              fi
+            fi
             {
               echo "found=true"
               echo "url=$url"
