@@ -60,8 +60,9 @@ jobs:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - run: |
-          gh pr list --repo "$REPO" --state open --json number,headRefOid,baseRefName \
-            --jq '.[] | select(.baseRefName == "dev" or .baseRefName == "central-staging") | "\(.number) \(.headRefOid)"' |
+          # Paginate: gh pr list stops at 30 PRs, and there can be one open PR per ticket across every team.
+          gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq '.[] | select(.base.ref == "dev" or .base.ref == "central-staging") | "\(.number) \(.head.sha)"' |
           while read -r number sha; do
             desc=$(gh api "repos/$REPO/commits/$sha/status" --jq '.statuses[] | select(.context == "Fork build") | .description' | head -1)
             case "$desc" in
