@@ -71,7 +71,7 @@ jobs:
       REVIEWER: ${{ needs.scope.outputs.reviewer }}
     steps:
       - run: |
-          pattern='^(feat|fix|test|docs|refactor|chore|perf|security)/([A-Za-z]+-)?[0-9]+-[a-z0-9][a-z0-9-]*$'
+          pattern='^(feat|fix|test|docs|refactor|chore|perf|security)/([A-Za-z]+-)?[[:digit:]]+-[a-z[:digit:]][a-z[:digit:]-]*$'
           if [[ "$HEAD_REF" =~ $pattern ]]; then
             echo "OK: $HEAD_REF"
           elif [ "$REVIEWER" = true ]; then
