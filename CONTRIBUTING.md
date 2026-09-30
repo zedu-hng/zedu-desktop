@@ -17,7 +17,7 @@ zeduchat/zedu-desktop              Zedu's repo. Reviewers send batches here.
 | Branch in `zedu-hng` | Purpose | Who merges |
 |---|---|---|
 | `dev` (default) | All PRs land here, from teams and reviewers alike. | Reviewers, squash merge |
-| `staging` | What's ready to go to Zedu; mirrors `zeduchat:staging`. | Reviewers promote `dev` → `staging` |
+| `central-staging` | What's ready to go to Zedu; mirrors `zeduchat:central-staging`. | Reviewers promote `dev` → `central-staging` |
 
 The full cycle for any piece of work:
 
@@ -27,7 +27,7 @@ The full cycle for any piece of work:
 4. Push. Tier 1 CI runs in your fork; get it green.
 5. Open a PR from your ticket branch into `zedu-hng/zedu-desktop:dev`.
 6. Address review feedback. Once approved, reviewers squash-merge it into `dev`.
-7. Reviewers promote `dev` → `staging` and send it to Zedu. Verify, then close the ticket.
+7. Reviewers promote `dev` → `central-staging` and send it to Zedu. Verify, then close the ticket.
 
 ---
 
@@ -233,7 +233,7 @@ Because we **squash-merge** PRs into `dev`, the messy merge commits in your bran
 - Contributors don't merge their own PRs.
 - Reviewers **squash-merge** into `dev`: all your commits become one commit, with your PR title as the message. So commit as often and as messily as you like on your branch, but make the PR title good.
 
-After merge, reviewers promote `dev` → `staging` with a merge commit, and send `staging` to `zeduchat` in batches. The ticket goes **MERGED → VERIFIED → CLOSED** once the change is verified.
+After merge, reviewers promote `dev` → `central-staging` with a merge commit, and send `central-staging` to `zeduchat` in batches. The ticket goes **MERGED → VERIFIED → CLOSED** once the change is verified.
 
 ---
 
