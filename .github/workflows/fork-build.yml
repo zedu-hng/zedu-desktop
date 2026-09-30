@@ -24,8 +24,13 @@ on:
 permissions:
   contents: read
 
+# Only real relays (PR events, /fork-build) share a per-PR group. Any other comment gets a unique group,
+# so an unrelated comment (bots included) can't cancel a relay that's waiting on the fork build.
 concurrency:
-  group: fork-build-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: >-
+    fork-build-${{ github.event.pull_request.number
+    || (startsWith(github.event.comment.body, '/fork-build') && github.event.issue.number)
+    || github.run_id }}
   cancel-in-progress: true
 
 jobs:
