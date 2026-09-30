@@ -2,20 +2,21 @@ name: PR build
 
 # Stage A: runs untrusted PR code (including fork PRs) with no secrets.
 # Produces unsigned desktop builds; pr-preview.yml (workflow_run) posts links to them.
+#
+# Tier 1: every push builds, on the pusher's own fork and Actions minutes.
+# Tier 2: on PRs into the review org, builds only when a reviewer adds the `ready-for-build` label
+#         (remove and re-add it to rebuild after new pushes), so review iterations don't rebuild.
 
 on:
+  push:
+    branches:
+      - "**"
   pull_request:
     branches:
       - main
       - staging
     types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-  push:
-    branches:
-      - staging
+      - labeled
   workflow_dispatch:
 
 concurrency:
@@ -31,6 +32,7 @@ env:
 jobs:
   meta:
     name: Build metadata
+    if: github.event_name != 'pull_request' || github.event.label.name == 'ready-for-build'
     runs-on: ubuntu-latest
     steps:
       - name: Record PR number and head SHA
@@ -50,6 +52,7 @@ jobs:
 
   build:
     name: ${{ matrix.target }}
+    if: github.event_name != 'pull_request' || github.event.label.name == 'ready-for-build'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -85,16 +88,16 @@ jobs:
             libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsecret-1-dev libnotify-dev \
             libayatana-appindicator3-dev
 
-      # .env is a bundled asset (pubspec.yaml), so it must exist. Values come from the STAGING_ENV repo variable.
+      # .env is a bundled asset (pubspec.yaml), so it must exist. Values come from the APP_ENV_FILE repo variable (each fork sets its own).
       - name: Write .env
         env:
-          STAGING_ENV: ${{ vars.STAGING_ENV }}
+          APP_ENV_FILE: ${{ vars.APP_ENV_FILE }}
         run: |
-          if [ -z "$STAGING_ENV" ]; then
-            echo "::warning::STAGING_ENV variable not set; falling back to .env.example defaults."
+          if [ -z "$APP_ENV_FILE" ]; then
+            echo "::warning::APP_ENV_FILE variable not set; falling back to .env.example defaults."
             cp .env.example .env
           else
-            printf '%s\n' "$STAGING_ENV" > .env
+            printf '%s\n' "$APP_ENV_FILE" > .env
           fi
 
       - run: flutter pub get

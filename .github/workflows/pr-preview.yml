@@ -14,9 +14,29 @@ permissions:
   contents: read
 
 jobs:
+  # A labeled event with any label other than ready-for-build skips every build job, leaving no artifacts.
+  check:
+    name: Check for build artifacts
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      built: ${{ steps.count.outputs.built }}
+    steps:
+      - id: count
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          count=$(gh api "repos/$REPO/actions/runs/$RUN_ID/artifacts" --jq .total_count)
+          echo "built=$([ "$count" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   comment:
     name: Post review build links
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    needs: check
+    if: needs.check.outputs.built == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

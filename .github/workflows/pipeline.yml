@@ -3,7 +3,8 @@ name: Vulnerability check pipeline
 on:
   pull_request:
   push:
-    branches: [main, staging, develop, dev]
+    # Tier 1: every push in a contributor fork runs the checks.
+    branches: ["**"]
 
 permissions:
   contents: read
