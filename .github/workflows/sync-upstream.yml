@@ -5,7 +5,7 @@ name: Sync upstream
 #
 # Config (repository variables, set only in the review org so contributor forks skip this):
 #   vars.UPSTREAM_REPO     e.g. zeduchat/zedu-desktop
-#   vars.UPSTREAM_BRANCH   branch that batches go to upstream (default: staging)
+#   vars.UPSTREAM_BRANCH   branch that batches go to upstream (default: central-staging)
 # Requires Settings -> Actions -> "Allow GitHub Actions to create and approve pull requests".
 
 on:
@@ -26,7 +26,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       UPSTREAM_REPO: ${{ vars.UPSTREAM_REPO }}
-      TARGET: ${{ vars.UPSTREAM_BRANCH || 'staging' }}
+      TARGET: ${{ vars.UPSTREAM_BRANCH || 'central-staging' }}
     steps:
       - name: Upstream -> target
         run: |

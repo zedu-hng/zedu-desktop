@@ -6,7 +6,7 @@ Instructions for AI coding agents working in `zedu-desktop` (Flutter, targeting 
 
 ## Hard rules
 
-- Work only on a ticket branch in the contributor's fork. Never push to `dev`, `staging` or `main`, and never target `zeduchat` directly. PRs go into `zedu-hng/zedu-desktop:dev`.
+- Work only on a ticket branch in the contributor's fork. Never push to `dev`, `central-staging` or `main`, and never target `zeduchat` directly. PRs go into `zedu-hng/zedu-desktop:dev`.
 - Keep the change to what the ticket asks. No drive-by refactors, renames or dependency bumps.
 - Never commit `.env`. It's gitignored but listed as a pubspec asset, so the build needs it to exist locally (`cp .env.example .env`). Only put safe, non-secret values in `.env.example`.
 - Never hardcode secrets. Read config through `AppConfig.fromEnvironment()` (`lib/core/config/app_config.dart`): `--dart-define`, then `.env`, then the built-in default.
