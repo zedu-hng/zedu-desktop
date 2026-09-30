@@ -1,0 +1,168 @@
+name: PR build
+
+# Stage A: runs untrusted PR code (including fork PRs) with no secrets.
+# Produces unsigned desktop builds; pr-preview.yml (workflow_run) posts links to them.
+#
+# Tier 1: every push builds, on the pusher's own fork and Actions minutes.
+# Tier 2: on PRs into the review org, builds only when a reviewer adds the `ready-for-build` label
+#         (remove and re-add it to rebuild after new pushes), so review iterations don't rebuild.
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+      - staging
+      - dev
+    types:
+      - labeled
+  workflow_dispatch:
+
+concurrency:
+  group: pr-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.41.5"
+
+jobs:
+  meta:
+    name: Build metadata
+    if: github.event_name != 'pull_request' || github.event.label.name == 'ready-for-build'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record PR number and head SHA
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p meta
+          printf '%s' "$PR_NUMBER" > meta/pr_number
+          printf '%s' "$HEAD_SHA" > meta/head_sha
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meta
+          path: meta/
+          retention-days: 7
+
+  build:
+    name: ${{ matrix.target }}
+    if: github.event_name != 'pull_request' || github.event.label.name == 'ready-for-build'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos
+            os: macos-15
+          # audioplayers_windows still builds with /await, which Visual Studio 18 (windows-latest) removed.
+          - target: windows
+            os: windows-2022
+          - target: linux
+            os: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Linux build dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          # Toolchain + GTK, then plugin deps: audioplayers (gstreamer), flutter_secure_storage (libsecret),
+          # local_notifier (libnotify), tray_manager (ayatana-appindicator).
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsecret-1-dev libnotify-dev \
+            libayatana-appindicator3-dev
+
+      # .env is a bundled asset (pubspec.yaml), so it must exist. Values come from the APP_ENV_FILE repo variable (each fork sets its own).
+      - name: Write .env
+        env:
+          APP_ENV_FILE: ${{ vars.APP_ENV_FILE }}
+        run: |
+          if [ -z "$APP_ENV_FILE" ]; then
+            echo "::warning::APP_ENV_FILE variable not set; falling back to .env.example defaults."
+            cp .env.example .env
+          else
+            printf '%s\n' "$APP_ENV_FILE" > .env
+          fi
+
+      - run: flutter pub get
+
+      # agora_rtc_engine's CMake extracts its SDKs inside the plugin dir, which Flutter reaches through
+      # .plugin_symlinks; CMake refuses to extract through a symlink on Windows. Pre-extract into the
+      # real pub-cache dir and mark it .plugin_dev so the plugin skips its own download/extract.
+      - name: Pre-fetch Agora Windows SDKs
+        if: matrix.target == 'windows'
+        run: |
+          version=$(awk '/^  agora_rtc_engine:/{f=1} f&&/version:/{gsub(/"/,"",$2); print $2; exit}' pubspec.lock)
+          plugin="$(cygpath -u "$PUB_CACHE")/hosted/pub.dev/agora_rtc_engine-$version/windows"
+          script="$plugin/cmake/DownloadSDK.cmake"
+          for kind in IRIS NATIVE; do
+            url=$(sed -nE "s/^set\(${kind}_SDK_DOWNLOAD_URL \"([^\"]+)\"\)/\1/p" "$script")
+            dir="$plugin/third_party/$(echo "$kind" | tr '[:upper:]' '[:lower:]')/lib"
+            mkdir -p "$dir"
+            curl -sSfL "$url" -o "$RUNNER_TEMP/$kind.zip"
+            7z x -y -o"$dir" "$RUNNER_TEMP/$kind.zip" > /dev/null
+          done
+          touch "$plugin/.plugin_dev"
+
+      - name: Build
+        if: matrix.target != 'macos'
+        run: flutter build ${{ matrix.target }} --release
+
+      # The Xcode project uses automatic signing with a team profile, and keychain-access-groups is a
+      # restricted entitlement that needs one. Review builds are ad-hoc signed without it instead.
+      - name: Build (macOS, ad-hoc signed)
+        if: matrix.target == 'macos'
+        run: |
+          flutter build macos --release --config-only
+          cp macos/Runner/Release.entitlements "$RUNNER_TEMP/ci.entitlements"
+          plutil -remove keychain-access-groups "$RUNNER_TEMP/ci.entitlements"
+          xcodebuild \
+            -workspace macos/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -derivedDataPath build/macos \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            CODE_SIGN_ENTITLEMENTS="$RUNNER_TEMP/ci.entitlements" \
+            build
+
+      - name: Package
+        run: |
+          case "${{ matrix.target }}" in
+            macos)
+              app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+              ditto -c -k --sequesterRsrc --keepParent "$app" zedu-macos.zip ;;
+            windows)
+              7z a zedu-windows.zip ./build/windows/x64/runner/Release/* ;;
+            linux)
+              tar -czf zedu-linux.tar.gz -C build/linux/x64/release/bundle . ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: |
+            zedu-macos.zip
+            zedu-windows.zip
+            zedu-linux.tar.gz
+          if-no-files-found: error
+          retention-days: 14

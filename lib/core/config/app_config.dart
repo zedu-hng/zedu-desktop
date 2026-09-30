@@ -17,16 +17,22 @@ class AppConfig {
   /// Precedence: `--dart-define` wins, then dotenv keys from those files, then
   /// defaults. See [String.fromEnvironment](https://api.flutter.dev/flutter/dart-ui/String/String.fromEnvironment.html).
   factory AppConfig.fromEnvironment() {
+    const defineApiBaseUrl = String.fromEnvironment('API_BASE_URL');
     const defineUsesMock = String.fromEnvironment('USE_MOCK_DATA');
     const defineClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
     const defineClientSecret = String.fromEnvironment('GOOGLE_CLIENT_SECRET');
 
+    final envApiBaseUrl = dotenv.maybeGet('API_BASE_URL')?.trim();
     final envUsesMock = dotenv.maybeGet('USE_MOCK_DATA')?.trim();
     final envClientId = dotenv.maybeGet('GOOGLE_CLIENT_ID')?.trim();
     final envClientSecret = dotenv.maybeGet('GOOGLE_CLIENT_SECRET')?.trim();
 
-    // Force the Zedu URL regardless of .env to bypass any local misconfiguration
-    String apiBaseUrl = 'https://api.staging.zedu.chat/api/v1/';
+    // Teams point the app at their own backend via --dart-define or .env; Zedu staging is the default.
+    String apiBaseUrl = defineApiBaseUrl.isNotEmpty
+        ? defineApiBaseUrl
+        : (envApiBaseUrl?.isNotEmpty ?? false)
+        ? envApiBaseUrl!
+        : 'https://api.staging.zedu.chat/api/v1/';
 
     apiBaseUrl = apiBaseUrl.replaceAll('"', '').replaceAll("'", "");
 
