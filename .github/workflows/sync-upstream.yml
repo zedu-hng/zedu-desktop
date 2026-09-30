@@ -1,0 +1,52 @@
+name: Sync upstream
+
+# Review-org only. Keeps the chain upstream -> TARGET -> dev in sync by opening PRs (merge-commit
+# them; squashing breaks the shared history). Opening PRs instead of pushing keeps branch protection intact.
+#
+# Config (repository variables, set only in the review org so contributor forks skip this):
+#   vars.UPSTREAM_REPO     e.g. zeduchat/zedu-desktop
+#   vars.UPSTREAM_BRANCH   branch that batches go to upstream (default: staging)
+# Requires Settings -> Actions -> "Allow GitHub Actions to create and approve pull requests".
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Open sync PRs
+    if: vars.UPSTREAM_REPO != ''
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      UPSTREAM_REPO: ${{ vars.UPSTREAM_REPO }}
+      TARGET: ${{ vars.UPSTREAM_BRANCH || 'staging' }}
+    steps:
+      - name: Upstream -> target
+        run: |
+          upstream_sha=$(gh api "repos/$UPSTREAM_REPO/commits/$TARGET" --jq .sha)
+          behind=$(gh api "repos/$REPO/compare/$TARGET...${UPSTREAM_REPO%%/*}:$TARGET" --jq .ahead_by)
+          echo "$REPO:$TARGET is $behind commit(s) behind $UPSTREAM_REPO:$TARGET (${upstream_sha:0:7})"
+          [ "$behind" -gt 0 ] || exit 0
+          open=$(gh pr list --repo "$REPO" --base "$TARGET" --head "$TARGET" --state open --json number --jq 'length')
+          if [ "$open" -gt 0 ]; then echo "Sync PR already open"; exit 0; fi
+          gh pr create --repo "$REPO" --base "$TARGET" --head "${UPSTREAM_REPO%%/*}:$TARGET" \
+            --title "chore: sync $TARGET from $UPSTREAM_REPO" \
+            --body "Automated sync of \`$UPSTREAM_REPO:$TARGET\` (${upstream_sha:0:7}). **Merge with a merge commit, not squash.**"
+
+      - name: Target -> dev
+        run: |
+          ahead=$(gh api "repos/$REPO/compare/dev...$TARGET" --jq .ahead_by)
+          echo "$TARGET has $ahead commit(s) not in dev"
+          [ "$ahead" -gt 0 ] || exit 0
+          open=$(gh pr list --repo "$REPO" --base dev --head "$TARGET" --state open --json number --jq 'length')
+          if [ "$open" -gt 0 ]; then echo "Sync PR already open"; exit 0; fi
+          gh pr create --repo "$REPO" --base dev --head "$TARGET" \
+            --title "chore: sync dev from $TARGET" \
+            --body "Automated sync so \`dev\` includes everything on \`$TARGET\`. **Merge with a merge commit, not squash.**"
