@@ -24,18 +24,19 @@ The full cycle for any piece of work:
 1. Pick up an **approved** ticket in ClickUp or Linear. No ticket, no work.
 2. Sync your fork's `dev` from `zedu-hng`.
 3. Create a ticket branch, do the work, and test it against your team's backend.
-4. Push. Tier 1 CI runs in your fork; get it green.
-5. Open a PR from your ticket branch into `zedu-hng/zedu-desktop:dev`.
-6. Address review feedback. Once approved, reviewers squash-merge it into `dev`.
-7. Reviewers promote `dev` → `central-staging` and send it to Zedu. Verify, then close the ticket.
+4. Open **one PR** from your ticket branch into `zedu-hng/zedu-desktop:dev`. One ticket, one person.
+5. Run the first build in your fork (see *How your PR gets built*). Your fork builds every push after that.
+6. Your team lead reviews and approves on the PR. Then Zedu reviewers review, using your fork's build.
+7. Once approved, reviewers squash-merge it into `dev`, and your team syncs.
+8. Reviewers promote `dev` → `central-staging` and send it to Zedu. Verify, then close the ticket.
 
 ---
 
 ## One-time setup (per team)
 
 1. Fork **`zedu-hng/zedu-desktop`** into your team's GitHub org. Not `zeduchat`: forking the wrong one points your PRs and **Sync fork** at the wrong repo.
-2. In the fork, go to **Actions** and enable workflows. Forks have them off by default, and Tier 1 CI runs there.
-3. Optional: to have CI builds use your team's config, add a repository variable `APP_ENV_FILE` (**Settings → Secrets and variables → Actions → Variables**) containing your full `.env`. Without it, CI uses `.env.example`.
+2. In the fork, go to **Actions** and enable workflows. Forks have them off by default, and your PR builds run there.
+3. To have your PR builds use your team's config, add a repository variable `APP_ENV_FILE` (**Settings → Secrets and variables → Actions → Variables**) containing your full `.env`. Without it, CI uses `.env.example`.
 4. Each contributor clones the **team fork**:
 
 ```bash
@@ -66,7 +67,7 @@ git checkout -b feat/123-dark-mode-toggle
 git add <files>
 git commit -m "feat: add toggle component"
 
-# 4. Push to your fork (runs Tier 1 CI), then open a PR into zedu-hng:dev
+# 4. Push to your fork, then open a PR into zedu-hng:dev
 git push -u origin feat/123-dark-mode-toggle
 ```
 
@@ -104,6 +105,13 @@ docs/110-setup-instructions
 - 3–5 words after the ticket ID. The PR title carries the full description.
 - No personal names (`remi/dark-mode` is an anti-pattern; git already knows who you are).
 - One ticket per branch. If you find another problem, open another ticket.
+- The **Branch name** check enforces the format on every PR.
+
+**One person per PR.** Each member opens their own PR from their own ticket branch. No team branches and no combined PRs: we review and reject per developer, so nobody's work is held up by someone else's. The **Single author** check fails a PR with commits from more than one person. If you commit from several emails, add all of them to your GitHub account (**Settings → Emails**), or they count as different authors. Credit a collaborator with a `Co-authored-by:` trailer instead.
+
+**Dependent tickets:** if ticket B needs ticket A, open B's PR after A merges, then update B from `dev`.
+
+**Testing combinations:** merge ticket branches into a private branch in your fork to test them together if you like. Never open a PR from that branch.
 
 ---
 
@@ -167,19 +175,29 @@ Check that:
 
 ---
 
-## CI: two tiers
+## Protected files
 
-**Tier 1: your fork, on every push.** Pushing any branch to your fork runs:
+These are owned by the reviewers. The **Protected files** check fails any PR that changes them, unless a reviewer has agreed it first and added the `config-change-approved` label:
 
-- format, analyze and test;
-- the vulnerability, forbidden-pattern and Lazarus scans;
-- unsigned macOS, Windows and Linux builds.
+- `.github/` (workflows and templates);
+- `AGENTS.md` and `CONTRIBUTING.md`;
+- `analysis_options.yaml`;
+- `scripts/` (the CI scan scripts).
 
-It all uses your fork's own Actions minutes, which are free and unlimited on public repos. **Don't open a PR until Tier 1 is green.** Link the passing run in your PR.
+Dependency changes (`pubspec.yaml`, `pubspec.lock`) are fine when the ticket needs them. **Moving or restructuring files needs its own approved ticket**; never mix it into feature work.
 
-**Tier 2: `zedu-hng`, after review.** On your PR, the checks run on every push, but the desktop builds don't. When a reviewer is ready to try your change, they add the **`ready-for-build`** label. That builds all three platforms once and posts download links and install notes on the PR. To rebuild after new pushes, a reviewer removes and re-adds the label.
+---
 
-On a first-time contribution, a maintainer has to approve the workflow run before anything runs.
+## How your PR gets built
+
+Your fork builds your PR, using your fork's `APP_ENV_FILE`, so the build talks to your team's backend. Zedu never holds your config or secrets.
+
+- **Builds run only while your PR is open.** Pushes to a ticket branch without an open PR skip the build, and docs-only pushes never build. It uses your fork's Actions minutes, which are free on public repos.
+- **First build:** opening the PR doesn't trigger one. In your fork, go to **Actions → PR build → Run workflow** on your branch, or push a commit. After that, every push builds automatically.
+- On your PR, the **Fork build** check finds that build for your latest commit, waits for it, and posts download links and install notes for macOS, Windows and Linux. Reviewers test with those.
+- No build showing? Check that Actions is enabled in your fork and that it's synced, then comment `/fork-build` on the PR to re-check.
+
+Format, analyze, tests, the security scans, **Branch name**, **Single author** and **Protected files** run on the PR itself. On a first-time contribution, a maintainer has to approve the workflow run before anything runs.
 
 ---
 
@@ -192,7 +210,8 @@ Fill out the PR template (`.github/PULL_REQUEST_TEMPLATE.md`). It loads automati
 - **Ticket**: link to the ClickUp or Linear ticket.
 - **What changed / Why**: the outcome, and the problem it solves.
 - **How to test / What to expect**: steps a reviewer can follow, and the result they should see.
-- **Test evidence**: your Tier 1 run link, the backend you tested against, and the tests you added or updated.
+- **Team lead**: their GitHub handle. Ask them to review and leave an **Approve** review.
+- **Test evidence**: the backend you tested against, and the tests you added or updated. The build link is posted for you.
 - **Screenshots / recording**: for any visible or interactive change.
 - **AI usage**: one line, if AI was used significantly.
 
@@ -228,12 +247,14 @@ Because we **squash-merge** PRs into `dev`, the messy merge commits in your bran
 
 ## How PRs land
 
-- **1 reviewer approval** is required, and it must come after your last push.
+- **Your team lead approves first.** Zedu reviewers only pick up PRs the lead has approved.
+- **1 Zedu reviewer approval** is required, and it must come after your last push.
+- All checks must pass, including **Fork build**.
 - All review threads must be resolved. Don't resolve a thread without actually addressing it.
 - Contributors don't merge their own PRs.
 - Reviewers **squash-merge** into `dev`: all your commits become one commit, with your PR title as the message. So commit as often and as messily as you like on your branch, but make the PR title good.
 
-After merge, reviewers promote `dev` → `central-staging` with a merge commit, and send `central-staging` to `zeduchat` in batches. The ticket goes **MERGED → VERIFIED → CLOSED** once the change is verified.
+After merge, reviewers promote `dev` → `central-staging` with a merge commit, and send `central-staging` to `zeduchat` in batches. Sync your fork's `dev` (**Sync fork**) to pull in what's merged. The ticket goes **MERGED → VERIFIED → CLOSED** once the change is verified.
 
 ---
 
@@ -274,7 +295,7 @@ If you use an AI coding agent, point it at `AGENTS.md`. It holds the repo conven
 ## A few extra tips
 
 - **Pull before you start work each day.** It saves you from a painful merge later.
-- **Push often.** Pushed code is backed up, and every push runs Tier 1.
+- **Push often.** Pushed code is backed up, and once your PR is open every push builds.
 - **Open PRs in draft mode** if you want early feedback before the work is done.
 - **Keep PRs small.** A PR with 50 lines of change gets reviewed in 10 minutes. A PR with 500 lines gets a rubber-stamp review or sits for days.
 - **If you're stuck, ask.** Use your team channel first, then the project channel. For a blocker, include:
@@ -294,7 +315,7 @@ git checkout dev
 git pull origin dev
 git checkout -b feat/123-your-feature
 
-# Save progress (every push runs Tier 1 CI in your fork)
+# Save progress (once your PR is open, every push builds in your fork)
 git add <files>
 git commit -m "feat: message"
 git push
@@ -304,5 +325,5 @@ git fetch origin
 git merge origin/dev
 
 # Ready for review
-# → Tier 1 green, then open a PR from your branch into zedu-hng/zedu-desktop:dev
+# → open a PR from your branch into zedu-hng/zedu-desktop:dev, run the first build, ask your lead to approve
 ```

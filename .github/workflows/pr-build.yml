@@ -1,23 +1,24 @@
 name: PR build
 
-# Stage A: runs untrusted PR code (including fork PRs) with no secrets.
-# Produces unsigned desktop builds; pr-preview.yml (workflow_run) posts links to them.
+# Runs in contributor forks with the fork's own config (APP_ENV_FILE, optional) and Actions minutes.
+# Builds only when this branch has an open PR into the review repo, so work-in-progress pushes cost nothing.
+# The review repo's fork-build.yml reads this run's result for the PR's head commit.
 #
-# Tier 1: every push builds, on the pusher's own fork and Actions minutes.
-# Tier 2: on PRs into the review org, builds only when a reviewer adds the `ready-for-build` label
-#         (remove and re-add it to rebuild after new pushes), so review iterations don't rebuild.
+# First build after opening a PR: Actions -> PR build -> Run workflow on the branch (or push a commit).
 
 on:
   push:
     branches:
-      - "**"
-  pull_request:
-    branches:
-      - main
-      - central-staging
-      - dev
-    types:
-      - labeled
+      - "feat/**"
+      - "fix/**"
+      - "test/**"
+      - "docs/**"
+      - "refactor/**"
+      - "chore/**"
+      - "perf/**"
+      - "security/**"
+    paths-ignore:
+      - "**.md"
   workflow_dispatch:
 
 concurrency:
@@ -31,29 +32,32 @@ env:
   FLUTTER_VERSION: "3.41.5"
 
 jobs:
-  meta:
-    name: Build metadata
-    if: github.event_name != 'pull_request' || github.event.label.name == 'ready-for-build'
+  gate:
+    name: Open PR check
     runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.pr.outputs.build }}
     steps:
-      - name: Record PR number and head SHA
+      - id: pr
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_REPO: ${{ vars.REVIEW_REPO || format('zedu-hng/{0}', github.event.repository.name) }}
+          OWNER: ${{ github.repository_owner }}
+          BRANCH: ${{ github.ref_name }}
         run: |
-          mkdir -p meta
-          printf '%s' "$PR_NUMBER" > meta/pr_number
-          printf '%s' "$HEAD_SHA" > meta/head_sha
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: meta
-          path: meta/
-          retention-days: 7
+          number=$(gh api -X GET "repos/$REVIEW_REPO/pulls" -f state=open -f head="$OWNER:$BRANCH" --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            echo "Open PR $REVIEW_REPO#$number from $OWNER:$BRANCH; building."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No open PR from $OWNER:$BRANCH into $REVIEW_REPO; skipping build. Open the PR, then run this workflow or push."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     name: ${{ matrix.target }}
-    if: github.event_name != 'pull_request' || github.event.label.name == 'ready-for-build'
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:

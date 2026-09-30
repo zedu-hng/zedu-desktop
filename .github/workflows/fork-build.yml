@@ -1,0 +1,164 @@
+name: Fork build
+
+# Trusted: runs in the review repo with its own token and NEVER checks out PR code. It only reads the
+# contributor fork's "PR build" run (public API) for the PR's exact head commit and relays the result.
+# That run is trustworthy because the required protected-files check rejects PRs that change .github/**,
+# and the fork builds with the workflow file from that same commit.
+#
+# Sets the commit status "Fork build" and posts download links. Re-check any time with a /fork-build comment.
+
+on:
+  pull_request_target:
+    branches:
+      - dev
+      - central-staging
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  relay:
+    name: Relay fork build
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event.issue.pull_request && startsWith(github.event.comment.body, '/fork-build'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    permissions:
+      pull-requests: write
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+      CONTEXT: Fork build
+    steps:
+      - name: Resolve PR
+        id: pr
+        run: |
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "Invalid PR number"; exit 1; }
+          gh api "repos/$REPO/pulls/$PR_NUMBER" > pr.json
+          {
+            echo "sha=$(jq -r .head.sha pr.json)"
+            echo "head_repo=$(jq -r .head.repo.full_name pr.json)"
+          } >> "$GITHUB_OUTPUT"
+          # Sync and promotion PRs (review repo or upstream long-lived branches) have no fork build.
+          head_repo=$(jq -r .head.repo.full_name pr.json); head_ref=$(jq -r .head.ref pr.json)
+          upstream=$(gh api "repos/$REPO" --jq '.parent.full_name // ""')
+          if { [ "$head_repo" = "$REPO" ] || [ "$head_repo" = "$upstream" ]; } \
+             && { [ "$head_ref" = dev ] || [ "$head_ref" = central-staging ]; }; then
+            echo "internal=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "internal=false" >> "$GITHUB_OUTPUT"
+          fi
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
+          if [ -n "$files" ] && ! echo "$files" | grep -qvE '\.md$'; then
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: No fork build needed
+        if: steps.pr.outputs.internal == 'true' || steps.pr.outputs.docs_only == 'true'
+        env:
+          SHA: ${{ steps.pr.outputs.sha }}
+          INTERNAL: ${{ steps.pr.outputs.internal }}
+        run: |
+          reason=$([ "$INTERNAL" = true ] && echo "Sync/promotion PR; no fork build needed" || echo "Docs-only change; no build needed")
+          gh api "repos/$REPO/statuses/$SHA" -f state=success -f context="$CONTEXT" -f description="$reason" >/dev/null
+
+      - name: Wait for the fork's PR build
+        id: run
+        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
+        env:
+          SHA: ${{ steps.pr.outputs.sha }}
+          HEAD_REPO: ${{ steps.pr.outputs.head_repo }}
+        run: |
+          status() { gh api "repos/$REPO/statuses/$SHA" -f state="$1" -f context="$CONTEXT" -f description="$2" ${3:+-f target_url="$3"} >/dev/null; }
+          appear_by=$(( $(date +%s) + 3 * 60 ))
+          deadline=$(( $(date +%s) + 75 * 60 ))
+          while :; do
+            run=$(gh api "repos/$HEAD_REPO/actions/workflows/pr-build.yml/runs?head_sha=$SHA&per_page=10" \
+              --jq '[.workflow_runs[] | select(.path == ".github/workflows/pr-build.yml")] | sort_by(.created_at) | last // empty' 2>/dev/null || true)
+            if [ -z "$run" ]; then
+              # A push's fork run takes a moment to register; allow ~3 minutes before reporting none.
+              if [ "$(date +%s)" -lt "$appear_by" ]; then sleep 20; continue; fi
+              echo "found=false" >> "$GITHUB_OUTPUT"
+              status pending "No build yet for ${SHA:0:7}. In your fork: Actions > PR build > Run workflow."
+              exit 0
+            fi
+            url=$(echo "$run" | jq -r .html_url)
+            state=$(echo "$run" | jq -r .status)
+            if [ "$state" != "completed" ]; then
+              status pending "Fork build running for ${SHA:0:7}" "$url"
+              [ "$(date +%s)" -lt "$deadline" ] || { echo "Timed out waiting; comment /fork-build to re-check."; exit 0; }
+              sleep 60
+              continue
+            fi
+            conclusion=$(echo "$run" | jq -r .conclusion)
+            {
+              echo "found=true"
+              echo "url=$url"
+              echo "id=$(echo "$run" | jq -r .id)"
+              echo "conclusion=$conclusion"
+            } >> "$GITHUB_OUTPUT"
+            if [ "$conclusion" = "success" ]; then
+              status success "Fork build passed for ${SHA:0:7}" "$url"
+            else
+              status failure "Fork build $conclusion for ${SHA:0:7}" "$url"
+            fi
+            exit 0
+          done
+
+      - name: Compose comment
+        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
+        env:
+          SHA: ${{ steps.pr.outputs.sha }}
+          HEAD_REPO: ${{ steps.pr.outputs.head_repo }}
+          FOUND: ${{ steps.run.outputs.found }}
+          URL: ${{ steps.run.outputs.url }}
+          RUN_ID: ${{ steps.run.outputs.id }}
+          CONCLUSION: ${{ steps.run.outputs.conclusion }}
+        run: |
+          {
+            echo "### Fork build for \`${SHA:0:7}\`"
+            echo
+            if [ "$FOUND" != "true" ]; then
+              echo "No build found yet in \`$HEAD_REPO\`. Builds only run once this PR is open, so trigger the first one:"
+              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit. Then comment \`/fork-build\`."
+              echo
+              echo "Still nothing? Check that Actions is enabled in your fork and that it's synced with \`$REPO\`."
+            elif [ "$CONCLUSION" != "success" ]; then
+              echo "The fork build **$CONCLUSION**: [see the run]($URL). Fix it and push; this updates automatically."
+            else
+              echo "Built in your fork: [run]($URL). Download from its **Artifacts** section:"
+              echo
+              # Artifact names come from the fork: keep only safe characters.
+              # shellcheck disable=SC2016 # literal backticks for Markdown
+              gh api "repos/$HEAD_REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[].name' \
+                | tr -cd 'A-Za-z0-9._\n-' | sed 's/^/- `/; s/$/`/'
+              echo
+              echo "- **macOS** (\`desktop-macos\`): unzip twice, then right-click the app > Open (or \`xattr -dr com.apple.quarantine Zedu.app\`) to get past Gatekeeper."
+              echo "- **Windows** (\`desktop-windows\`): unzip and run the \`.exe\`; SmartScreen > More info > Run anyway."
+              echo "- **Linux** (\`desktop-linux\`): extract the tarball and run the binary in the bundle root."
+            fi
+          } > comment.md
+
+      - uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
+        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
+        with:
+          header: fork-build
+          number: ${{ env.PR_NUMBER }}
+          path: comment.md
