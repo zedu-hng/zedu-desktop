@@ -195,7 +195,7 @@ Your fork builds your PR, using your fork's `APP_ENV_FILE`, so the build talks t
 - **Builds run only while your PR is open.** Pushes to a ticket branch without an open PR skip the build, and docs-only pushes never build. It uses your fork's Actions minutes, which are free on public repos.
 - **First build:** opening the PR doesn't trigger one. In your fork, go to **Actions → PR build → Run workflow** on your branch, or push a commit. After that, every push builds automatically.
 - On your PR, the **Fork build** check finds that build for your latest commit, waits for it, and posts download links and install notes for macOS, Windows and Linux. Reviewers test with those.
-- No build showing? Check that Actions is enabled in your fork and that it's synced, then comment `/fork-build` on the PR to re-check.
+- After a manual build, **Fork build** updates on its own within 15 minutes; comment `/fork-build` on the PR to check straight away. No build showing at all? Check that Actions is enabled in your fork and that it's synced.
 
 Format, analyze, tests, the security scans, **Branch name**, **Single author** and **Protected files** run on the PR itself. On a first-time contribution, a maintainer has to approve the workflow run before anything runs.
 

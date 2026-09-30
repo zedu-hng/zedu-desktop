@@ -6,6 +6,8 @@ name: Fork build
 # and the fork builds with the workflow file from that same commit.
 #
 # Sets the commit status "Fork build" and posts download links. Re-check any time with a /fork-build comment.
+# Every 15 minutes a sweep re-checks PRs still showing "No build yet", so a manual first build is picked up
+# without anyone commenting.
 
 on:
   pull_request_target:
@@ -20,6 +22,13 @@ on:
   issue_comment:
     types:
       - created
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to re-check
+        required: true
+  schedule:
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: read
@@ -31,14 +40,42 @@ concurrency:
     fork-build-${{ github.event.pull_request.number
     || ((github.event.comment.body == '/fork-build' || startsWith(github.event.comment.body, '/fork-build '))
         && github.event.issue.number)
+    || inputs.pr
     || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  # Scheduled: re-dispatch the relay for open PRs whose Fork build still says "No build yet".
+  sweep:
+    name: Re-check pending PRs
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      pull-requests: read
+      statuses: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - run: |
+          gh pr list --repo "$REPO" --state open --json number,headRefOid,baseRefName \
+            --jq '.[] | select(.baseRefName == "dev" or .baseRefName == "central-staging") | "\(.number) \(.headRefOid)"' |
+          while read -r number sha; do
+            desc=$(gh api "repos/$REPO/commits/$sha/status" --jq '.statuses[] | select(.context == "Fork build") | .description' | head -1)
+            case "$desc" in
+              "No build yet"*)
+                echo "PR #$number: re-checking ($desc)"
+                gh workflow run fork-build.yml --repo "$REPO" --ref "$DEFAULT_BRANCH" -f pr="$number" ;;
+            esac
+          done
+
   relay:
     name: Relay fork build
     if: >-
       github.event_name == 'pull_request_target' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event.issue.pull_request &&
        (github.event.comment.body == '/fork-build' || startsWith(github.event.comment.body, '/fork-build ')))
     runs-on: ubuntu-latest
@@ -49,7 +86,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
-      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
       CONTEXT: Fork build
     steps:
       - name: Resolve PR
@@ -155,7 +192,7 @@ jobs:
             echo
             if [ "$FOUND" != "true" ]; then
               echo "No build found yet in \`$HEAD_REPO\`. Builds only run once this PR is open, so trigger the first one:"
-              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit. Then comment \`/fork-build\`."
+              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit. This check picks it up within 15 minutes, or comment \`/fork-build\` to check now."
               echo
               echo "Still nothing? Check that Actions is enabled in your fork and that it's synced with \`$REPO\`."
             elif [ "$CONCLUSION" != "success" ]; then
