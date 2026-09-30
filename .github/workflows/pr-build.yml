@@ -1,0 +1,141 @@
+name: PR build
+
+# Stage A: runs untrusted PR code (including fork PRs) with no secrets.
+# Produces unsigned desktop builds; pr-preview.yml (workflow_run) posts links to them.
+
+on:
+  pull_request:
+    branches:
+      - main
+      - staging
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+
+concurrency:
+  group: pr-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.41.5"
+
+jobs:
+  meta:
+    name: Build metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record PR number and head SHA
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p meta
+          printf '%s' "$PR_NUMBER" > meta/pr_number
+          printf '%s' "$HEAD_SHA" > meta/head_sha
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meta
+          path: meta/
+          retention-days: 7
+
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos
+            os: macos-15
+          - target: windows
+            os: windows-latest
+          - target: linux
+            os: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Linux build dependencies
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      # .env is a bundled asset (pubspec.yaml), so it must exist. Values come from the STAGING_ENV repo variable.
+      - name: Write .env
+        env:
+          STAGING_ENV: ${{ vars.STAGING_ENV }}
+        run: |
+          if [ -z "$STAGING_ENV" ]; then
+            echo "::warning::STAGING_ENV variable not set; falling back to .env.example defaults."
+            cp .env.example .env
+          else
+            printf '%s\n' "$STAGING_ENV" > .env
+          fi
+
+      - run: flutter pub get
+
+      - name: Build
+        if: matrix.target != 'macos'
+        run: flutter build ${{ matrix.target }} --release
+
+      # The Xcode project uses automatic signing with a team profile, and keychain-access-groups is a
+      # restricted entitlement that needs one. Review builds are ad-hoc signed without it instead.
+      - name: Build (macOS, ad-hoc signed)
+        if: matrix.target == 'macos'
+        run: |
+          flutter build macos --release --config-only
+          cp macos/Runner/Release.entitlements "$RUNNER_TEMP/ci.entitlements"
+          plutil -remove keychain-access-groups "$RUNNER_TEMP/ci.entitlements"
+          xcodebuild \
+            -workspace macos/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -derivedDataPath build/macos \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            CODE_SIGN_ENTITLEMENTS="$RUNNER_TEMP/ci.entitlements" \
+            build
+
+      - name: Package
+        run: |
+          case "${{ matrix.target }}" in
+            macos)
+              app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+              ditto -c -k --sequesterRsrc --keepParent "$app" zedu-macos.zip ;;
+            windows)
+              7z a zedu-windows.zip ./build/windows/x64/runner/Release/* ;;
+            linux)
+              tar -czf zedu-linux.tar.gz -C build/linux/x64/release/bundle . ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: |
+            zedu-macos.zip
+            zedu-windows.zip
+            zedu-linux.tar.gz
+          if-no-files-found: error
+          retention-days: 14
