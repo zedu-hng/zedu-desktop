@@ -109,4 +109,6 @@ jobs:
 
           # The PR head filter needs owner:branch, even for same-repo branches.
           sync "$TARGET" "upstream/$TARGET" "$UPSTREAM_REPO:$TARGET" "${UPSTREAM_REPO%%/*}:$TARGET"
+          # Pick up the push above, or a promotion merged while this ran.
+          git fetch -q --no-tags origin "$TARGET"
           sync dev "origin/$TARGET" "$TARGET" "${REPO%%/*}:$TARGET"
