@@ -5,8 +5,8 @@
 #   SOURCE_REF         ref to merge in, e.g. upstream/central-staging or origin/central-staging
 #   SOURCE_LABEL       name used in the commit message, e.g. zeduchat/zedu-mobile:central-staging
 #   EXCLUDE_FILE       review-org paths (default .github/upstream-exclude, from the current checkout)
-#   RESOLUTION_REF     a reviewer's branch with the conflict already resolved; pushed instead of merging,
-#                      only if it contains both TARGET and SOURCE_REF
+#   RESOLUTION_REF     a reviewer's branch whose tip is the resolved merge; pushed instead of merging,
+#                      only if that tip is one merge commit with parents exactly TARGET and SOURCE_REF
 #   APPROVE_PROTECTED  1 = a reviewer checked the review-org path changes; merge them too
 #   DRY_RUN            1 = merge locally, don't push
 #
@@ -15,6 +15,8 @@
 # Exit codes: 0 merged or already up to date, 3 conflict, 4 touches review-org paths.
 # Writes the outcome to sync-result.md.
 set -euo pipefail
+diff_file=$(mktemp)
+trap 'rm -f "$diff_file"' EXIT
 
 : "${TARGET:?}" "${SOURCE_REF:?}" "${SOURCE_LABEL:?}"
 EXCLUDE_FILE=${EXCLUDE_FILE:-.github/upstream-exclude}
@@ -41,12 +43,11 @@ fi
 
 if [ -n "${RESOLUTION_REF:-}" ]; then
   resolution=$(git rev-parse "$RESOLUTION_REF^{commit}")
-  for need in "$base" "$source"; do
-    git merge-base --is-ancestor "$need" "$resolution" || {
-      echo "\`$RESOLUTION_REF\` doesn't contain ${need:0:7}. Merge both \`$TARGET\` and ${source:0:7} into it." | tee sync-result.md
-      exit 3
-    }
-  done
+  # Exactly one merge commit on top of TARGET: extra commits would ride the ruleset bypass unreviewed.
+  if [ "$(git rev-list --parents -n1 "$resolution")" != "$resolution $base $source" ]; then
+    echo "\`$RESOLUTION_REF\` must be one merge commit with parents \`$TARGET\` (${base:0:7}) then ${source:0:7}, nothing else. Recreate it from the current \`$TARGET\`." | tee sync-result.md
+    exit 3
+  fi
   git switch -q -C "sync-$TARGET" "$resolution"
 else
   git switch -q -C "sync-$TARGET" "$base"
@@ -63,10 +64,12 @@ else
 fi
 
 # Only what this merge brings into TARGET. NUL-delimited raw paths, no rename detection.
+# Written to a file first: a failing git diff inside <(...) would skip the gate and push.
+git diff --no-renames --name-only -z "$base" HEAD > "$diff_file"
 protected=()
 while IFS= read -r -d '' path; do
   is_excluded "$path" && protected+=("$path")
-done < <(git diff --no-renames --name-only -z "$base" HEAD)
+done < "$diff_file"
 
 if [ "${#protected[@]}" -gt 0 ] && [ "${APPROVE_PROTECTED:-}" != 1 ]; then
   {
