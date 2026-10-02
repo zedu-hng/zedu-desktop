@@ -1,0 +1,65 @@
+name: Lead approval
+
+# Sets the "Lead approval" status: green once a lead of the PR's team approves. The team is the
+# fork's org, looked up in .github/teams.yml from the base branch (a PR can't change its mapping).
+# Logic lives in .github/scripts/lead-approval.sh; this file only decides which PRs to check.
+#
+# Reviews on fork PRs run with a read-only token and can't set a status, so a sweep re-checks every
+# open PR every 5 minutes in a single run. The script only writes a status when it changes.
+# Never checks out PR code.
+
+on:
+  pull_request_target:
+    branches:
+      - dev
+      - central-staging
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to re-check (empty = all open PRs)
+        required: false
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: lead-approval-${{ github.event.pull_request.number || inputs.pr || 'sweep' }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check lead approval
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.base.ref || github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Check
+        run: |
+          if [ -n "$PR" ]; then
+            bash .github/scripts/lead-approval.sh "$PR"
+            exit 0
+          fi
+          gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq '.[] | select(.base.ref == "dev" or .base.ref == "central-staging") | .number' |
+          while read -r number; do
+            bash .github/scripts/lead-approval.sh "$number" || echo "::warning::PR #$number: check failed"
+          done

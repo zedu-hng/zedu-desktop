@@ -7,7 +7,8 @@ name: Fork build
 #
 # Sets the commit status "Fork build" and posts download links. Re-check any time with a /fork-build comment.
 # Every 15 minutes a sweep re-checks PRs still showing "No build yet", so a manual first build is picked up
-# without anyone commenting.
+# without anyone commenting. It also relays PRs with no Fork build status at all: PRs opened by a
+# workflow's GITHUB_TOKEN (sync-upstream) don't fire pull_request_target.
 
 on:
   pull_request_target:
@@ -66,7 +67,7 @@ jobs:
           while read -r number sha; do
             desc=$(gh api "repos/$REPO/commits/$sha/status" --jq '.statuses[] | select(.context == "Fork build") | .description' | head -1)
             case "$desc" in
-              "No build yet"*)
+              ""|"No build yet"*)
                 echo "PR #$number: re-checking ($desc)"
                 gh workflow run fork-build.yml --repo "$REPO" --ref "$DEFAULT_BRANCH" -f pr="$number" ;;
             esac
@@ -99,11 +100,12 @@ jobs:
             echo "sha=$(jq -r .head.sha pr.json)"
             echo "head_repo=$(jq -r .head.repo.full_name pr.json)"
           } >> "$GITHUB_OUTPUT"
-          # Sync and promotion PRs (review repo or upstream long-lived branches) have no fork build.
+          # Same-repo PRs (reviewer branches, bots, sync/promotion) and upstream sync PRs have no
+          # fork build; only contributor forks get the relay.
           head_repo=$(jq -r .head.repo.full_name pr.json); head_ref=$(jq -r .head.ref pr.json)
           upstream=$(gh api "repos/$REPO" --jq '.parent.full_name // ""')
-          if { [ "$head_repo" = "$REPO" ] || [ "$head_repo" = "$upstream" ]; } \
-             && { [ "$head_ref" = dev ] || [ "$head_ref" = central-staging ]; }; then
+          if [ "$head_repo" = "$REPO" ] \
+             || { [ "$head_repo" = "$upstream" ] && { [ "$head_ref" = dev ] || [ "$head_ref" = central-staging ]; }; }; then
             echo "internal=true" >> "$GITHUB_OUTPUT"
           else
             echo "internal=false" >> "$GITHUB_OUTPUT"
@@ -121,7 +123,7 @@ jobs:
           SHA: ${{ steps.pr.outputs.sha }}
           INTERNAL: ${{ steps.pr.outputs.internal }}
         run: |
-          reason=$([ "$INTERNAL" = true ] && echo "Sync/promotion PR; no fork build needed" || echo "Docs-only change; no build needed")
+          reason=$([ "$INTERNAL" = true ] && echo "Same-repo or sync PR; no fork build needed" || echo "Docs-only change; no build needed")
           gh api "repos/$REPO/statuses/$SHA" -f state=success -f context="$CONTEXT" -f description="$reason" >/dev/null
 
       - name: Wait for the fork's PR build

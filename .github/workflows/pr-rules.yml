@@ -55,7 +55,17 @@ jobs:
           else
             echo "internal=false" >> "$GITHUB_OUTPUT"
           fi
-          perm=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission 2>/dev/null || echo none)
+          case "$AUTHOR" in
+            dependabot\[bot\]|renovate\[bot\]|github-actions\[bot\])
+              echo "reviewer=true" >> "$GITHUB_OUTPUT"
+              echo "Author $AUTHOR is a bot; branch-name and single-author checks are waived."
+              exit 0 ;;
+          esac
+          # Retry once: a transient API error would otherwise treat a reviewer as a contributor.
+          if ! perm=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission); then
+            sleep 5
+            perm=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission || echo none)
+          fi
           case "$perm" in
             admin|maintain|write) echo "reviewer=true" >> "$GITHUB_OUTPUT" ;;
             *) echo "reviewer=false" >> "$GITHUB_OUTPUT" ;;
@@ -110,7 +120,8 @@ jobs:
     if: needs.scope.outputs.internal == 'false'
     runs-on: ubuntu-latest
     env:
-      APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'config-change-approved') }}
+      # Dependabot only bumps GitHub Actions versions (see .github/dependabot.yml), all under .github/.
+      APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'config-change-approved') || github.event.pull_request.user.login == 'dependabot[bot]' }}
     steps:
       - run: |
           protected='^(\.github/|AGENTS\.md$|CONTRIBUTING\.md$|analysis_options\.yaml$|scripts/)'

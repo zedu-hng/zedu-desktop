@@ -1,53 +1,112 @@
 name: Sync upstream
 
-# Review-org only. Keeps the chain upstream -> TARGET -> dev in sync by opening PRs (merge-commit
-# them; squashing breaks the shared history). Opening PRs instead of pushing keeps branch protection intact.
+# Review-org only. Keeps the chain upstream -> TARGET -> dev in sync by merging with a merge commit and
+# pushing (squashing would break the shared history, so no human picks the merge method).
+# Logic: .github/scripts/sync-merge.sh. A clean merge is pushed with the sync deploy key, which bypasses
+# the branch rulesets. A merge that conflicts or changes review-org paths (.github/upstream-exclude)
+# opens a sync PR for a reviewer instead; its body says how to finish (re-run with approve_protected or
+# resolution). Don't merge sync PRs by hand: the workflow's push marks them merged.
 #
-# Config (repository variables, set only in the review org so contributor forks skip this):
-#   vars.UPSTREAM_REPO     e.g. zeduchat/zedu-desktop
-#   vars.UPSTREAM_BRANCH   branch that batches go to upstream (default: central-staging)
+# Config (set only in the review org, so contributor forks skip this):
+#   vars.UPSTREAM_REPO      e.g. zeduchat/zedu-desktop
+#   vars.UPSTREAM_BRANCH    branch that batches go to upstream (default: central-staging)
+#   secrets.SYNC_DEPLOY_KEY write deploy key, a bypass actor on the dev and central-staging rulesets
 # Requires Settings -> Actions -> "Allow GitHub Actions to create and approve pull requests".
 
 on:
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
+    inputs:
+      approve_protected:
+        description: A reviewer checked the sync PR's review-org path changes; merge them
+        type: boolean
+        default: false
+      resolution:
+        description: "Conflict resolved on a branch: <target>:<branch>, e.g. dev:sync-fix"
+        required: false
 
 permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
 jobs:
   sync:
-    name: Open sync PRs
+    name: Sync branches
     if: vars.UPSTREAM_REPO != ''
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       UPSTREAM_REPO: ${{ vars.UPSTREAM_REPO }}
       TARGET: ${{ vars.UPSTREAM_BRANCH || 'central-staging' }}
+      APPROVE_PROTECTED: ${{ inputs.approve_protected && '1' || '' }}
+      RESOLUTION: ${{ inputs.resolution }}
+      HAS_KEY: ${{ secrets.SYNC_DEPLOY_KEY != '' }}
     steps:
-      - name: Upstream -> target
+      - name: Check deploy key
+        if: env.HAS_KEY != 'true'
         run: |
-          upstream_sha=$(gh api "repos/$UPSTREAM_REPO/commits/$TARGET" --jq .sha)
-          behind=$(gh api "repos/$REPO/compare/$TARGET...${UPSTREAM_REPO%%/*}:$TARGET" --jq .ahead_by)
-          echo "$REPO:$TARGET is $behind commit(s) behind $UPSTREAM_REPO:$TARGET (${upstream_sha:0:7})"
-          [ "$behind" -gt 0 ] || exit 0
-          open=$(gh pr list --repo "$REPO" --base "$TARGET" --head "$TARGET" --state open --json number --jq 'length')
-          if [ "$open" -gt 0 ]; then echo "Sync PR already open"; exit 0; fi
-          # The head is upstream's branch; this token can't grant its maintainers edit rights.
-          gh pr create --repo "$REPO" --base "$TARGET" --head "${UPSTREAM_REPO%%/*}:$TARGET" --no-maintainer-edit \
-            --title "chore: sync $TARGET from $UPSTREAM_REPO" \
-            --body "Automated sync of \`$UPSTREAM_REPO:$TARGET\` (${upstream_sha:0:7}). **Merge with a merge commit, not squash.**"
+          echo "::error::SYNC_DEPLOY_KEY secret is missing. Sync can't push. Run the deploy-key setup script."
+          exit 1
 
-      - name: Target -> dev
+      # Script and exclude list come from dev, never from upstream or a PR.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: dev
+          fetch-depth: 0
+          ssh-key: ${{ secrets.SYNC_DEPLOY_KEY }}
+
+      - name: Sync
         run: |
-          ahead=$(gh api "repos/$REPO/compare/dev...$TARGET" --jq .ahead_by)
-          echo "$TARGET has $ahead commit(s) not in dev"
-          [ "$ahead" -gt 0 ] || exit 0
-          open=$(gh pr list --repo "$REPO" --base dev --head "$TARGET" --state open --json number --jq 'length')
-          if [ "$open" -gt 0 ]; then echo "Sync PR already open"; exit 0; fi
-          gh pr create --repo "$REPO" --base dev --head "$TARGET" \
-            --title "chore: sync dev from $TARGET" \
-            --body "Automated sync so \`dev\` includes everything on \`$TARGET\`. **Merge with a merge commit, not squash.**"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "https://github.com/$UPSTREAM_REPO.git"
+          git fetch -q --no-tags upstream "$TARGET"
+          cp .github/scripts/sync-merge.sh .github/upstream-exclude "$RUNNER_TEMP/"
+
+          res_target=${RESOLUTION%%:*}
+          res_branch=${RESOLUTION#*:}
+          if [ -n "$RESOLUTION" ]; then
+            [[ "$RESOLUTION" == *:* && ( "$res_target" == dev || "$res_target" == "$TARGET" ) && -n "$res_branch" ]] \
+              || { echo "::error::resolution must be <dev|$TARGET>:<branch>, got '$RESOLUTION'"; exit 1; }
+          fi
+
+          # sync <target> <source-ref> <label> <pr-head>: merge and push, or open/refresh a sync PR.
+          sync() {
+            local target=$1 source=$2 label=$3 head=$4 rc=0 resolution_ref="" number body
+            git fetch -q --no-tags origin "$target"
+            if [ -n "$RESOLUTION" ] && [ "$res_target" = "$target" ]; then
+              git fetch -q --no-tags origin "$res_branch"
+              resolution_ref="origin/$res_branch"
+            fi
+            TARGET=$target SOURCE_REF=$source SOURCE_LABEL=$label RESOLUTION_REF=$resolution_ref \
+              EXCLUDE_FILE="$RUNNER_TEMP/upstream-exclude" bash "$RUNNER_TEMP/sync-merge.sh" || rc=$?
+            { echo "### $target"; echo; cat sync-result.md; echo; } >> "$GITHUB_STEP_SUMMARY"
+            case $rc in
+              0) return 0 ;;
+              3|4) ;;
+              *) echo "::error::Sync into $target failed (exit $rc)"; return "$rc" ;;
+            esac
+            echo "::warning::$target needs a reviewer; see the sync PR."
+            number=$(gh api -X GET "repos/$REPO/pulls" -f state=open -f base="$target" -f head="$head" --jq '.[0].number // empty')
+            body=$(cat sync-result.md)
+            if [ -n "$number" ]; then
+              gh pr edit "$number" --repo "$REPO" --body "$body" >/dev/null
+              echo "Updated sync PR #$number"
+            else
+              args=(--repo "$REPO" --base "$target" --head "$head" --title "chore: sync $target from $label" --body "$body")
+              # A cross-repo head is upstream's branch; this token can't grant its maintainers edit rights.
+              [[ "$head" == *:* ]] && args+=(--no-maintainer-edit)
+              gh pr create "${args[@]}"
+            fi
+          }
+
+          # The PR head filter needs owner:branch, even for same-repo branches.
+          sync "$TARGET" "upstream/$TARGET" "$UPSTREAM_REPO:$TARGET" "${UPSTREAM_REPO%%/*}:$TARGET"
+          sync dev "origin/$TARGET" "$TARGET" "${REPO%%/*}:$TARGET"

@@ -1,22 +1,15 @@
 name: PR build
 
 # Runs in contributor forks with the fork's own config (APP_ENV_FILE, optional) and Actions minutes.
-# Builds only when this branch has an open PR into the review repo, so work-in-progress pushes cost nothing.
+# Builds on every branch push, but only when the branch has an open PR into the review repo, so
+# work-in-progress pushes cost nothing. Any branch name builds, so a misnamed branch still gets a
+# Fork build result (the Branch name check reports the naming problem) instead of waiting forever.
 # The review repo's fork-build.yml reads this run's result for the PR's head commit.
 #
 # First build after opening a PR: Actions -> PR build -> Run workflow on the branch (or push a commit).
 
 on:
   push:
-    branches:
-      - "feat/**"
-      - "fix/**"
-      - "test/**"
-      - "docs/**"
-      - "refactor/**"
-      - "chore/**"
-      - "perf/**"
-      - "security/**"
     paths-ignore:
       - "**.md"
   workflow_dispatch:

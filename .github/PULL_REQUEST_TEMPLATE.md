@@ -4,7 +4,7 @@
 
 ## Team lead
 
-<!-- @handle of your team lead. They review and approve this PR before Zedu reviewers pick it up. -->
+<!-- @handle of your team lead. A lead registered for your fork's org must approve before the Lead approval check passes and Zedu reviewers pick it up. -->
 
 @
 

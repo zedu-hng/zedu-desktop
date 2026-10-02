@@ -1,0 +1,100 @@
+name: Team routing
+
+# When a contributor PR opens, finds the team from the fork's org (.github/teams.yml on the base
+# branch) and requests review from its lead(s). Unregistered orgs and personal forks get instructions
+# and the fallback reviewer. Skips same-repo, bot and reviewer PRs. Never checks out PR code.
+
+on:
+  pull_request_target:
+    branches:
+      - dev
+      - central-staging
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: team-routing-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  route:
+    name: Route to team lead
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      AUTHOR: ${{ github.event.pull_request.user.login }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          persist-credentials: false
+
+      - name: Compose routing comment
+        id: route
+        run: |
+          org=${HEAD_REPO%%/*}
+          skip() { echo "Skipping: $1"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          [ "$HEAD_REPO" = "$REPO" ] && skip "same-repo PR"
+          case "$AUTHOR" in *"[bot]") skip "bot PR" ;; esac
+          case "$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission 2>/dev/null || echo none)" in
+            admin|maintain|write) skip "reviewer PR" ;;
+          esac
+
+          team=$(ruby .github/scripts/team-of.rb .github/teams.yml "$org")
+          name=$(jq -r '.team // ""' <<< "$team")
+          fallback=$(jq -r '.fallback_reviewer // ""' <<< "$team")
+          request=()
+          {
+            echo "### Team routing"
+            echo
+            if [ -n "$name" ]; then
+              mapfile -t leads < <(jq -r --arg a "${AUTHOR,,}" '.leads[] | select(ascii_downcase != $a)' <<< "$team")
+              reviewer=$(jq -r '.reviewer // ""' <<< "$team")
+              echo "Team **$name** (fork org \`$org\`)."
+              if [ "${#leads[@]}" -gt 0 ]; then
+                echo "Lead approval needed from one of: $(printf '@%s ' "${leads[@]}")"
+                request+=("${leads[@]}")
+              else
+                echo "You're the team's only lead, so lead approval is waived; a Zedu reviewer will review."
+              fi
+              [ -n "$reviewer" ] && { echo "Zedu reviewer: @$reviewer"; request+=("$reviewer"); }
+            else
+              if [ "${org,,}" = "${AUTHOR,,}" ]; then
+                echo "This PR comes from a personal fork (\`$org\`). Open it from your **team's org fork** instead; see CONTRIBUTING.md."
+              else
+                echo "Fork org \`$org\` isn't registered in \`.github/teams.yml\`. A reviewer needs to add it with your team lead's handle."
+              fi
+              [ -n "$fallback" ] && { echo; echo "cc @$fallback"; request+=("$fallback"); }
+            fi
+          } > routing.md
+          echo "reviewers=$(IFS=,; echo "${request[*]}")" >> "$GITHUB_OUTPUT"
+
+      # GitHub only accepts review requests for collaborators; anyone else is still tagged in the comment.
+      - name: Request reviews
+        if: steps.route.outputs.skip != 'true' && steps.route.outputs.reviewers != ''
+        env:
+          REVIEWERS: ${{ steps.route.outputs.reviewers }}
+        run: |
+          IFS=, read -ra handles <<< "$REVIEWERS"
+          for h in "${handles[@]}"; do
+            gh pr edit "$PR" --repo "$REPO" --add-reviewer "$h" >/dev/null 2>&1 \
+              || echo "::notice::Couldn't request review from @$h (not a collaborator); tagged in the comment."
+          done
+
+      - uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
+        if: steps.route.outputs.skip != 'true'
+        with:
+          header: team-routing
+          number: ${{ github.event.pull_request.number }}
+          path: routing.md
