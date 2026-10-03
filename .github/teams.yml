@@ -20,6 +20,9 @@
 fallback_reviewer: logickoder
 
 teams:
+  condor:
+    orgs: [zedu-condor]
+    leads: [Benumoh]
   egret:
     orgs: [HNG-ZEDU-EGRET]
     leads: [TrippleA001]
@@ -35,6 +38,9 @@ teams:
   quetzal:
     orgs: [HNG-Zedu-Quetzal]
     leads: [Summiedev]
+  raven:
+    orgs: [zedu-raven]
+    leads: [Sage-25]
   toucan:
     orgs: [Zedu-Toucan-Team]
     leads: [nzube123]
