@@ -19,4 +19,22 @@
 
 fallback_reviewer: logickoder
 
-teams: {}
+teams:
+  heron:
+    orgs: [Zedu-Heron-HNG]
+    leads: [dav3exe]
+  macaw:
+    orgs: [hng-zedu-macaw]
+    leads: [somanie]
+  osprey:
+    orgs: [Zedu-Osprey]
+    leads: [Sodiqbinaliu]
+  quetzal:
+    orgs: [HNG-Zedu-Quetzal]
+    leads: [Summiedev]
+  toucan:
+    orgs: [Zedu-Toucan-Team]
+    leads: [nzube123]
+  weaver:
+    orgs: [Zedu-Weaver]
+    leads: [omotomiwa26]
