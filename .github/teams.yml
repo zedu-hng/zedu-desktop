@@ -20,6 +20,9 @@
 fallback_reviewer: logickoder
 
 teams:
+  egret:
+    orgs: [HNG-ZEDU-EGRET]
+    leads: [TrippleA001]
   heron:
     orgs: [Zedu-Heron-HNG]
     leads: [dav3exe]
