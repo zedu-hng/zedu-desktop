@@ -26,9 +26,18 @@ teams:
   egret:
     orgs: [HNG-ZEDU-EGRET]
     leads: [TrippleA001]
+  flamingo:
+    orgs: [zedu-flamingo]
+    leads: [jenniferamanze]
   heron:
     orgs: [Zedu-Heron-HNG]
     leads: [dav3exe]
+  ibis:
+    orgs: [zedu-ibis]
+    leads: [solinkz]
+  lark:
+    orgs: [Zedu-LARK]
+    leads: [MiKKeYeLLi]
   macaw:
     orgs: [hng-zedu-macaw]
     leads: [somanie]
