@@ -8,10 +8,10 @@ name: PR build
 #
 # First build after opening a PR: Actions -> PR build -> Run workflow on the branch (or push a commit).
 
+# No paths-ignore: a docs-only push on top of code changes still needs a build for its head commit,
+# or the review repo's Fork build check has nothing to read for it.
 on:
   push:
-    paths-ignore:
-      - "**.md"
   workflow_dispatch:
 
 concurrency:
@@ -38,6 +38,12 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           BRANCH: ${{ github.ref_name }}
         run: |
+          # Reviewers' branches in the review repo itself need no fork build (Fork build passes them).
+          if [ "$GITHUB_REPOSITORY" = "$REVIEW_REPO" ]; then
+            echo "::notice::Running in the review repo; no fork build needed."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           number=$(gh api -X GET "repos/$REVIEW_REPO/pulls" -f state=open -f head="$OWNER:$BRANCH" --jq '.[0].number // empty')
           if [ -n "$number" ]; then
             echo "Open PR $REVIEW_REPO#$number from $OWNER:$BRANCH; building."

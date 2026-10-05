@@ -2,7 +2,7 @@
 
 Instructions for AI coding agents working in `zedu-desktop` (Flutter, targeting macOS, Windows and Linux).
 
-**Read `CONTRIBUTING.md` first.** It is the source of truth for the workflow: tickets, branches, PR titles, testing, CI tiers, PRs and secrets. This file adds only what an agent needs on top of it. Where the two disagree, `CONTRIBUTING.md` wins.
+**Read `CONTRIBUTING.md` first.** It is the source of truth for the workflow: tickets, branches, PR titles, testing, CI, PRs and secrets. This file adds only what an agent needs on top of it. Where the two disagree, `CONTRIBUTING.md` wins.
 
 ## Hard rules
 

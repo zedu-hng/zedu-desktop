@@ -6,6 +6,7 @@ name: PR rules
 # - Branch name: <type>/<ticket-id>-<short-description>. Reviewers (write access) are exempt.
 # - Single author: one person per PR. Co-authored-by trailers are fine. Reviewers are exempt.
 # - Protected files: .github/, AGENTS.md, CONTRIBUTING.md, analysis_options.yaml, scripts/ (CI scans).
+#   Also secret-like files: .env*, keystores, certificates, credential JSON.
 #   Blocked unless a reviewer adds the `config-change-approved` label.
 # Sync and promotion PRs (dev / central-staging from this repo or upstream) skip all three.
 
@@ -125,8 +126,14 @@ jobs:
     steps:
       - run: |
           protected='^(\.github/|AGENTS\.md$|CONTRIBUTING\.md$|analysis_options\.yaml$|scripts/)'
-          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
+          changed=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[] | "\(.status) \(.filename)"')
+          files=$(cut -d' ' -f2- <<< "$changed")
           hits=$(grep -E "$protected" <<< "$files" || true)
+          # Secret-like files (env files, keystores, certificates, credential JSON) also need the label.
+          # Deleting one is fine, so removed files don't count. .env.example is a template, not a secret.
+          secret='(^|/)\.env($|\.)|\.(keystore|jks|p12|pfx|pem|p8|mobileprovision)$|(^|/)(credentials|secrets|service-account[^/]*)\.json$'
+          secrets=$(grep -v '^removed ' <<< "$changed" | cut -d' ' -f2- | grep -Ei "$secret" | grep -Ev '(^|/)\.env\.example$' || true)
+          hits=$(printf '%s\n%s\n' "$hits" "$secrets" | grep . | sort -u || true)
           # Dependabot bumps GitHub Actions only (.github/dependabot.yml). Waive it only while every
           # changed file is under .github/, so a wider Dependabot config can't ride this exemption.
           if [ "$DEPENDABOT" = true ] && ! grep -qv '^\.github/' <<< "$files"; then

@@ -183,7 +183,8 @@ These are owned by the reviewers. The **Protected files** check fails any PR tha
 - `.github/` (workflows and templates);
 - `AGENTS.md` and `CONTRIBUTING.md`;
 - `analysis_options.yaml`;
-- `scripts/` (the CI scan scripts).
+- `scripts/` (the CI scan scripts);
+- secret-like files anywhere: `.env*` (except `.env.example`), keystores, certificates and keys (`.p12`, `.pfx`, `.pem`, `.p8`), credential or service-account JSON.
 
 Dependency changes (`pubspec.yaml`, `pubspec.lock`) are fine when the ticket needs them. **Moving or restructuring files needs its own approved ticket**; never mix it into feature work.
 
@@ -193,12 +194,12 @@ Dependency changes (`pubspec.yaml`, `pubspec.lock`) are fine when the ticket nee
 
 Your fork builds your PR, using your fork's `APP_ENV_FILE`, so the build talks to your team's backend. Zedu never holds your config or secrets.
 
-- **Builds run only while your PR is open.** Pushes to a ticket branch without an open PR skip the build, and docs-only pushes never build. It uses your fork's Actions minutes, which are free on public repos.
+- **Builds run only while your PR is open.** Pushes to a ticket branch without an open PR skip the build, and a PR that changes only docs needs no build. It uses your fork's Actions minutes, which are free on public repos.
 - **First build:** opening the PR doesn't trigger one. In your fork, go to **Actions → PR build → Run workflow** on your branch, or push a commit. After that, every push builds automatically.
 - On your PR, the **Fork build** check finds that build for your latest commit, waits for it, and posts download links and install notes for macOS, Windows and Linux. Reviewers test with those.
-- After a manual build, **Fork build** updates on its own within 15 minutes; comment `/fork-build` on the PR to check straight away. No build showing at all? Check that Actions is enabled in your fork and that it's synced.
+- Start a manual build within 30 minutes of opening the PR (or of your last push) and **Fork build** picks it up on its own. Later than that, or to check straight away, comment `/fork-build` on the PR. Comment it too after re-running a failed build in your fork. No build showing at all? Check that Actions is enabled in your fork and that it's synced.
 
-Format, analyze, tests, the security scans, **Branch name**, **Single author**, **Protected files** and **Lead approval** run on the PR itself. On a first-time contribution, a maintainer has to approve the workflow run before anything runs.
+Format, analyze, tests, the security scans, **Branch name**, **Single author**, **Protected files** and **Lead approval** run on the PR itself. On a first-time contribution, a maintainer has to approve the run before format, analyze, tests and the scans start. **Branch name**, **Single author**, **Protected files**, **Lead approval** and **Fork build** run straight away.
 
 ---
 
@@ -248,7 +249,7 @@ Because we **squash-merge** PRs into `dev`, the messy merge commits in your bran
 
 ## How PRs land
 
-- **Your team lead approves first.** **Lead approval** goes green once a lead registered for your fork's org approves. It re-checks every 5 minutes. Zedu reviewers only pick up PRs with it green.
+- **Your team lead approves first.** **Lead approval** goes green once a lead registered for your fork's org approves. It re-checks as soon as a lead reviews. Zedu reviewers only pick up PRs with it green.
 - A lead who opens their own PR needs another lead's approval. A team with one lead is waived and goes straight to Zedu review.
 - If your lead approved somewhere GitHub can't see, a reviewer can add the `lead-verified` label.
 - **1 Zedu reviewer approval** is required, and it must come after your last push.

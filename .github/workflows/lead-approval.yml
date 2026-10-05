@@ -4,8 +4,9 @@ name: Lead approval
 # fork's org, looked up in .github/teams.yml from the base branch (a PR can't change its mapping).
 # Logic lives in .github/scripts/lead-approval.sh; this file only decides which PRs to check.
 #
-# Reviews on fork PRs run with a read-only token and can't set a status, so a sweep re-checks every
-# open PR every 5 minutes in a single run. The script only writes a status when it changes.
+# Reviews on fork PRs run with a read-only token and can't set a status, so lead-approval-relay.yml
+# dispatches this for the PR right after each review. The 5-minute sweep re-checks every open PR as a
+# fallback (GitHub often skips cron runs). The script only writes a status when it changes.
 # Never checks out PR code.
 
 on:

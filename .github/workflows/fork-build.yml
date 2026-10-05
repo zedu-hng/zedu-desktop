@@ -6,9 +6,11 @@ name: Fork build
 # and the fork builds with the workflow file from that same commit.
 #
 # Sets the commit status "Fork build" and posts download links. Re-check any time with a /fork-build comment.
-# Every 15 minutes a sweep re-checks PRs still showing "No build yet", so a manual first build is picked up
-# without anyone commenting. It also relays PRs with no Fork build status at all: PRs opened by a
-# workflow's GITHUB_TOKEN (sync-upstream) don't fire pull_request_target.
+# GitHub's cron is a backstop only (it often skips runs), so the relay doesn't depend on it:
+# - No build yet: it keeps watching the fork for 30 minutes and re-runs itself when a manual build appears.
+# - Still running at its 75-minute limit: it re-runs itself to keep waiting.
+# The sweep re-checks open PRs whose Fork build isn't green (a re-run fork build fires no event here), and
+# relays PRs with no status at all: PRs opened by a workflow's GITHUB_TOKEN don't fire pull_request_target.
 
 on:
   pull_request_target:
@@ -28,6 +30,10 @@ on:
       pr:
         description: PR number to re-check
         required: true
+      watch:
+        description: With no build yet, keep watching the fork for a manual one
+        type: boolean
+        default: true
   schedule:
     - cron: "*/15 * * * *"
 
@@ -46,7 +52,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Scheduled: re-dispatch the relay for open PRs whose Fork build still says "No build yet".
+  # Scheduled: re-dispatch the relay for open PRs whose Fork build is missing or not green.
   sweep:
     name: Re-check pending PRs
     if: github.event_name == 'schedule'
@@ -65,12 +71,12 @@ jobs:
           gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
             --jq '.[] | select(.base.ref == "dev" or .base.ref == "central-staging") | "\(.number) \(.head.sha)"' |
           while read -r number sha; do
-            desc=$(gh api "repos/$REPO/commits/$sha/status" --jq '.statuses[] | select(.context == "Fork build") | .description' | head -1)
-            case "$desc" in
-              ""|"No build yet"*)
-                echo "PR #$number: re-checking ($desc)"
-                gh workflow run fork-build.yml --repo "$REPO" --ref "$DEFAULT_BRANCH" -f pr="$number" ;;
-            esac
+            state=$(gh api "repos/$REPO/commits/$sha/status" --jq '.statuses[] | select(.context == "Fork build") | .state' | head -1)
+            if [ "$state" != success ]; then
+              echo "PR #$number: re-checking (${state:-no status})"
+              # No watch: an abandoned PR would otherwise hold a runner between every sweep.
+              gh workflow run fork-build.yml --repo "$REPO" --ref "$DEFAULT_BRANCH" -f pr="$number" -f watch=false
+            fi
           done
 
   relay:
@@ -83,6 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 80
     permissions:
+      actions: write
       pull-requests: write
       statuses: write
     env:
@@ -133,7 +140,21 @@ jobs:
           SHA: ${{ steps.pr.outputs.sha }}
           HEAD_REPO: ${{ steps.pr.outputs.head_repo }}
         run: |
-          status() { gh api "repos/$REPO/statuses/$SHA" -f state="$1" -f context="$CONTEXT" -f description="$2" ${3:+-f target_url="$3"} >/dev/null; }
+          # Write only on change: each write is an API call, and GitHub caps statuses per commit and context.
+          last=$(gh api "repos/$REPO/commits/$SHA/status" | jq -r --arg c "$CONTEXT" \
+            '[.statuses[] | select(.context == $c)][0] // empty | "\(.state)|\(.description)|\(.target_url // "")"' || true)
+          status() {
+            [ "$1|$2|${3:-}" = "$last" ] && return 0
+            gh api "repos/$REPO/statuses/$SHA" -f state="$1" -f context="$CONTEXT" -f description="$2" ${3:+-f target_url="$3"} >/dev/null
+            last="$1|$2|${3:-}"
+          }
+          no_build() {
+            {
+              echo "found=false"
+              echo "skipped_id=${1:-0}"
+            } >> "$GITHUB_OUTPUT"
+            status pending "No build yet for ${SHA:0:7}. In your fork: Actions > PR build > Run workflow." "${2:-}"
+          }
           appear_by=$(( $(date +%s) + 3 * 60 ))
           deadline=$(( $(date +%s) + 75 * 60 ))
           while :; do
@@ -142,16 +163,19 @@ jobs:
             if [ -z "$run" ]; then
               # A push's fork run takes a moment to register; allow ~3 minutes before reporting none.
               if [ "$(date +%s)" -lt "$appear_by" ]; then sleep 20; continue; fi
-              echo "found=false" >> "$GITHUB_OUTPUT"
-              status pending "No build yet for ${SHA:0:7}. In your fork: Actions > PR build > Run workflow."
+              no_build
               exit 0
             fi
             url=$(echo "$run" | jq -r .html_url)
             state=$(echo "$run" | jq -r .status)
             if [ "$state" != "completed" ]; then
               status pending "Fork build running for ${SHA:0:7}" "$url"
-              [ "$(date +%s)" -lt "$deadline" ] || { echo "Timed out waiting; comment /fork-build to re-check."; exit 0; }
-              sleep 60
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "Still running at the time limit; handing over to a fresh relay."
+                echo "redispatch=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              sleep 120
               continue
             fi
             conclusion=$(echo "$run" | jq -r .conclusion)
@@ -161,8 +185,7 @@ jobs:
               built=$(gh api "repos/$HEAD_REPO/actions/runs/$run_id/jobs" \
                 --jq '[.jobs[] | select(.name != "Open PR check" and .conclusion != "skipped")] | length')
               if [ "$built" -eq 0 ]; then
-                echo "found=false" >> "$GITHUB_OUTPUT"
-                status pending "No build yet for ${SHA:0:7}. In your fork: Actions > PR build > Run workflow." "$url"
+                no_build "$run_id" "$url"
                 exit 0
               fi
             fi
@@ -181,7 +204,7 @@ jobs:
           done
 
       - name: Compose comment
-        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
+        if: steps.run.outputs.found != ''
         env:
           SHA: ${{ steps.pr.outputs.sha }}
           HEAD_REPO: ${{ steps.pr.outputs.head_repo }}
@@ -195,11 +218,11 @@ jobs:
             echo
             if [ "$FOUND" != "true" ]; then
               echo "No build found yet in \`$HEAD_REPO\`. Builds only run once this PR is open, so trigger the first one:"
-              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit. This check picks it up within 15 minutes, or comment \`/fork-build\` to check now."
+              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit. Start it within 30 minutes and this check picks it up on its own; otherwise, or to check now, comment \`/fork-build\`."
               echo
               echo "Still nothing? Check that Actions is enabled in your fork and that it's synced with \`$REPO\`."
             elif [ "$CONCLUSION" != "success" ]; then
-              echo "The fork build **$CONCLUSION**: [see the run]($URL). Fix it and push; this updates automatically."
+              echo "The fork build **$CONCLUSION**: [see the run]($URL). Fix it and push; this updates automatically. Re-ran it in your fork instead? Comment \`/fork-build\`."
             else
               echo "Built in your fork: [run]($URL). Download from its **Artifacts** section:"
               echo
@@ -215,8 +238,36 @@ jobs:
           } > comment.md
 
       - uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
-        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
+        if: steps.run.outputs.found != ''
         with:
           header: fork-build
           number: ${{ env.PR_NUMBER }}
           path: comment.md
+
+      # Hands over to a fresh relay run (same per-PR concurrency group) instead of waiting on cron:
+      # at the time limit while the fork build still runs, or when a manual first build shows up.
+      - name: Hand off
+        if: >-
+          steps.run.outputs.redispatch == 'true' ||
+          (steps.run.outputs.found == 'false' && (github.event_name != 'workflow_dispatch' || inputs.watch))
+        env:
+          SHA: ${{ steps.pr.outputs.sha }}
+          HEAD_REPO: ${{ steps.pr.outputs.head_repo }}
+          SKIPPED_ID: ${{ steps.run.outputs.skipped_id || 0 }}
+          REDISPATCH: ${{ steps.run.outputs.redispatch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          redispatch() { gh workflow run fork-build.yml --repo "$REPO" --ref "$DEFAULT_BRANCH" -f pr="$PR_NUMBER"; }
+          if [ "$REDISPATCH" = true ]; then redispatch; exit 0; fi
+          deadline=$(( $(date +%s) + 30 * 60 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            sleep 120
+            newest=$(gh api "repos/$HEAD_REPO/actions/workflows/pr-build.yml/runs?head_sha=$SHA&per_page=10" \
+              --jq '[.workflow_runs[] | select(.path == ".github/workflows/pr-build.yml") | .id] | max // 0' 2>/dev/null || echo 0)
+            if [ "${newest:-0}" -gt "$SKIPPED_ID" ]; then
+              echo "Fork build $newest appeared; re-checking."
+              redispatch
+              exit 0
+            fi
+          done
+          echo "No build within 30 minutes. The sweep or a /fork-build comment re-checks later."
