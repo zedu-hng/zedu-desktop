@@ -28,31 +28,40 @@ teams:
     leads: [TrippleA001]
   flamingo:
     orgs: [zedu-flamingo]
-    leads: [jenniferamanze]
+    leads: [jenniferamanze, thesongmartins]
   heron:
     orgs: [Zedu-Heron-HNG]
-    leads: [dav3exe]
+    leads: [dav3exe, Chloetrini]
   ibis:
     orgs: [zedu-ibis]
     leads: [solinkz]
+  kestrel:
+    orgs: [zedu-kestrel]
+    leads: [Fabito97, yvnks]
   lark:
     orgs: [Zedu-LARK]
-    leads: [MiKKeYeLLi]
+    leads: [MiKKeYeLLi, alexindevs]
   macaw:
     orgs: [hng-zedu-macaw]
-    leads: [somanie]
+    leads: [somanie, onyx093]
   osprey:
     orgs: [Zedu-Osprey]
-    leads: [Sodiqbinaliu]
+    leads: [Sodiqbinaliu, Ekekwecharles]
+  puffin:
+    orgs: [HNG-Tech-Team-Zedu-Puffin]
+    leads: [gODtECH-Ctl-Create, CharlesMisheal]
   quetzal:
     orgs: [HNG-Zedu-Quetzal]
-    leads: [Summiedev]
+    leads: [Summiedev, prince-tiwaa]
   raven:
     orgs: [zedu-raven]
     leads: [Sage-25]
+  sparrow:
+    orgs: [Zedu-sparrow]
+    leads: [abrahambishopcodes]
   toucan:
     orgs: [Zedu-Toucan-Team]
-    leads: [nzube123]
+    leads: [nzube123, cjaynduagwuike]
   weaver:
     orgs: [Zedu-Weaver]
-    leads: [omotomiwa26]
+    leads: [omotomiwa26, dayjigud]
