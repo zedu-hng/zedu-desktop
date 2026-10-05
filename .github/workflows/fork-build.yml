@@ -212,13 +212,19 @@ jobs:
           URL: ${{ steps.run.outputs.url }}
           RUN_ID: ${{ steps.run.outputs.id }}
           CONCLUSION: ${{ steps.run.outputs.conclusion }}
+          WATCH: ${{ github.event_name != 'workflow_dispatch' || inputs.watch }}
         run: |
           {
             echo "### Fork build for \`${SHA:0:7}\`"
             echo
             if [ "$FOUND" != "true" ]; then
               echo "No build found yet in \`$HEAD_REPO\`. Builds only run once this PR is open, so trigger the first one:"
-              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit. Start it within 30 minutes and this check picks it up on its own; otherwise, or to check now, comment \`/fork-build\`."
+              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit."
+              if [ "$WATCH" = true ]; then
+                echo "Start it within 30 minutes and this check picks it up on its own; otherwise, or to check now, comment \`/fork-build\`."
+              else
+                echo "Then comment \`/fork-build\` so this check picks it up."
+              fi
               echo
               echo "Still nothing? Check that Actions is enabled in your fork and that it's synced with \`$REPO\`."
             elif [ "$CONCLUSION" != "success" ]; then
