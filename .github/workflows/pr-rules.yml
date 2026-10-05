@@ -131,7 +131,7 @@ jobs:
           hits=$(grep -E "$protected" <<< "$files" || true)
           # Secret-like files (env files, keystores, certificates, credential JSON) also need the label.
           # Deleting one is fine, so removed files don't count. .env.example is a template, not a secret.
-          secret='(^|/)\.env($|\.)|\.(keystore|jks|p12|pfx|pem|p8|mobileprovision)$|(^|/)(credentials|secrets|service-account[^/]*)\.json$'
+          secret='(^|/)\.env($|\.)|\.(keystore|jks|p[[:digit:]]+|pfx|pem|mobileprovision)$|(^|/)(credentials|secrets|service-account[^/]*)\.json$'
           secrets=$(grep -v '^removed ' <<< "$changed" | cut -d' ' -f2- | grep -Ei "$secret" | grep -Ev '(^|/)\.env\.example$' || true)
           hits=$(printf '%s\n%s\n' "$hits" "$secrets" | grep . | sort -u || true)
           # Dependabot bumps GitHub Actions only (.github/dependabot.yml). Waive it only while every
