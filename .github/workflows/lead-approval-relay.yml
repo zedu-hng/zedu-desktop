@@ -19,4 +19,4 @@ jobs:
     permissions:
       actions: write
       pull-requests: read
-    uses: zedu-hng/zedu-ci/.github/workflows/lead-approval-relay.yml@824330514fa1cf4dd28c3fc0277aa555d03a9b28
+    uses: zedu-hng/zedu-ci/.github/workflows/lead-approval-relay.yml@2ede8e8f507e4527eff462eca646986f289fbd55
