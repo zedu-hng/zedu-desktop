@@ -23,4 +23,4 @@ jobs:
     name: PR build
     permissions:
       contents: read
-    uses: zedu-hng/zedu-ci/.github/workflows/pr-build-flutter.yml@1286dc5f1374a9eace0d0d46d534f7a92da23a49
+    uses: zedu-hng/zedu-ci/.github/workflows/pr-build-flutter.yml@f8fb64f3ffbb1d529cd478fb81f1ad1bad97d52d

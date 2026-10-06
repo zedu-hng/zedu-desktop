@@ -36,20 +36,14 @@ on:
 
 permissions: {}
 
-# Only real relays share a per-PR group: PR events (an edit only when the body changed and has a
-# Backend URL line, the same test as the relay job), /fork-build and the relay's own re-checks.
-# Anything else gets a unique group, so an unrelated comment, a title edit or a template tick can't
-# cancel a relay that's waiting on the fork build.
+# Only real relays share a per-PR group: PR events other than edits, /fork-build and the relay's own
+# re-checks. Edits and anything else get a unique group, so a template tick or an unrelated comment
+# can't cancel a relay that's waiting on the fork build. An edit that changes the Backend URL
+# dispatches the relay itself.
 concurrency:
   group: >-
     fork-build-${{
-      (github.event_name == 'pull_request_target' &&
-       (github.event.action != 'edited' ||
-        (github.event.changes.body != null &&
-         (contains(github.event.pull_request.body, 'backend url: https') ||
-          contains(github.event.pull_request.body, 'backend url:https') ||
-          contains(github.event.changes.body.from, 'backend url: https') ||
-          contains(github.event.changes.body.from, 'backend url:https')))) &&
+      (github.event_name == 'pull_request_target' && github.event.action != 'edited' &&
        github.event.pull_request.number)
       || ((github.event.comment.body == '/fork-build' || startsWith(github.event.comment.body, '/fork-build '))
           && github.event.issue.number)
@@ -66,7 +60,7 @@ jobs:
       contents: read
       pull-requests: write
       statuses: write
-    uses: zedu-hng/zedu-ci/.github/workflows/fork-build.yml@1286dc5f1374a9eace0d0d46d534f7a92da23a49
+    uses: zedu-hng/zedu-ci/.github/workflows/fork-build.yml@f8fb64f3ffbb1d529cd478fb81f1ad1bad97d52d
     with:
       artifact_help: |
         - **macOS** (`desktop-macos`): unzip twice, then right-click the app > Open (or `xattr -dr com.apple.quarantine Zedu.app`) to get past Gatekeeper.
