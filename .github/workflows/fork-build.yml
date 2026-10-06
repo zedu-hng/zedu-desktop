@@ -66,7 +66,7 @@ jobs:
       contents: read
       pull-requests: write
       statuses: write
-    uses: zedu-hng/zedu-ci/.github/workflows/fork-build.yml@68610c18fdeab8e1a6d5c71d67540778e4c84d74
+    uses: zedu-hng/zedu-ci/.github/workflows/fork-build.yml@1286dc5f1374a9eace0d0d46d534f7a92da23a49
     with:
       artifact_help: |
         - **macOS** (`desktop-macos`): unzip twice, then right-click the app > Open (or `xattr -dr com.apple.quarantine Zedu.app`) to get past Gatekeeper.
