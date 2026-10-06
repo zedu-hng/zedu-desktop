@@ -26,4 +26,4 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    uses: zedu-hng/zedu-ci/.github/workflows/reviewer-claim.yml@611ceaf520a06f6098fe417e86be7894df695c44
+    uses: zedu-hng/zedu-ci/.github/workflows/reviewer-claim.yml@824330514fa1cf4dd28c3fc0277aa555d03a9b28
