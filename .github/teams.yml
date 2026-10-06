@@ -22,10 +22,13 @@ fallback_reviewer: logickoder
 teams:
   condor:
     orgs: [zedu-condor]
-    leads: [Benumoh]
+    leads: [fiiwebarry, Aniyikaye-Alabi]
+  drongo:
+    orgs: [Zedu-Drongo]
+    leads: [Goodnessmbakara, MUFTIATBAKARE]
   egret:
     orgs: [HNG-ZEDU-EGRET]
-    leads: [TrippleA001]
+    leads: [TrippleA001, OKEKE-PRINCEWILL]
   flamingo:
     orgs: [zedu-flamingo]
     leads: [jenniferamanze, thesongmartins]
@@ -55,7 +58,7 @@ teams:
     leads: [Summiedev, prince-tiwaa]
   raven:
     orgs: [zedu-raven]
-    leads: [Sage-25]
+    leads: [Sage-25, tinkerwkoko]
   sparrow:
     orgs: [Zedu-sparrow]
     leads: [abrahambishopcodes]
