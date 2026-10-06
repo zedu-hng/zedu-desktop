@@ -128,7 +128,12 @@ jobs:
           protected='^(\.github/|AGENTS\.md$|CONTRIBUTING\.md$|analysis_options\.yaml$|scripts/)'
           # A rename lists its old path too, so moving a protected or secret-like file away still counts.
           changed=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" \
-            --jq '.[] | "\(.status) \(.filename)", (select(.status == "renamed") | "renamed \(.previous_filename)")')
+            --jq '.[] | "\(.status) \(.filename)", (select(.status == "renamed") | "previous \(.previous_filename)")')
+          # GitHub lists at most 3,000 files per PR, so paths beyond that can't be checked.
+          if [ "$(grep -vc '^previous ' <<< "$changed")" -ge 3000 ]; then
+            echo "::error::This PR changes 3,000+ files, more than GitHub lists, so its files can't all be checked. Split it."
+            exit 1
+          fi
           files=$(cut -d' ' -f2- <<< "$changed")
           hits=$(grep -E "$protected" <<< "$files" || true)
           # Secret-like files (env files, keystores, certificates, credential JSON) also need the label.
