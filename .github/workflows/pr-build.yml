@@ -1,165 +1,26 @@
 name: PR build
 
-# Runs in contributor forks with the fork's own config (APP_ENV_FILE, optional) and Actions minutes.
-# Builds on every branch push, but only when the branch has an open PR into the review repo, so
-# work-in-progress pushes cost nothing. Any branch name builds, so a misnamed branch still gets a
-# Fork build result (the Branch name check reports the naming problem) instead of waiting forever.
-# The review repo's fork-build.yml reads this run's result for the PR's head commit.
-#
-# First build after opening a PR: Actions -> PR build -> Run workflow on the branch (or push a commit).
+# Runs in contributor forks (on the fork's Actions minutes) and calls zedu-hng/zedu-ci (pr-build-flutter.yml),
+# pinned by commit. Builds only when the branch has an open PR into zedu-hng/zedu-desktop, against our dev
+# backend, or the host on the PR description's `Backend URL:` line. The review repo's Fork build check
+# reads the result. First build after opening a PR: Actions -> PR build -> Run workflow on the branch
+# (or push a commit). No fork setup needed.
 
+# No paths-ignore: a docs-only push on top of code changes still needs a build for its head commit,
+# or the review repo's Fork build check has nothing to read for it.
 on:
   push:
-    paths-ignore:
-      - "**.md"
   workflow_dispatch:
+
+permissions: {}
 
 concurrency:
   group: pr-build-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
-env:
-  FLUTTER_VERSION: "3.41.5"
-
 jobs:
-  gate:
-    name: Open PR check
-    runs-on: ubuntu-latest
-    outputs:
-      build: ${{ steps.pr.outputs.build }}
-    steps:
-      - id: pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REVIEW_REPO: ${{ vars.REVIEW_REPO || format('zedu-hng/{0}', github.event.repository.name) }}
-          OWNER: ${{ github.repository_owner }}
-          BRANCH: ${{ github.ref_name }}
-        run: |
-          number=$(gh api -X GET "repos/$REVIEW_REPO/pulls" -f state=open -f head="$OWNER:$BRANCH" --jq '.[0].number // empty')
-          if [ -n "$number" ]; then
-            echo "Open PR $REVIEW_REPO#$number from $OWNER:$BRANCH; building."
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::No open PR from $OWNER:$BRANCH into $REVIEW_REPO; skipping build. Open the PR, then run this workflow or push."
-            echo "build=false" >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    name: ${{ matrix.target }}
-    needs: gate
-    if: needs.gate.outputs.build == 'true'
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: macos
-            os: macos-15
-          # audioplayers_windows still builds with /await, which Visual Studio 18 (windows-latest) removed.
-          - target: windows
-            os: windows-2022
-          - target: linux
-            os: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-
-      - name: Linux build dependencies
-        if: matrix.target == 'linux'
-        run: |
-          sudo apt-get update
-          # Toolchain + GTK, then plugin deps: audioplayers (gstreamer), flutter_secure_storage (libsecret),
-          # local_notifier (libnotify), tray_manager (ayatana-appindicator).
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev \
-            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsecret-1-dev libnotify-dev \
-            libayatana-appindicator3-dev
-
-      # .env is a bundled asset (pubspec.yaml), so it must exist. Values come from the APP_ENV_FILE repo variable (each fork sets its own).
-      - name: Write .env
-        env:
-          APP_ENV_FILE: ${{ vars.APP_ENV_FILE }}
-        run: |
-          if [ -z "$APP_ENV_FILE" ]; then
-            echo "::warning::APP_ENV_FILE variable not set; falling back to .env.example defaults."
-            cp .env.example .env
-          else
-            printf '%s\n' "$APP_ENV_FILE" > .env
-          fi
-
-      - run: flutter pub get
-
-      # agora_rtc_engine's CMake extracts its SDKs inside the plugin dir, which Flutter reaches through
-      # .plugin_symlinks; CMake refuses to extract through a symlink on Windows. Pre-extract into the
-      # real pub-cache dir and mark it .plugin_dev so the plugin skips its own download/extract.
-      - name: Pre-fetch Agora Windows SDKs
-        if: matrix.target == 'windows'
-        run: |
-          version=$(awk '/^  agora_rtc_engine:/{f=1} f&&/version:/{gsub(/"/,"",$2); print $2; exit}' pubspec.lock)
-          plugin="$(cygpath -u "$PUB_CACHE")/hosted/pub.dev/agora_rtc_engine-$version/windows"
-          script="$plugin/cmake/DownloadSDK.cmake"
-          for kind in IRIS NATIVE; do
-            url=$(sed -nE "s/^set\(${kind}_SDK_DOWNLOAD_URL \"([^\"]+)\"\)/\1/p" "$script")
-            dir="$plugin/third_party/$(echo "$kind" | tr '[:upper:]' '[:lower:]')/lib"
-            mkdir -p "$dir"
-            curl -sSfL "$url" -o "$RUNNER_TEMP/$kind.zip"
-            7z x -y -o"$dir" "$RUNNER_TEMP/$kind.zip" > /dev/null
-          done
-          touch "$plugin/.plugin_dev"
-
-      - name: Build
-        if: matrix.target != 'macos'
-        run: flutter build ${{ matrix.target }} --release
-
-      # The Xcode project uses automatic signing with a team profile, and keychain-access-groups is a
-      # restricted entitlement that needs one. Review builds are ad-hoc signed without it instead.
-      - name: Build (macOS, ad-hoc signed)
-        if: matrix.target == 'macos'
-        run: |
-          flutter build macos --release --config-only
-          cp macos/Runner/Release.entitlements "$RUNNER_TEMP/ci.entitlements"
-          plutil -remove keychain-access-groups "$RUNNER_TEMP/ci.entitlements"
-          xcodebuild \
-            -workspace macos/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -derivedDataPath build/macos \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY=- \
-            DEVELOPMENT_TEAM= \
-            PROVISIONING_PROFILE_SPECIFIER= \
-            CODE_SIGN_ENTITLEMENTS="$RUNNER_TEMP/ci.entitlements" \
-            build
-
-      - name: Package
-        run: |
-          case "${{ matrix.target }}" in
-            macos)
-              app=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
-              ditto -c -k --sequesterRsrc --keepParent "$app" zedu-macos.zip ;;
-            windows)
-              7z a zedu-windows.zip ./build/windows/x64/runner/Release/* ;;
-            linux)
-              tar -czf zedu-linux.tar.gz -C build/linux/x64/release/bundle . ;;
-          esac
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: desktop-${{ matrix.target }}
-          path: |
-            zedu-macos.zip
-            zedu-windows.zip
-            zedu-linux.tar.gz
-          if-no-files-found: error
-          retention-days: 14
+    name: PR build
+    permissions:
+      contents: read
+    uses: zedu-hng/zedu-ci/.github/workflows/pr-build-flutter.yml@611ceaf520a06f6098fe417e86be7894df695c44

@@ -23,10 +23,10 @@ The full cycle for any piece of work:
 
 1. Pick up an **approved** ticket in ClickUp or Linear. No ticket, no work.
 2. Sync your fork's `dev` from `zedu-hng`.
-3. Create a ticket branch, do the work, and test it against your team's backend.
+3. Create a ticket branch, do the work, and test it against the dev backend.
 4. Open **one PR** from your ticket branch into `zedu-hng/zedu-desktop:dev`. One ticket, one person.
 5. Run the first build in your fork (see *How your PR gets built*). Your fork builds every push after that.
-6. Your team lead reviews and approves on the PR, and the **Lead approval** check goes green. Then Zedu reviewers review, using your fork's build.
+6. Your team lead reviews and approves on the PR, and the **Lead approved** check goes green. Then Zedu reviewers review, using your fork's build.
 7. Once approved, reviewers squash-merge it into `dev`, and your team syncs.
 8. Reviewers promote `dev` → `central-staging` and send it to Zedu. Verify, then close the ticket.
 
@@ -34,10 +34,10 @@ The full cycle for any piece of work:
 
 ## One-time setup (per team)
 
-1. Fork **`zedu-hng/zedu-desktop`** into your team's GitHub org. Not `zeduchat`: forking the wrong one points your PRs and **Sync fork** at the wrong repo. Not a personal account either: the org identifies your team, and PRs from personal forks fail **Lead approval**.
+1. Fork **`zedu-hng/zedu-desktop`** into your team's GitHub org. Not `zeduchat`: forking the wrong one points your PRs and **Sync fork** at the wrong repo. Not a personal account either: the org identifies your team, and PRs from personal forks fail **Lead approved**.
 2. In the fork, go to **Actions** and enable workflows. Forks have them off by default, and your PR builds run there.
-3. Register your team: your lead sends a Zedu reviewer the org name and every lead's GitHub handle. Reviewers add them to `.github/teams.yml`. Until then, your PRs fail **Lead approval**.
-4. To have your PR builds use your team's config, add a repository variable `APP_ENV_FILE` (**Settings → Secrets and variables → Actions → Variables**) containing your full `.env`. Without it, CI uses `.env.example`.
+3. Register your team: your lead sends a Zedu reviewer the org name and every lead's GitHub handle. Reviewers add them to [`teams.yml` in `zedu-hng/zedu-ci`](https://github.com/zedu-hng/zedu-ci/blob/main/teams.yml), one file for every Zedu repo, so a team registered for another repo is already set. Until then, your PRs fail **Lead approved**.
+4. Builds need no configuration: CI points them at the dev backend (see [How your PR gets built](#how-your-pr-gets-built)). An `APP_ENV_FILE` variable left in the fork from earlier isn't read any more; delete it.
 5. Each contributor clones the **team fork**:
 
 ```bash
@@ -50,7 +50,7 @@ flutter run
 
 See the README for configuration and platform setup. Never commit `.env`.
 
-To use your team's backend, set `API_BASE_URL` in your `.env` (or pass `--dart-define=API_BASE_URL=...`). Without it, the app uses Zedu staging (`https://api.staging.zedu.chat/api/v1/`).
+Set `API_BASE_URL` in your `.env` (or pass `--dart-define=API_BASE_URL=...`) to the dev backend, `https://api.hng.groups.zedu.chat/api/v1/`, or to your team's backend while you build backend work that isn't on dev yet. Don't leave the `.env.example` value: it points at Zedu's own staging, which bootcamp work never touches. The values CI uses are in [`build/zedu-desktop.env`](https://github.com/zedu-hng/zedu-ci/blob/main/build/zedu-desktop.env).
 
 ---
 
@@ -183,7 +183,8 @@ These are owned by the reviewers. The **Protected files** check fails any PR tha
 - `.github/` (workflows and templates);
 - `AGENTS.md` and `CONTRIBUTING.md`;
 - `analysis_options.yaml`;
-- `scripts/` (the CI scan scripts).
+- `scripts/` (the CI scan scripts);
+- secret-like files anywhere: `.env*` (except `.env.example`), keystores, certificates and keys (`.p12`, `.pfx`, `.pem`, `.p8`), provisioning profiles, credential or service-account JSON.
 
 Dependency changes (`pubspec.yaml`, `pubspec.lock`) are fine when the ticket needs them. **Moving or restructuring files needs its own approved ticket**; never mix it into feature work.
 
@@ -191,14 +192,17 @@ Dependency changes (`pubspec.yaml`, `pubspec.lock`) are fine when the ticket nee
 
 ## How your PR gets built
 
-Your fork builds your PR, using your fork's `APP_ENV_FILE`, so the build talks to your team's backend. Zedu never holds your config or secrets.
+Your fork builds your PR on its own Actions minutes. Every build talks to the **dev backend**, `https://api.hng.groups.zedu.chat`, so reviewers test every PR against the same backend.
 
-- **Builds run only while your PR is open.** Pushes to a ticket branch without an open PR skip the build, and docs-only pushes never build. It uses your fork's Actions minutes, which are free on public repos.
+- **Needs backend work that isn't on dev yet?** Add a line to the PR description, under **Backend**: `Backend URL: https://api.<team>.groups.zedu.chat`. Your build then uses that backend, and the **Backend dependency** check stays red until you delete the line, once the backend change is on dev. Adding, changing or deleting the line after a build makes **Fork build** fail until you re-run PR build in your fork, so the build always matches the description.
+- Nothing secret goes into a build: `.env` ships inside the app.
+
+- **Builds run only while your PR is open.** Pushes to a ticket branch without an open PR skip the build, and a PR that only changes Markdown needs no build. It uses your fork's Actions minutes, which are free on public repos.
 - **First build:** opening the PR doesn't trigger one. In your fork, go to **Actions → PR build → Run workflow** on your branch, or push a commit. After that, every push builds automatically.
 - On your PR, the **Fork build** check finds that build for your latest commit, waits for it, and posts download links and install notes for macOS, Windows and Linux. Reviewers test with those.
-- After a manual build, **Fork build** updates on its own within 15 minutes; comment `/fork-build` on the PR to check straight away. No build showing at all? Check that Actions is enabled in your fork and that it's synced.
+- Start a manual build within 30 minutes of opening the PR (or of your last push) and **Fork build** picks it up on its own. Later than that, or to check straight away, comment `/fork-build` on the PR. Comment it too after re-running a failed build in your fork. No build showing at all? Check that Actions is enabled in your fork and that it's synced.
 
-Format, analyze, tests, the security scans, **Branch name**, **Single author**, **Protected files** and **Lead approval** run on the PR itself. On a first-time contribution, a maintainer has to approve the workflow run before anything runs.
+Format, analyze, tests, the security scans, **Branch name**, **Single author**, **Protected files**, **Size**, **PR title**, **PR template**, **Backend dependency** and **Lead approved** run on the PR itself, each as its own check. On a first-time contribution, a maintainer has to approve the run before format, analyze, tests and the scans start; the other checks run straight away.
 
 ---
 
@@ -248,7 +252,7 @@ Because we **squash-merge** PRs into `dev`, the messy merge commits in your bran
 
 ## How PRs land
 
-- **Your team lead approves first.** **Lead approval** goes green once a lead registered for your fork's org approves. It re-checks every 5 minutes. Zedu reviewers only pick up PRs with it green.
+- **Your team lead approves first.** **Lead approved** goes green once a lead registered for your fork's org approves. It re-checks as soon as a lead reviews (on a first-time contribution, once a maintainer has approved the run; until then a periodic re-check covers it). Zedu reviewers only pick up PRs with it green.
 - A lead who opens their own PR needs another lead's approval. A team with one lead is waived and goes straight to Zedu review.
 - If your lead approved somewhere GitHub can't see, a reviewer can add the `lead-verified` label.
 - **1 Zedu reviewer approval** is required, and it must come after your last push.

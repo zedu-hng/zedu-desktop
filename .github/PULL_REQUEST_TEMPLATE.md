@@ -4,7 +4,7 @@
 
 ## Team lead
 
-<!-- @handle of your team lead. A lead registered for your fork's org must approve before the Lead approval check passes and Zedu reviewers pick it up. -->
+<!-- @handle of your team lead. A lead registered for your fork's org must approve before the Lead approved check passes and Zedu reviewers pick it up. -->
 
 @
 
@@ -25,6 +25,14 @@
 ## What to expect
 
 <!-- The expected behaviour after following the steps above. -->
+
+## Backend
+
+<!-- Leave this section empty: your fork's build runs against the dev backend.
+     Only if this PR needs backend work that isn't on dev yet, add a line here starting with "Backend URL:"
+     followed by that backend's host, for example https://api.<team>.groups.zedu.chat. Your build then uses
+     that backend, and the Backend dependency check blocks merging until the backend lands on dev and you
+     delete the line (then re-run PR build in your fork). -->
 
 ## Test evidence
 
