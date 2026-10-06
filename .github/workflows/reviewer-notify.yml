@@ -46,4 +46,4 @@ jobs:
       contents: read
       pull-requests: write
       statuses: read
-    uses: zedu-hng/zedu-ci/.github/workflows/reviewer-notify.yml@2ede8e8f507e4527eff462eca646986f289fbd55
+    uses: zedu-hng/zedu-ci/.github/workflows/reviewer-notify.yml@844c60ad4666b0b827a19e419cade4296f943793
