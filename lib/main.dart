@@ -1,3 +1,4 @@
+// E2E check of the zedu-ci review workflows. Do not merge.
 import 'package:zedu/core/core.dart';
 import 'package:zedu/app/app.dart';
 
