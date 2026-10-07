@@ -218,7 +218,6 @@ Fill out the PR template (`.github/PULL_REQUEST_TEMPLATE.md`). It loads automati
 - **Team lead**: their GitHub handle. A bot also comments with your team and requests review from your lead(s). One of them leaves an **Approve** review.
 - **Test evidence**: the backend you tested against, and the tests you added or updated. The build link is posted for you.
 - **Screenshots / recording**: for any visible or interactive change.
-- **AI usage**: one line, if AI was used significantly.
 
 Skip sections that don't apply, but write "N/A because…" so your reviewer can see you thought about it.
 
@@ -279,23 +278,6 @@ Never commit:
 `.env` is bundled into the app as an asset, so anything in it is readable by anyone who has the app. Real secrets belong on the backend.
 
 If you expose a secret, deleting it in the next commit is not enough. Tell a reviewer immediately so it can be rotated.
-
----
-
-## AI usage
-
-AI is fine for explaining code, drafting implementations, tests, debugging, refactoring, and docs. You're still responsible for the output.
-
-Don't:
-
-- paste generated code you haven't read;
-- submit code you can't explain;
-- give AI tools secrets or user data;
-- treat AI output as a substitute for testing or review.
-
-For significant AI-assisted changes, add one line to the PR saying how AI was used.
-
-If you use an AI coding agent, point it at `AGENTS.md`. It holds the repo conventions agents need, and most agents load it automatically.
 
 ---
 

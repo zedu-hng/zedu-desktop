@@ -46,10 +46,6 @@
 
 <!-- Required for visible or interactive changes. Otherwise write "N/A, non-visual change". -->
 
-## AI usage
-
-<!-- One line on how AI was used, if significant (see CONTRIBUTING.md, "AI usage"). -->
-
 ## Checklist
 
 - [ ] Linked to an approved ticket

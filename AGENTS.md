@@ -67,4 +67,4 @@ New features follow the same `data/` → `domain/` → `presentation/` split.
 
 ## PRs
 
-The PR title follows Conventional Commits (see `CONTRIBUTING.md`) and becomes the squashed commit on `dev`. Fill in every section of the PR template, and add the one-line AI-usage note when AI did significant work.
+The PR title follows Conventional Commits (see `CONTRIBUTING.md`) and becomes the squashed commit on `dev`. Fill in every section of the PR template.
