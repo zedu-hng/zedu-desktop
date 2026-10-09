@@ -1,13 +1,8 @@
 name: PR rules
 
-# Trusted: runs the review repo's copy of this file (pull_request_target) and NEVER checks out PR code,
-# so a PR can't edit these rules to pass itself. All data comes from the GitHub API.
-#
-# - Branch name: <type>/<ticket-id>-<short-description>. Reviewers (write access) are exempt.
-# - Single author: one person per PR. Co-authored-by trailers are fine. Reviewers are exempt.
-# - Protected files: .github/, AGENTS.md, CONTRIBUTING.md, analysis_options.yaml, scripts/ (CI scans).
-#   Blocked unless a reviewer adds the `config-change-approved` label.
-# Sync and promotion PRs (dev / central-staging from this repo or upstream) skip all three.
+# Caller: the logic lives in zedu-hng/zedu-ci (pr-rules.yml), pinned by commit. This file sets the
+# triggers, concurrency and token permissions. Keep the file name: other workflows look it up.
+# Branch name, Single author, Protected files, Size, PR title and PR template, each a commit status.
 
 on:
   pull_request_target:
@@ -22,123 +17,22 @@ on:
       - labeled
       - unlabeled
 
-permissions:
-  contents: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: pr-rules-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-env:
-  GH_TOKEN: ${{ github.token }}
-  REPO: ${{ github.repository }}
-  PR_NUMBER: ${{ github.event.pull_request.number }}
-  HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-  HEAD_REF: ${{ github.event.pull_request.head.ref }}
-  AUTHOR: ${{ github.event.pull_request.user.login }}
-
 jobs:
-  scope:
-    name: Classify PR
-    runs-on: ubuntu-latest
-    outputs:
-      internal: ${{ steps.c.outputs.internal }}
-      reviewer: ${{ steps.c.outputs.reviewer }}
-    steps:
-      - id: c
-        run: |
-          upstream=$(gh api "repos/$REPO" --jq '.parent.full_name // ""')
-          if { [ "$HEAD_REPO" = "$REPO" ] || [ "$HEAD_REPO" = "$upstream" ]; } \
-             && { [ "$HEAD_REF" = dev ] || [ "$HEAD_REF" = central-staging ]; }; then
-            echo "internal=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "internal=false" >> "$GITHUB_OUTPUT"
-          fi
-          case "$AUTHOR" in
-            dependabot\[bot\]|renovate\[bot\]|github-actions\[bot\])
-              echo "reviewer=true" >> "$GITHUB_OUTPUT"
-              echo "Author $AUTHOR is a bot; branch-name and single-author checks are waived."
-              exit 0 ;;
-          esac
-          # Retry once: a transient API error would otherwise treat a reviewer as a contributor.
-          if ! perm=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission); then
-            sleep 5
-            perm=$(gh api "repos/$REPO/collaborators/$AUTHOR/permission" --jq .permission || echo none)
-          fi
-          case "$perm" in
-            admin|maintain|write) echo "reviewer=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "reviewer=false" >> "$GITHUB_OUTPUT" ;;
-          esac
-          echo "Author $AUTHOR permission: $perm"
-
-  branch-name:
-    name: Branch name
-    needs: scope
-    if: needs.scope.outputs.internal == 'false'
-    runs-on: ubuntu-latest
-    env:
-      REVIEWER: ${{ needs.scope.outputs.reviewer }}
-    steps:
-      - run: |
-          pattern='^(feat|fix|test|docs|refactor|chore|perf|security)/([A-Za-z]+-)?[[:digit:]]+-[a-z[:digit:]][a-z[:digit:]-]*$'
-          if [[ "$HEAD_REF" =~ $pattern ]]; then
-            echo "OK: $HEAD_REF"
-          elif [ "$REVIEWER" = true ]; then
-            echo "::notice::$HEAD_REF doesn't match the ticket format; allowed because $AUTHOR is a reviewer."
-          else
-            echo "::error::Branch '$HEAD_REF' doesn't match <type>/<ticket-id>-<short-description>, e.g. fix/245-login-redirect. Open the PR from a correctly named ticket branch (see CONTRIBUTING.md)."
-            exit 1
-          fi
-
-  single-author:
-    name: Single author
-    needs: scope
-    if: needs.scope.outputs.internal == 'false'
-    runs-on: ubuntu-latest
-    env:
-      REVIEWER: ${{ needs.scope.outputs.reviewer }}
-    steps:
-      - run: |
-          # GitHub login when the commit email is linked to an account, otherwise the author email.
-          authors=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/commits" \
-            --jq '.[] | (.author.login // .commit.author.email)' | sort -u)
-          count=$(echo "$authors" | grep -c . || true)
-          echo "Commit authors: $(echo "$authors" | tr '\n' ' ')"
-          if [ "$count" -le 1 ]; then
-            echo "OK: single author"
-          elif [ "$REVIEWER" = true ]; then
-            echo "::notice::$count authors; allowed because $AUTHOR is a reviewer."
-          else
-            echo "::error::This PR has commits from $count authors. Each member opens their own PR from their own ticket branch; don't combine teammates' work. Credit collaborators with Co-authored-by trailers instead."
-            exit 1
-          fi
-
-  protected-files:
-    name: Protected files
-    needs: scope
-    if: needs.scope.outputs.internal == 'false'
-    runs-on: ubuntu-latest
-    env:
-      APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'config-change-approved') }}
-      DEPENDABOT: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
-    steps:
-      - run: |
-          protected='^(\.github/|AGENTS\.md$|CONTRIBUTING\.md$|analysis_options\.yaml$|scripts/)'
-          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
-          hits=$(grep -E "$protected" <<< "$files" || true)
-          # Dependabot bumps GitHub Actions only (.github/dependabot.yml). Waive it only while every
-          # changed file is under .github/, so a wider Dependabot config can't ride this exemption.
-          if [ "$DEPENDABOT" = true ] && ! grep -qv '^\.github/' <<< "$files"; then
-            echo "::notice::Dependabot PR changing only .github/; protected-files check waived."
-            exit 0
-          fi
-          if [ -z "$hits" ]; then
-            echo "OK: no protected files changed"
-          elif [ "$APPROVED" = true ]; then
-            echo "::notice::Protected files changed, approved by the config-change-approved label:"; echo "$hits"
-          else
-            echo "::error::This PR changes protected files. Revert them, or agree the change with the reviewers first (they add the config-change-approved label):"
-            while read -r f; do echo "  - $f"; done <<< "$hits"
-            exit 1
-          fi
+  rules:
+    name: PR rules
+    if: vars.IS_BOOTCAMP == 'true'
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    uses: zedu-hng/zedu-ci/.github/workflows/pr-rules.yml@fac7608447c2fd4f4b85e8b5c295a754bbf1d40a
+    with:
+      protected: '^(\.github/|AGENTS\.md$|CONTRIBUTING\.md$|analysis_options\.yaml$|scripts/)'
+      size_exclude: '(^|/)(pubspec\.lock|Podfile\.lock)$|\.(g|freezed|mocks)\.dart$|(^|/)generated_plugin_registrant\.'
+      template: .github/PULL_REQUEST_TEMPLATE.md
