@@ -415,7 +415,7 @@ class _ChatArea extends StatelessWidget {
             Divider(height: 24, color: colors.divider),
             const TextField(
               decoration: InputDecoration(
-                hintText: 'Message Ruby - Social Media Handler',
+                hintText: 'Write a message...',
                 border: InputBorder.none,
                 isDense: true,
               ),
