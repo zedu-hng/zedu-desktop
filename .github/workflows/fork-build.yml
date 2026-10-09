@@ -1,14 +1,12 @@
 name: Fork build
 
-# Trusted: runs in the review repo with its own token and NEVER checks out PR code. It only reads the
-# contributor fork's "PR build" run (public API) for the PR's exact head commit and relays the result.
-# That run is trustworthy because the required protected-files check rejects PRs that change .github/**,
-# and the fork builds with the workflow file from that same commit.
-#
-# Sets the commit status "Fork build" and posts download links. Re-check any time with a /fork-build comment.
-# Every 15 minutes a sweep re-checks PRs still showing "No build yet", so a manual first build is picked up
-# without anyone commenting. It also relays PRs with no Fork build status at all: PRs opened by a
-# workflow's GITHUB_TOKEN (sync-upstream) don't fire pull_request_target.
+# Caller: the logic lives in zedu-hng/zedu-ci (fork-build.yml), pinned by commit. This file sets the
+# triggers, concurrency and token permissions. Keep the file name: other workflows look it up.
+# Relays the fork's PR build as "Fork build" and posts "Backend dependency". Re-check any time with a
+# /fork-build comment. Needs the fork-build-wait environment (3-minute wait timer, dev only).
+
+# The PR number in the run name lets the sweep skip PRs that already have a relay running or waiting.
+run-name: "Fork build #${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}"
 
 on:
   pull_request_target:
@@ -20,6 +18,7 @@ on:
       - synchronize
       - reopened
       - ready_for_review
+      - edited
   issue_comment:
     types:
       - created
@@ -28,195 +27,42 @@ on:
       pr:
         description: PR number to re-check
         required: true
+      attempt:
+        description: Re-check number (set by the relay itself; 0 checks immediately)
+        required: false
+        default: "0"
   schedule:
     - cron: "*/15 * * * *"
 
-permissions:
-  contents: read
+permissions: {}
 
-# Only real relays (PR events, /fork-build) share a per-PR group. Any other comment gets a unique group,
-# so an unrelated comment (bots included) can't cancel a relay that's waiting on the fork build.
+# Only real relays share a per-PR group: PR events other than edits, /fork-build and the relay's own
+# re-checks. Edits and anything else get a unique group, so a template tick or an unrelated comment
+# can't cancel a relay that's waiting on the fork build. An edit that changes the Backend URL
+# dispatches the relay itself.
 concurrency:
   group: >-
-    fork-build-${{ github.event.pull_request.number
-    || ((github.event.comment.body == '/fork-build' || startsWith(github.event.comment.body, '/fork-build '))
-        && github.event.issue.number)
-    || inputs.pr
-    || github.run_id }}
+    fork-build-${{
+      (github.event_name == 'pull_request_target' && github.event.action != 'edited' &&
+       github.event.pull_request.number)
+      || ((github.event.comment.body == '/fork-build' || startsWith(github.event.comment.body, '/fork-build '))
+          && github.event.issue.number)
+      || inputs.pr
+      || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  # Scheduled: re-dispatch the relay for open PRs whose Fork build still says "No build yet".
-  sweep:
-    name: Re-check pending PRs
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
+  fork-build:
+    name: Fork build
+    if: vars.IS_BOOTCAMP == 'true'
     permissions:
       actions: write
-      pull-requests: read
-      statuses: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-      REPO: ${{ github.repository }}
-      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-    steps:
-      - run: |
-          # Paginate: gh pr list stops at 30 PRs, and there can be one open PR per ticket across every team.
-          gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
-            --jq '.[] | select(.base.ref == "dev" or .base.ref == "central-staging") | "\(.number) \(.head.sha)"' |
-          while read -r number sha; do
-            desc=$(gh api "repos/$REPO/commits/$sha/status" --jq '.statuses[] | select(.context == "Fork build") | .description' | head -1)
-            case "$desc" in
-              ""|"No build yet"*)
-                echo "PR #$number: re-checking ($desc)"
-                gh workflow run fork-build.yml --repo "$REPO" --ref "$DEFAULT_BRANCH" -f pr="$number" ;;
-            esac
-          done
-
-  relay:
-    name: Relay fork build
-    if: >-
-      github.event_name == 'pull_request_target' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.issue.pull_request &&
-       (github.event.comment.body == '/fork-build' || startsWith(github.event.comment.body, '/fork-build ')))
-    runs-on: ubuntu-latest
-    timeout-minutes: 80
-    permissions:
+      contents: read
       pull-requests: write
       statuses: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      REPO: ${{ github.repository }}
-      PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr }}
-      CONTEXT: Fork build
-    steps:
-      - name: Resolve PR
-        id: pr
-        run: |
-          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "Invalid PR number"; exit 1; }
-          gh api "repos/$REPO/pulls/$PR_NUMBER" > pr.json
-          {
-            echo "sha=$(jq -r .head.sha pr.json)"
-            echo "head_repo=$(jq -r .head.repo.full_name pr.json)"
-          } >> "$GITHUB_OUTPUT"
-          # Same-repo PRs (reviewer branches, bots, sync/promotion) and upstream sync PRs have no
-          # fork build; only contributor forks get the relay.
-          head_repo=$(jq -r .head.repo.full_name pr.json); head_ref=$(jq -r .head.ref pr.json)
-          upstream=$(gh api "repos/$REPO" --jq '.parent.full_name // ""')
-          if [ "$head_repo" = "$REPO" ] \
-             || { [ "$head_repo" = "$upstream" ] && { [ "$head_ref" = dev ] || [ "$head_ref" = central-staging ]; }; }; then
-            echo "internal=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "internal=false" >> "$GITHUB_OUTPUT"
-          fi
-          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
-          if [ -n "$files" ] && ! echo "$files" | grep -qvE '\.md$'; then
-            echo "docs_only=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "docs_only=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: No fork build needed
-        if: steps.pr.outputs.internal == 'true' || steps.pr.outputs.docs_only == 'true'
-        env:
-          SHA: ${{ steps.pr.outputs.sha }}
-          INTERNAL: ${{ steps.pr.outputs.internal }}
-        run: |
-          reason=$([ "$INTERNAL" = true ] && echo "Same-repo or sync PR; no fork build needed" || echo "Docs-only change; no build needed")
-          gh api "repos/$REPO/statuses/$SHA" -f state=success -f context="$CONTEXT" -f description="$reason" >/dev/null
-
-      - name: Wait for the fork's PR build
-        id: run
-        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
-        env:
-          SHA: ${{ steps.pr.outputs.sha }}
-          HEAD_REPO: ${{ steps.pr.outputs.head_repo }}
-        run: |
-          status() { gh api "repos/$REPO/statuses/$SHA" -f state="$1" -f context="$CONTEXT" -f description="$2" ${3:+-f target_url="$3"} >/dev/null; }
-          appear_by=$(( $(date +%s) + 3 * 60 ))
-          deadline=$(( $(date +%s) + 75 * 60 ))
-          while :; do
-            run=$(gh api "repos/$HEAD_REPO/actions/workflows/pr-build.yml/runs?head_sha=$SHA&per_page=10" \
-              --jq '[.workflow_runs[] | select(.path == ".github/workflows/pr-build.yml")] | sort_by(.created_at) | last // empty' 2>/dev/null || true)
-            if [ -z "$run" ]; then
-              # A push's fork run takes a moment to register; allow ~3 minutes before reporting none.
-              if [ "$(date +%s)" -lt "$appear_by" ]; then sleep 20; continue; fi
-              echo "found=false" >> "$GITHUB_OUTPUT"
-              status pending "No build yet for ${SHA:0:7}. In your fork: Actions > PR build > Run workflow."
-              exit 0
-            fi
-            url=$(echo "$run" | jq -r .html_url)
-            state=$(echo "$run" | jq -r .status)
-            if [ "$state" != "completed" ]; then
-              status pending "Fork build running for ${SHA:0:7}" "$url"
-              [ "$(date +%s)" -lt "$deadline" ] || { echo "Timed out waiting; comment /fork-build to re-check."; exit 0; }
-              sleep 60
-              continue
-            fi
-            conclusion=$(echo "$run" | jq -r .conclusion)
-            # A run whose build jobs were all skipped (pushed before the PR existed) is not a build.
-            if [ "$conclusion" = "success" ]; then
-              run_id=$(echo "$run" | jq -r .id)
-              built=$(gh api "repos/$HEAD_REPO/actions/runs/$run_id/jobs" \
-                --jq '[.jobs[] | select(.name != "Open PR check" and .conclusion != "skipped")] | length')
-              if [ "$built" -eq 0 ]; then
-                echo "found=false" >> "$GITHUB_OUTPUT"
-                status pending "No build yet for ${SHA:0:7}. In your fork: Actions > PR build > Run workflow." "$url"
-                exit 0
-              fi
-            fi
-            {
-              echo "found=true"
-              echo "url=$url"
-              echo "id=$(echo "$run" | jq -r .id)"
-              echo "conclusion=$conclusion"
-            } >> "$GITHUB_OUTPUT"
-            if [ "$conclusion" = "success" ]; then
-              status success "Fork build passed for ${SHA:0:7}" "$url"
-            else
-              status failure "Fork build $conclusion for ${SHA:0:7}" "$url"
-            fi
-            exit 0
-          done
-
-      - name: Compose comment
-        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
-        env:
-          SHA: ${{ steps.pr.outputs.sha }}
-          HEAD_REPO: ${{ steps.pr.outputs.head_repo }}
-          FOUND: ${{ steps.run.outputs.found }}
-          URL: ${{ steps.run.outputs.url }}
-          RUN_ID: ${{ steps.run.outputs.id }}
-          CONCLUSION: ${{ steps.run.outputs.conclusion }}
-        run: |
-          {
-            echo "### Fork build for \`${SHA:0:7}\`"
-            echo
-            if [ "$FOUND" != "true" ]; then
-              echo "No build found yet in \`$HEAD_REPO\`. Builds only run once this PR is open, so trigger the first one:"
-              echo "**your fork → Actions → PR build → Run workflow** on this branch, or push a commit. This check picks it up within 15 minutes, or comment \`/fork-build\` to check now."
-              echo
-              echo "Still nothing? Check that Actions is enabled in your fork and that it's synced with \`$REPO\`."
-            elif [ "$CONCLUSION" != "success" ]; then
-              echo "The fork build **$CONCLUSION**: [see the run]($URL). Fix it and push; this updates automatically."
-            else
-              echo "Built in your fork: [run]($URL). Download from its **Artifacts** section:"
-              echo
-              # Artifact names come from the fork: keep only safe characters.
-              # shellcheck disable=SC2016 # literal backticks for Markdown
-              gh api "repos/$HEAD_REPO/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[].name' \
-                | tr -cd 'A-Za-z0-9._\n-' | sed 's/^/- `/; s/$/`/'
-              echo
-              echo "- **macOS** (\`desktop-macos\`): unzip twice, then right-click the app > Open (or \`xattr -dr com.apple.quarantine Zedu.app\`) to get past Gatekeeper."
-              echo "- **Windows** (\`desktop-windows\`): unzip and run the \`.exe\`; SmartScreen > More info > Run anyway."
-              echo "- **Linux** (\`desktop-linux\`): extract the tarball and run the binary in the bundle root."
-            fi
-          } > comment.md
-
-      - uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2.9.4
-        if: steps.pr.outputs.internal == 'false' && steps.pr.outputs.docs_only == 'false'
-        with:
-          header: fork-build
-          number: ${{ env.PR_NUMBER }}
-          path: comment.md
+    uses: zedu-hng/zedu-ci/.github/workflows/fork-build.yml@fac7608447c2fd4f4b85e8b5c295a754bbf1d40a
+    with:
+      artifact_help: |
+        - **macOS** (`desktop-macos`): unzip twice, then right-click the app > Open (or `xattr -dr com.apple.quarantine Zedu.app`) to get past Gatekeeper.
+        - **Windows** (`desktop-windows`): unzip and run the `.exe`; SmartScreen > More info > Run anyway.
+        - **Linux** (`desktop-linux`): extract the tarball and run the binary in the bundle root.
