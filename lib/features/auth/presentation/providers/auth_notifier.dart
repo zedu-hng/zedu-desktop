@@ -35,12 +35,21 @@ class AuthNotifier extends Notifier<AuthState> {
     final result = await _repository.getCurrentUser();
     switch (result) {
       case Success<User>():
-        AppLogger.i('Session restored — ${result.value.email}', tag: _tag);
-        state = AuthState(status: AuthStatus.authenticated, user: result.value);
+      AppLogger.i('Session restored — ${result.value.email}', tag: _tag);
+      state = AuthState(status: AuthStatus.authenticated, user: result.value);
       case Failure<User>():
-        AppLogger.w('Session restore failed — clearing token', tag: _tag);
+      final failure = result.error;
+      if (failure.kind == ApiFailureKind.unauthorized) {
+        AppLogger.w('Session restore rejected (401) — clearing token', tag: _tag);
         await _storage.deleteAccessToken();
         state = const AuthState(status: AuthStatus.unauthenticated);
+      } else {
+        AppLogger.w('Session restore failed (${failure.kind.name}) — keeping token', tag: _tag);
+        state = AuthState(
+          status: AuthStatus.unauthenticated,
+          error: failure.friendlyMessage,
+        );
+      }
     }
   }
 
@@ -51,18 +60,18 @@ class AuthNotifier extends Notifier<AuthState> {
     final result = await _repository.login(email: email, password: password);
     switch (result) {
       case Success<AuthSession>():
-        AppLogger.i('Login succeeded — token persisted', tag: _tag);
-        await _storage.saveAccessToken(result.value.accessToken);
-        state = AuthState(
-          status: AuthStatus.authenticated,
-          user: result.value.user,
-        );
+      AppLogger.i('Login succeeded — token persisted', tag: _tag);
+      await _storage.saveAccessToken(result.value.accessToken);
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: result.value.user,
+      );
       case Failure<AuthSession>():
-        AppLogger.w('Login rejected — ${result.error.message}', tag: _tag);
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
+      AppLogger.w('Login rejected — ${result.error.message}', tag: _tag);
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
     }
   }
 
@@ -73,24 +82,24 @@ class AuthNotifier extends Notifier<AuthState> {
     final result = await _repository.verifyMagicLink(token: token);
     switch (result) {
       case Success<AuthSession>():
-        AppLogger.i(
-          'Magic link verification succeeded — token persisted',
-          tag: _tag,
-        );
-        await _storage.saveAccessToken(result.value.accessToken);
-        state = AuthState(
-          status: AuthStatus.authenticated,
-          user: result.value.user,
-        );
+      AppLogger.i(
+        'Magic link verification succeeded — token persisted',
+        tag: _tag,
+      );
+      await _storage.saveAccessToken(result.value.accessToken);
+      state = AuthState(
+        status: AuthStatus.authenticated,
+        user: result.value.user,
+      );
       case Failure<AuthSession>():
-        AppLogger.w(
-          'Magic link verification failed — ${result.error.message}',
-          tag: _tag,
-        );
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
+      AppLogger.w(
+        'Magic link verification failed — ${result.error.message}',
+        tag: _tag,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
     }
   }
 
@@ -101,10 +110,10 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> signUp({
-    required String username,
-    required String email,
-    required String password,
-  }) async {
+      required String username,
+      required String email,
+      required String password,
+    }) async {
     AppLogger.d('Sign up attempt — $email', tag: _tag);
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -115,15 +124,15 @@ class AuthNotifier extends Notifier<AuthState> {
     );
     switch (result) {
       case Success<void>():
-        AppLogger.i('Sign up succeeded', tag: _tag);
-        // Usually we login automatically after sign up or wait for verification
-        await login(email: email, password: password);
+      AppLogger.i('Sign up succeeded', tag: _tag);
+      // Usually we login automatically after sign up or wait for verification
+      await login(email: email, password: password);
       case Failure<void>():
-        AppLogger.w('Sign up failed — ${result.error.message}', tag: _tag);
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
+      AppLogger.w('Sign up failed — ${result.error.message}', tag: _tag);
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
     }
   }
 
@@ -134,27 +143,27 @@ class AuthNotifier extends Notifier<AuthState> {
     final result = await _repository.forgotPassword(email: email);
     switch (result) {
       case Success<void>():
-        AppLogger.i('Forgot password email sent', tag: _tag);
-        state = state.copyWith(isLoading: false);
-        return true;
+      AppLogger.i('Forgot password email sent', tag: _tag);
+      state = state.copyWith(isLoading: false);
+      return true;
       case Failure<void>():
-        AppLogger.w(
-          'Forgot password failed — ${result.error.message}',
-          tag: _tag,
-        );
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
-        return false;
+      AppLogger.w(
+        'Forgot password failed — ${result.error.message}',
+        tag: _tag,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
+      return false;
     }
   }
 
   Future<bool> resetPassword({
-    required String email,
-    required String token,
-    required String newPassword,
-  }) async {
+      required String email,
+      required String token,
+      required String newPassword,
+    }) async {
     AppLogger.d('Reset password attempt', tag: _tag);
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -165,27 +174,27 @@ class AuthNotifier extends Notifier<AuthState> {
     );
     switch (result) {
       case Success<void>():
-        AppLogger.i('Reset password succeeded', tag: _tag);
-        state = state.copyWith(isLoading: false);
-        return true;
+      AppLogger.i('Reset password succeeded', tag: _tag);
+      state = state.copyWith(isLoading: false);
+      return true;
       case Failure<void>():
-        AppLogger.w(
-          'Reset password failed — ${result.error.message}',
-          tag: _tag,
-        );
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
-        return false;
+      AppLogger.w(
+        'Reset password failed — ${result.error.message}',
+        tag: _tag,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
+      return false;
     }
   }
 
   Future<bool> changePassword({
-    required String email,
-    required String oldPassword,
-    required String newPassword,
-  }) async {
+      required String email,
+      required String oldPassword,
+      required String newPassword,
+    }) async {
     AppLogger.d('Change password attempt', tag: _tag);
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -196,19 +205,19 @@ class AuthNotifier extends Notifier<AuthState> {
     );
     switch (result) {
       case Success<void>():
-        AppLogger.i('Change password succeeded', tag: _tag);
-        state = state.copyWith(isLoading: false);
-        return true;
+      AppLogger.i('Change password succeeded', tag: _tag);
+      state = state.copyWith(isLoading: false);
+      return true;
       case Failure<void>():
-        AppLogger.w(
-          'Change password failed — ${result.error.message}',
-          tag: _tag,
-        );
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
-        return false;
+      AppLogger.w(
+        'Change password failed — ${result.error.message}',
+        tag: _tag,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
+      return false;
     }
   }
 
@@ -218,12 +227,12 @@ class AuthNotifier extends Notifier<AuthState> {
     final result = await _repository.getCurrentUser();
     switch (result) {
       case Success<User>():
-        state = state.copyWith(user: result.value);
+      state = state.copyWith(user: result.value);
       case Failure<User>():
-        AppLogger.w(
-          'Failed to refresh user — ${result.error.message}',
-          tag: _tag,
-        );
+      AppLogger.w(
+        'Failed to refresh user — ${result.error.message}',
+        tag: _tag,
+      );
     }
   }
 
@@ -242,14 +251,14 @@ class AuthNotifier extends Notifier<AuthState> {
 
       final redirectUri = 'http://127.0.0.1:$port'; // Desktop Loopback URI
       final authUrl = Uri.https('accounts.google.com', '/o/oauth2/v2/auth', {
-        'client_id': config.googleClientId,
-        'response_type': 'code',
-        'redirect_uri': redirectUri,
-        'scope': 'openid profile email',
-        'access_type': 'offline',
-        'prompt': 'consent',
-        'application_type': 'desktop',
-      });
+          'client_id': config.googleClientId,
+          'response_type': 'code',
+          'redirect_uri': redirectUri,
+          'scope': 'openid profile email',
+          'access_type': 'offline',
+          'prompt': 'consent',
+          'application_type': 'desktop',
+        });
 
       AppLogger.d('Launching Google Auth URL in browser', tag: _tag);
       await launchUrl(authUrl, mode: LaunchMode.externalApplication);
@@ -261,9 +270,9 @@ class AuthNotifier extends Notifier<AuthState> {
 
         // Return a clean success page to the user in their browser
         request.response
-          ..statusCode = HttpStatus.ok
-          ..headers.contentType = ContentType.html
-          ..write('''
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = ContentType.html
+        ..write('''
             <!DOCTYPE html>
             <html>
             <head>
@@ -307,21 +316,21 @@ class AuthNotifier extends Notifier<AuthState> {
       );
       switch (result) {
         case Success<AuthSession>():
-          AppLogger.i('Google Sign-In succeeded — token persisted', tag: _tag);
-          await _storage.saveAccessToken(result.value.accessToken);
-          state = AuthState(
-            status: AuthStatus.authenticated,
-            user: result.value.user,
-          );
+        AppLogger.i('Google Sign-In succeeded — token persisted', tag: _tag);
+        await _storage.saveAccessToken(result.value.accessToken);
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          user: result.value.user,
+        );
         case Failure<AuthSession>():
-          AppLogger.w(
-            'Google Sign-In rejected — ${result.error.message}',
-            tag: _tag,
-          );
-          state = state.copyWith(
-            isLoading: false,
-            error: result.error.friendlyMessage,
-          );
+        AppLogger.w(
+          'Google Sign-In rejected — ${result.error.message}',
+          tag: _tag,
+        );
+        state = state.copyWith(
+          isLoading: false,
+          error: result.error.friendlyMessage,
+        );
       }
     } catch (e) {
       AppLogger.e('Google Sign-In failed', tag: _tag, error: e);
@@ -337,12 +346,12 @@ class AuthNotifier extends Notifier<AuthState> {
   /// On success, the local [AuthState.user.status] is updated immediately
   /// so every widget watching [authNotifierProvider] reacts without a re-fetch.
   Future<bool> changeStatus({
-    required String icon,
-    required String text,
-    required StatusTimeout timeout,
-    required bool pauseNotifications,
-    required bool online,
-  }) async {
+      required String icon,
+      required String text,
+      required StatusTimeout timeout,
+      required bool pauseNotifications,
+      required bool online,
+    }) async {
     AppLogger.d('changeStatus — "$text" online=$online', tag: _tag);
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -357,30 +366,30 @@ class AuthNotifier extends Notifier<AuthState> {
 
     switch (result) {
       case Success<void>():
-        AppLogger.i('Status changed successfully', tag: _tag);
-        final updatedStatus = UserStatus(
-          emoji: icon.isEmpty ? null : icon,
-          text: text.isEmpty ? null : text,
-          expiresAt: _expiryFromTimeout(timeout),
-          pauseNotifications: pauseNotifications,
-          online: online,
-        );
-        state = state.copyWith(
-          isLoading: false,
-          user: state.user?._withStatus(updatedStatus),
-        );
-        return true;
+      AppLogger.i('Status changed successfully', tag: _tag);
+      final updatedStatus = UserStatus(
+        emoji: icon.isEmpty ? null : icon,
+        text: text.isEmpty ? null : text,
+        expiresAt: _expiryFromTimeout(timeout),
+        pauseNotifications: pauseNotifications,
+        online: online,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        user: state.user?._withStatus(updatedStatus),
+      );
+      return true;
 
       case Failure<void>():
-        AppLogger.w(
-          'Status change failed — ${result.error.message}',
-          tag: _tag,
-        );
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
-        return false;
+      AppLogger.w(
+        'Status change failed — ${result.error.message}',
+        tag: _tag,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
+      return false;
     }
   }
 
@@ -401,17 +410,17 @@ class AuthNotifier extends Notifier<AuthState> {
 
     switch (result) {
       case Success<void>():
-        state = state.copyWith(
-          isLoading: false,
-          user: state.user?._withStatus(UserStatus(online: currentOnline)),
-        );
-        return true;
+      state = state.copyWith(
+        isLoading: false,
+        user: state.user?._withStatus(UserStatus(online: currentOnline)),
+      );
+      return true;
       case Failure<void>():
-        state = state.copyWith(
-          isLoading: false,
-          error: result.error.friendlyMessage,
-        );
-        return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: result.error.friendlyMessage,
+      );
+      return false;
     }
   }
 
