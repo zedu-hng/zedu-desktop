@@ -76,13 +76,61 @@ class NotificationService {
     );
 
     notification.onClick = () async {
-      await windowManager.show();
-      await windowManager.focus();
-
-      final router = locator<GoRouter>();
-      router.go('/dms/$channelId');
+      await openDmFromNotification(channelId);
     };
 
     await notification.show();
+  }
+
+  /// Opens the DM conversation referenced by a desktop notification.
+  ///
+  /// DMs live inside [HomeView] and selection is driven by Riverpod state,
+  /// not by a URL — there is no `/dms/:id` route. So this brings the window
+  /// to the front, switches the rail to the DMs tab, and selects the
+  /// matching conversation when it is already loaded. When the conversation
+  /// is unknown (deleted / not yet loaded) it still lands on the DMs tab
+  /// instead of erroring.
+  Future<void> openDmFromNotification(String channelId) async {
+    try {
+      await windowManager.show();
+    } catch (_) {
+      // No-op in tests / platforms without window support.
+    }
+    try {
+      await windowManager.focus();
+    } catch (_) {
+      // No-op in tests / platforms without window support.
+    }
+
+    // Always land on the DMs tab, even for unknown conversations.
+    _ref.read(homeSidebarProvider.notifier).setType(HomeSidebarType.dms);
+
+    final conversations =
+        _ref.read(dmListProvider).asData?.value ?? const <DmConversation>[];
+    for (final conversation in conversations) {
+      if (conversation.channelId == channelId) {
+        _ref.read(selectedDmProvider.notifier).select(conversation);
+        break;
+      }
+    }
+
+    // Keep the router resolvable from the handler (registered in
+    // setupLocator). If the app is signed in but not on /home, bring it
+    // there so the DMs tab is visible. Never force navigation when
+    // unauthenticated or already home.
+    try {
+      if (locator.isRegistered<GoRouter>()) {
+        final router = locator<GoRouter>();
+        final isAuthenticated =
+            _ref.read(authNotifierProvider).status == AuthStatus.authenticated;
+        final current = router.state.uri.toString();
+        if (isAuthenticated && current != AppRouter.home) {
+          router.go(AppRouter.home);
+        }
+      }
+    } catch (_) {
+      // Navigation is best-effort; state selection above already landed
+      // the user on the DMs tab when HomeView is visible.
+    }
   }
 }
