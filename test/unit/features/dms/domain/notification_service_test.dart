@@ -80,6 +80,10 @@ void main() {
 
       await container.read(dmListProvider.future);
 
+      // Pre-select an unrelated DM: an unknown notification must not leave
+      // it open.
+      container.read(selectedDmProvider.notifier).select(dm('c1', 'Alice'));
+
       final service = container.read(notificationServiceProvider);
       await service.openDmFromNotification('missing-id');
 

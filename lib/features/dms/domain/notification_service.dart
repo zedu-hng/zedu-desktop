@@ -107,12 +107,16 @@ class NotificationService {
 
     final conversations =
         _ref.read(dmListProvider).asData?.value ?? const <DmConversation>[];
+    DmConversation? match;
     for (final conversation in conversations) {
       if (conversation.channelId == channelId) {
-        _ref.read(selectedDmProvider.notifier).select(conversation);
+        match = conversation;
         break;
       }
     }
+    // Select the match, or clear a stale selection so an unknown/deleted
+    // conversation never leaves an unrelated DM open.
+    _ref.read(selectedDmProvider.notifier).select(match);
 
     // Keep the router resolvable from the handler (registered in
     // setupLocator). If the app is signed in but not on /home, bring it
