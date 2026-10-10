@@ -42,18 +42,19 @@ ProviderContainer makeContainer({
 
 void main() {
   setUp(() {
-    // Keep the router resolvable from the handler (mirrors setupLocator).
+    // Keep the router resolvable for click-through tests (mirrors the
+    // setupLocator registration).
     if (!locator.isRegistered<GoRouter>()) {
       locator.registerSingleton<GoRouter>(AppRouter.router);
     }
   });
 
-  tearDown(() async {
-    // Keep other test files isolated: don't wipe the shared router.
-  });
-
-  test('setupLocator registers GoRouter for notification handler', () {
+  test('GoRouter is resolvable from the notification handler', () {
+    // The click-through path resolves the router from the locator; it must
+    // not throw an unregistered-dependency error. The registration itself
+    // lives in setupLocator (guarded by isRegistered for hot-restart).
     expect(locator.isRegistered<GoRouter>(), isTrue);
+    expect(locator<GoRouter>(), same(AppRouter.router));
   });
 
   test('click-through selects DMs tab + correct conversation', () async {
