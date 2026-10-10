@@ -124,6 +124,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 SocialAuthButton(
                   icon: 'assets/svgs/google_logo.svg',
                   label: 'Sign up with Google',
+                  loading: authState.isLoading,
                   onPressed: () =>
                       ref.read(authNotifierProvider.notifier).loginWithGoogle(),
                 ),
