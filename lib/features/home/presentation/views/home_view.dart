@@ -145,15 +145,7 @@ class _ChatAreaSwitcher extends ConsumerWidget {
       if (selectedDm != null) {
         return DmChatArea(conversation: selectedDm);
       } else {
-        return Container(
-          color: context.colors.background,
-          child: Center(
-            child: Text(
-              'Select a conversation to start messaging',
-              style: TextStyle(color: context.colors.textHint, fontSize: 16),
-            ),
-          ),
-        );
+        return const DmEmptyState();
       }
     }
     return const _ChatArea();
