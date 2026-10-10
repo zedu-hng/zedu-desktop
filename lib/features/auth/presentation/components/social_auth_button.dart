@@ -6,17 +6,20 @@ class SocialAuthButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.loading = false,
   });
 
   final String icon;
   final String label;
   final VoidCallback? onPressed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     return AppButton.outlined(
       label: label,
       onPressed: onPressed,
+      loading: loading,
       leading: SvgPicture.asset(icon, width: 16, height: 16),
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: context.colors.borderOutline, width: 1),
