@@ -41,21 +41,32 @@ ProviderContainer makeContainer({
 }
 
 void main() {
+  // Test-only scaffolding for the click-through tests below: keeps GoRouter
+  // resolvable without booting the whole app. The real registration is
+  // covered separately via setupLocator() in the test after this setUp.
   setUp(() {
-    // Keep the router resolvable for click-through tests (mirrors the
-    // setupLocator registration).
     if (!locator.isRegistered<GoRouter>()) {
       locator.registerSingleton<GoRouter>(AppRouter.router);
     }
   });
 
-  test('GoRouter is resolvable from the notification handler', () {
-    // The click-through path resolves the router from the locator; it must
-    // not throw an unregistered-dependency error. The registration itself
-    // lives in setupLocator (guarded by isRegistered for hot-restart).
-    expect(locator.isRegistered<GoRouter>(), isTrue);
-    expect(locator<GoRouter>(), same(AppRouter.router));
-  });
+  test(
+    'setupLocator registers GoRouter for the notification handler',
+    () async {
+      // Start from an empty locator so this assertion can only pass when
+      // setupLocator itself performs the registration.
+      await locator.reset();
+
+      // main() runs loadAppEnv() before setupLocator(); AppConfig reads
+      // dotenv, so seed it here without touching bundled assets.
+      dotenv.loadFromString(envString: 'API_BASE_URL=https://example.test/');
+
+      setupLocator();
+
+      expect(locator.isRegistered<GoRouter>(), isTrue);
+      expect(locator<GoRouter>(), same(AppRouter.router));
+    },
+  );
 
   test('click-through selects DMs tab + correct conversation', () async {
     final conversations = [dm('c1', 'Alice'), dm('c2', 'Bob')];
