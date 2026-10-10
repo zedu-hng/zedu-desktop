@@ -120,5 +120,65 @@ void main() {
       expect(capturedEmail, 'user@example.com');
       expect(capturedPassword, 'Secret123');
     });
+
+    Finder socialButton(String label) => find.descendant(
+      of: find.byWidgetPredicate(
+        (widget) => widget is SocialAuthButton && widget.label == label,
+      ),
+      matching: find.byType(OutlinedButton),
+    );
+
+    testWidgets('google button shows a spinner and is disabled while loading', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        buildLoginViewUnderTest(
+          notifier: FakeAuthNotifier(
+            initial: const AuthState(
+              status: AuthStatus.unauthenticated,
+              isLoading: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final googleButton = socialButton('Sign up with Google');
+      expect(tester.widget<OutlinedButton>(googleButton).onPressed, isNull);
+      expect(
+        find.descendant(
+          of: googleButton,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<OutlinedButton>(socialButton('Sign up with Apple'))
+            .onPressed,
+        isNotNull,
+      );
+    });
+
+    testWidgets('google button is enabled when not loading', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(buildLoginViewUnderTest());
+      await tester.pump();
+
+      final googleButton = socialButton('Sign up with Google');
+      expect(tester.widget<OutlinedButton>(googleButton).onPressed, isNotNull);
+      expect(
+        find.descendant(
+          of: googleButton,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
+      );
+    });
   });
 }
