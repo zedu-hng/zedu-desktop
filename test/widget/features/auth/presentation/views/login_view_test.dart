@@ -51,6 +51,18 @@ void main() {
       expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
     });
 
+    testWidgets('shows sign in wording on the Google and Apple buttons', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildLoginViewUnderTest());
+      await tester.pump();
+
+      expect(find.text('Sign in with Google'), findsOneWidget);
+      expect(find.text('Sign in with Apple'), findsOneWidget);
+      expect(find.text('Sign up with Google'), findsNothing);
+      expect(find.text('Sign up with Apple'), findsNothing);
+    });
+
     testWidgets('shows loading spinner when auth status is unknown', (
       tester,
     ) async {
