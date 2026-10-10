@@ -13,6 +13,7 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
   final _descController = TextEditingController();
   final _topicController = TextEditingController();
   bool _isPrivate = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -22,10 +23,11 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
     super.dispose();
   }
 
-  void _createChannel() {
+  Future<void> _createChannel() async {
     if (_nameController.text.trim().isEmpty) return;
 
-    ref
+    setState(() => _errorMessage = null);
+    final created = await ref
         .read(channelProvider.notifier)
         .createChannel(
           name: _nameController.text.trim(),
@@ -33,7 +35,16 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
           topic: _topicController.text.trim(),
           isPrivate: _isPrivate,
         );
-    Navigator.of(context).pop();
+    if (!mounted) return;
+    if (created) {
+      Navigator.of(context).pop();
+    } else {
+      final serverMessage = ref.read(channelProvider).errorMessage;
+      setState(
+        () => _errorMessage =
+            serverMessage ?? 'Could not create the channel. Please try again.',
+      );
+    }
   }
 
   @override
@@ -45,12 +56,12 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
     return Dialog(
       backgroundColor: colors.background,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
+      child: SizedBox(
         width: 400,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
+          shrinkWrap: true,
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.all(24),
           children: [
             Text(
               'Create a channel',
@@ -163,6 +174,13 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
                 ),
               ],
             ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                style: textTheme.bodySmall?.copyWith(color: colors.error),
+              ),
+            ],
             const SizedBox(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

@@ -34,9 +34,13 @@ class ChannelState {
 }
 
 class ChannelNotifier extends Notifier<ChannelState> {
+  // Counts fetches so an older request can't overwrite a newer one
+  int _fetchGeneration = 0;
+
   @override
   ChannelState build() {
-    // Schedule fetch after build
+    // Reload channels whenever the selected workspace changes
+    ref.watch(workspaceProvider.select((s) => s.selectedWorkspace?.id));
     Future.microtask(fetchChannels);
     return const ChannelState();
   }
@@ -46,10 +50,17 @@ class ChannelNotifier extends Notifier<ChannelState> {
     final String? orgId = workspaceState.selectedWorkspace?.id;
     if (orgId == null) return;
 
+    final generation = ++_fetchGeneration;
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     final repository = ref.read(channelRepositoryProvider);
     final result = await repository.fetchChannels(orgId);
+
+    // Ignore the result if a newer fetch started or the workspace changed
+    if (generation != _fetchGeneration ||
+        ref.read(workspaceProvider).selectedWorkspace?.id != orgId) {
+      return;
+    }
 
     if (result is Success<List<Channel>>) {
       state = state.copyWith(isLoading: false, channels: result.value);
@@ -75,6 +86,8 @@ class ChannelNotifier extends Notifier<ChannelState> {
 
     if (orgId == null || username == null) return false;
 
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
     final repository = ref.read(channelRepositoryProvider);
     final result = await repository.createChannel(
       name: name,
@@ -85,12 +98,28 @@ class ChannelNotifier extends Notifier<ChannelState> {
       topic: topic,
     );
 
-    if (result is Success<Channel>) {
-      state = state.copyWith(channels: [...state.channels, result.value]);
-      return true;
-    } else {
-      return false;
+    // Don't touch the list if the user switched workspace while creating
+    if (ref.read(workspaceProvider).selectedWorkspace?.id != orgId) {
+      return result is Success<Channel>;
     }
+
+    if (result is Success<Channel>) {
+      // Drop any older fetch still in flight so it can't hide the new channel
+      _fetchGeneration++;
+      state = state.copyWith(
+        isLoading: false,
+        channels: [
+          ...state.channels.where((c) => c.id != result.value.id),
+          result.value,
+        ],
+      );
+      return true;
+    }
+    state = state.copyWith(
+      isLoading: false,
+      errorMessage: result is Failure<Channel> ? result.error.message : null,
+    );
+    return false;
   }
 
   Future<bool> updateChannelTopicOrDescription({

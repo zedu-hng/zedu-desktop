@@ -160,12 +160,17 @@ class _ChatAreaSwitcher extends ConsumerWidget {
   }
 }
 
-class _MainSidebar extends StatelessWidget {
+class _MainSidebar extends ConsumerWidget {
   const _MainSidebar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final channels = ref
+        .watch(channelProvider)
+        .channels
+        .where((c) => !c.archived)
+        .toList();
 
     return Container(
       width: 320,
@@ -191,7 +196,17 @@ class _MainSidebar extends StatelessWidget {
               ],
             ),
           ),
-          const _ChannelItem(label: 'general'),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 240),
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: [
+                for (final channel in channels)
+                  _ChannelItem(label: channel.name),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Container(
@@ -283,26 +298,32 @@ class _AddChannelButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: colors.onPrimary.withValues(alpha: 0.38),
+    return InkWell(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => const CreateChannelModal(),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: colors.onPrimary.withValues(alpha: 0.38),
+                ),
+                borderRadius: BorderRadius.circular(4),
               ),
-              borderRadius: BorderRadius.circular(4),
+              child: Icon(Icons.add, color: colors.onPrimary, size: 14),
             ),
-            child: Icon(Icons.add, color: colors.onPrimary, size: 14),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Add channel',
-            style: TextStyle(color: colors.onPrimary, fontSize: 14),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Text(
+              'Add channel',
+              style: TextStyle(color: colors.onPrimary, fontSize: 14),
+            ),
+          ],
+        ),
       ),
     );
   }
