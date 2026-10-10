@@ -22,4 +22,11 @@ void setupLocator() {
   locator.registerLazySingleton<ApiBaseService>(
     () => ApiBaseService(config: config, dio: dio),
   );
+
+  // Registered so desktop notification click-through (and any other
+  // background handler) can resolve the router without throwing an
+  // unregistered-dependency error. Guarded for hot-restart / tests.
+  if (!locator.isRegistered<GoRouter>()) {
+    locator.registerSingleton<GoRouter>(AppRouter.router);
+  }
 }
