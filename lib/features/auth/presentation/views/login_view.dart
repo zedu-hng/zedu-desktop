@@ -195,7 +195,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                         textInputAction: TextInputAction.done,
                         validator: (value) => Validators.validateRequired(
                           context,
-                          value,
+                          value?.trim(),
                           fieldName: 'Password',
                         ),
                       ),
