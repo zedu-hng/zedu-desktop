@@ -18,6 +18,9 @@ class UserProfileState {
     this.organization,
     this.securitySessions = const [],
     this.teamMembers = const [],
+    this.invites = const [],
+    this.invitesPage = 1,
+    this.isInvitesLoading = false,
     this.rolesAndPermissions = const [],
     this.billing,
     this.isLoading = false,
@@ -32,6 +35,9 @@ class UserProfileState {
   final OrganizationProfile? organization;
   final List<SecuritySession> securitySessions;
   final List<TeamMember> teamMembers;
+  final List<TeamMember> invites;
+  final int invitesPage;
+  final bool isInvitesLoading;
   final List<RolePermission> rolesAndPermissions;
   final BillingInfo? billing;
   final bool isLoading;
@@ -46,6 +52,9 @@ class UserProfileState {
     OrganizationProfile? organization,
     List<SecuritySession>? securitySessions,
     List<TeamMember>? teamMembers,
+    List<TeamMember>? invites,
+    int? invitesPage,
+    bool? isInvitesLoading,
     List<RolePermission>? rolesAndPermissions,
     BillingInfo? billing,
     bool? isLoading,
@@ -62,6 +71,9 @@ class UserProfileState {
       organization: organization ?? this.organization,
       securitySessions: securitySessions ?? this.securitySessions,
       teamMembers: teamMembers ?? this.teamMembers,
+      invites: invites ?? this.invites,
+      invitesPage: invitesPage ?? this.invitesPage,
+      isInvitesLoading: isInvitesLoading ?? this.isInvitesLoading,
       rolesAndPermissions: rolesAndPermissions ?? this.rolesAndPermissions,
       billing: billing ?? this.billing,
       isLoading: isLoading ?? this.isLoading,

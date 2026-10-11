@@ -61,6 +61,14 @@ void main() {
         () => repository.getBillingInfo(),
       ).thenAnswer((_) async => Success(BillingInfo.empty()));
 
+      when(
+        () => repository.getInvites(
+          orgId: any(named: 'orgId'),
+          page: any(named: 'page'),
+          search: any(named: 'search'),
+        ),
+      ).thenAnswer((_) async => const Success(<TeamMember>[]));
+
       container = ProviderContainer(
         overrides: [
           userProfileRepositoryProvider.overrideWithValue(repository),
@@ -126,6 +134,33 @@ void main() {
 
       expect(state.teamMembers, isEmpty);
       expect(state.error, isNotNull);
+    });
+
+    test('loads pending invites and drops one when it is deleted', () async {
+      when(
+        () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) async => const Success(_members));
+      when(
+        () => repository.getInvites(
+          orgId: any(named: 'orgId'),
+          page: any(named: 'page'),
+          search: any(named: 'search'),
+        ),
+      ).thenAnswer((_) async => Success([_members[1]]));
+      when(
+        () => repository.deleteInvite('member-2'),
+      ).thenAnswer((_) async => const Success(null));
+
+      await loaded();
+      final notifier = container.read(userProfileNotifierProvider.notifier);
+      await notifier.loadInvites();
+      expect(container.read(userProfileNotifierProvider).invites, [
+        _members[1],
+      ]);
+
+      await notifier.deleteInvite('member-2');
+
+      expect(container.read(userProfileNotifierProvider).invites, isEmpty);
     });
   });
 }
