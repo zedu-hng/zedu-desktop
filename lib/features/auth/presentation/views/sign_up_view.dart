@@ -247,7 +247,10 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                        recognizer: TapGestureRecognizer()
+  ..onTap = () => launchUrl(
+    Uri.parse('https://zedu.chat/terms-of-service'),
+  ),
                       ),
                       const TextSpan(text: ' and '),
                       TextSpan(
@@ -255,7 +258,10 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         style: context.textTheme.bodySmall?.copyWith(
                           color: context.colors.primary,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                       recognizer: TapGestureRecognizer()
+  ..onTap = () => launchUrl(
+    Uri.parse('https://zedu.chat/policy'),
+  ),
                       ),
                     ],
                   ),
