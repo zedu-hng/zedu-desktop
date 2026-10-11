@@ -56,7 +56,10 @@ class ProfileModel {
       isActive: json['is_active'] as bool? ?? true,
       isVerified: json['is_verified'] as bool? ?? true,
       isOnboarded: json['is_onboarded'] as bool? ?? true,
-      currentOrg: json['current_org'] as String? ?? '',
+      currentOrg:
+          json['organisation_id'] as String? ??
+          json['current_org'] as String? ??
+          '',
       currentOrganisationSlug:
           json['current_organisation_slug'] as String? ?? '',
     );

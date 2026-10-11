@@ -118,7 +118,7 @@ void main() {
       test('calls GET /profile and maps the profile to a user', () async {
         const rawProfile = <String, dynamic>{
           'id': '019142c8-5408-7a48-8173-f31e6c8e00cd',
-          'userId': '019142c8-5408-7a47-b94c-91d674dd8358',
+          'user_id': '019142c8-5408-7a47-b94c-91d674dd8358',
           'email': 'profile@example.com',
           'phone': '09099999999',
           'first_name': 'Test',
@@ -129,7 +129,8 @@ void main() {
           'default_avatar_url': 'default.png',
           'created_at': '2024-08-11T19:51:50+01:00',
           'updated_at': '2024-08-12T00:59:39+01:00',
-          'is_active': true,
+          'deactivated': false,
+          'organisation_id': 'org-1',
         };
 
         when(
@@ -151,8 +152,9 @@ void main() {
 
         final user = (await datasource.me()).toEntity();
 
-        expect(user.id, rawProfile['userId']);
+        expect(user.id, rawProfile['user_id']);
         expect(user.email, rawProfile['email']);
+        expect(user.currentOrg, 'org-1');
         expect(user.fullname, 'Test Og');
         expect(user.createdAt, DateTime.parse('2024-08-11T19:51:50+01:00'));
         verify(
