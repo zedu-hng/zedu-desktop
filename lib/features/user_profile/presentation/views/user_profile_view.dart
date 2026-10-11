@@ -83,6 +83,11 @@ class _ProfileContent extends StatelessWidget {
             ),
             UserProfileSection.userManagement => UserManagementSection(
               members: state.teamMembers,
+              invites: state.invites,
+              invitesPage: state.invitesPage,
+              isInvitesLoading: state.isInvitesLoading,
+              onLoadInvites: notifier.loadInvites,
+              onDeleteInvite: notifier.deleteInvite,
               isSaving: state.isSaving,
               onInvite: notifier.inviteMember,
               onUpdate: notifier.updateMember,
