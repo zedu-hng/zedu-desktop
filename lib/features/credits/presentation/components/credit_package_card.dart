@@ -47,7 +47,7 @@ class CreditPackageCard extends StatelessWidget {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -199,7 +199,7 @@ class CreditPackageCard extends StatelessWidget {
                           backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
+                          shape: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
@@ -236,20 +236,19 @@ class CreditPackageCard extends StatelessWidget {
     );
   }
 
- static String _formatCredits(int credits) {
-  if (credits >= 1000000) {
-    final value = credits / 1000000;
-    return value == value.roundToDouble()
-        ? '${value.toInt()}M'
-        : '${value.toStringAsFixed(1)}M';
+  static String _formatCredits(int credits) {
+    if (credits >= 1000000) {
+      final value = credits / 1000000;
+      return value == value.roundToDouble()
+          ? '${value.toInt()}M'
+          : '${value.toStringAsFixed(1)}M';
+    }
+    if (credits >= 1000) {
+      final value = credits / 1000;
+      return value == value.roundToDouble()
+          ? '${value.toInt()}K'
+          : '${value.toStringAsFixed(1)}K';
+    }
+    return credits.toString();
   }
-  if (credits >= 1000) {
-    final value = credits / 1000;
-    return value == value.roundToDouble()
-        ? '${value.toInt()}K'
-        : '${value.toStringAsFixed(1)}K';
-  }
-  return credits.toString();
 }
-}
-   
