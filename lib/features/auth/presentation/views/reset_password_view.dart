@@ -107,6 +107,23 @@ class _ResetPasswordViewState extends ConsumerState<ResetPasswordView> {
     }
   }
 
+  void _onTokenChanged(int index, String value) {
+    if (value.length > 1) {
+      for (var offset = 0; offset < value.length; offset++) {
+        _tokenControllers[index + offset].value = TextEditingValue(
+          text: value[offset],
+          selection: const TextSelection.collapsed(offset: 1),
+        );
+      }
+      final nextIndex = index + value.length;
+      _focusNodes[nextIndex < 6 ? nextIndex : 5].requestFocus();
+    } else if (value.isNotEmpty && index < 5) {
+      _focusNodes[index + 1].requestFocus();
+    } else if (value.isEmpty && index > 0) {
+      _focusNodes[index - 1].requestFocus();
+    }
+  }
+
   Widget _buildOTPInput() {
     final theme = Theme.of(context);
     return Row(
@@ -122,7 +139,26 @@ class _ResetPasswordViewState extends ConsumerState<ResetPasswordView> {
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(1),
+              TextInputFormatter.withFunction((oldValue, newValue) {
+                if (oldValue.text.isEmpty ||
+                    !oldValue.selection.isValid ||
+                    newValue.text.length <= 1) {
+                  return newValue;
+                }
+                final start = oldValue.selection.start;
+                final unchangedLength =
+                    oldValue.text.length - (oldValue.selection.end - start);
+                final insertedLength = newValue.text.length - unchangedLength;
+                final inserted = newValue.text.substring(
+                  start,
+                  start + insertedLength,
+                );
+                return TextEditingValue(
+                  text: inserted,
+                  selection: TextSelection.collapsed(offset: inserted.length),
+                );
+              }),
+              LengthLimitingTextInputFormatter(6 - index),
             ],
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
@@ -141,13 +177,7 @@ class _ResetPasswordViewState extends ConsumerState<ResetPasswordView> {
                 borderSide: BorderSide(color: context.colors.primary, width: 2),
               ),
             ),
-            onChanged: (value) {
-              if (value.isNotEmpty && index < 5) {
-                _focusNodes[index + 1].requestFocus();
-              } else if (value.isEmpty && index > 0) {
-                _focusNodes[index - 1].requestFocus();
-              }
-            },
+            onChanged: (value) => _onTokenChanged(index, value),
           ),
         );
       }),
