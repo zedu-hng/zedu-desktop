@@ -199,7 +199,7 @@ class CreditPackageCard extends StatelessWidget {
                           backgroundColor: colors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: BoxDecoration(
+                          shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
