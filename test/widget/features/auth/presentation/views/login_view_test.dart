@@ -163,6 +163,32 @@ void main() {
       );
     });
 
+    testWidgets('loading google button keeps its label for screen readers', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final semantics = tester.ensureSemantics();
+
+      await tester.pumpWidget(
+        buildLoginViewUnderTest(
+          notifier: FakeAuthNotifier(
+            initial: const AuthState(
+              status: AuthStatus.unauthenticated,
+              isLoading: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.bySemanticsLabel('Sign up with Google, loading'),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
     testWidgets('google button is enabled when not loading', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 1024));
       addTearDown(() => tester.binding.setSurfaceSize(null));

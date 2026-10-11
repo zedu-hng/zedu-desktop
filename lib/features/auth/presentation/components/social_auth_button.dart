@@ -16,7 +16,7 @@ class SocialAuthButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppButton.outlined(
+    final button = AppButton.outlined(
       label: label,
       onPressed: onPressed,
       loading: loading,
@@ -29,6 +29,12 @@ class SocialAuthButton extends StatelessWidget {
           fontSize: 18,
         ),
       ),
+    );
+    if (!loading) return button;
+
+    // The spinner replaces the label while loading; keep it for screen readers.
+    return MergeSemantics(
+      child: Semantics(label: '$label, loading', child: button),
     );
   }
 }
