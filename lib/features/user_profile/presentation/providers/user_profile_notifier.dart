@@ -342,9 +342,8 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     );
     switch (result) {
       case Success<TeamMember>():
-        final newTeamMembers = [...state.teamMembers, result.value];
+        // The invite is not a member yet; it shows up in the Invites tab.
         state = state.copyWith(
-          teamMembers: newTeamMembers,
           isSaving: false,
           successMessage: 'Invite sent successfully.',
         );
@@ -353,7 +352,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
         final config = locator<AppConfig>();
         if (config.usesMockData) {
           final storage = locator<SecureStorageService>();
-          final jsonList = newTeamMembers
+          final jsonList = state.teamMembers
               .map(
                 (m) => {
                   'id': m.id,

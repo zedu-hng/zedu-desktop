@@ -41,6 +41,9 @@ void main() {
         locator.unregister<SecureStorageService>();
       }
       locator.registerSingleton<SecureStorageService>(storage);
+      locator.registerSingleton<AppConfig>(
+        const AppConfig(apiBaseUrl: 'http://test/', usesMockData: false),
+      );
 
       when(
         () => repository.getAccount(),
@@ -71,6 +74,7 @@ void main() {
 
     tearDown(() {
       locator.unregister<SecureStorageService>();
+      locator.unregister<AppConfig>();
     });
 
     Future<UserProfileState> loaded() async {
@@ -126,6 +130,35 @@ void main() {
 
       expect(state.teamMembers, isEmpty);
       expect(state.error, isNotNull);
+    });
+
+    test('keeps a newly invited email out of the team members', () async {
+      when(
+        () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) async => const Success(_members));
+      when(
+        () => repository.inviteMember(
+          email: any(named: 'email'),
+          role: any(named: 'role'),
+          orgId: any(named: 'orgId'),
+        ),
+      ).thenAnswer(
+        (_) async => const Success(
+          TeamMember(
+            id: 'invite-1',
+            email: 'new@example.com',
+            role: 'User',
+            dateJoined: 'Pending',
+            status: TeamMemberStatus.pending,
+          ),
+        ),
+      );
+
+      await loaded();
+      final notifier = container.read(userProfileNotifierProvider.notifier);
+      await notifier.inviteMember(email: 'new@example.com', role: 'User');
+
+      expect(container.read(userProfileNotifierProvider).teamMembers, _members);
     });
   });
 }
