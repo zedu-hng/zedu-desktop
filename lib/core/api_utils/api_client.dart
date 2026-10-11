@@ -2,7 +2,14 @@ import 'package:zedu/core/core.dart';
 
 class ApiBaseService {
   ApiBaseService({required AppConfig config, Dio? dio})
-    : _dio = dio ?? Dio(BaseOptions(baseUrl: config.apiBaseUrl));
+    : _dio = dio ?? Dio(createOptions(config.apiBaseUrl));
+
+  static BaseOptions createOptions(String baseUrl) => BaseOptions(
+    baseUrl: baseUrl,
+    connectTimeout: const Duration(seconds: 15),
+    sendTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 30),
+  );
 
   final Dio _dio;
 
