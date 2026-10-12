@@ -141,10 +141,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final material = find
-        .ancestor(
-          of: find.byType(DmListTile),
-          matching: find.byType(Material),
-        )
+        .ancestor(of: find.byType(DmListTile), matching: find.byType(Material))
         .first;
     expect(tester.widget<Material>(material).type, MaterialType.transparency);
     final sidebar = find.byWidgetPredicate(
