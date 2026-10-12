@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:zedu/core/core.dart';
 
 class ToolbarButton extends StatelessWidget {
@@ -37,7 +38,7 @@ class ToolbarButton extends StatelessWidget {
             size: 18,
             color: isActive
                 ? colors.primary
-                : colors.textPrimary.withValues(alpha: 0.75),
+                : colors.textPrimary, // Changed from alpha 0.75 to full opacity textPrimary for high contrast
           ),
         ),
       ),
