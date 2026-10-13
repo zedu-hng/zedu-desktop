@@ -27,4 +27,4 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    uses: zedu-hng/zedu-ci/.github/workflows/fork-gate.yml@42c819ef031776418c05c47f5d0ed453ff048870
+    uses: zedu-hng/zedu-ci/.github/workflows/fork-gate.yml@181371c60af0e32605794c6f0c4520f1ef739271
