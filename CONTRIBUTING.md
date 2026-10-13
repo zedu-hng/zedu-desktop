@@ -106,7 +106,7 @@ docs/110-setup-instructions
 - 3–5 words after the ticket ID. The PR title carries the full description.
 - No personal names (`remi/dark-mode` is an anti-pattern; git already knows who you are).
 - One ticket per branch. If you find another problem, open another ticket.
-- The **Branch name** check enforces the format on every PR. *(Switched off for now: a consolidated team PR can use any branch name.)*
+- The **Branch name** check enforces the format on every PR. *(Switched off for now: a consolidated team PR may use any branch format, but should still include the main ticket ID.)*
 
 **One person per PR. Team PRs are allowed for now.** A team can consolidate several members' work into one PR from its fork. The **Single author**, **Branch name** and **Size** checks are switched off for now: they still report, as passed, and can be switched back on. For a consolidated PR, put the main ticket in the branch and in the title and list the other tickets in the description. The earlier rule is kept for when it returns: *each member opens their own PR from their own ticket branch, with no team branches and no combined PRs, so nobody's work is held up by someone else's. The **Single author** check fails a PR with commits from more than one person.* If you commit from several emails, add all of them to your GitHub account (**Settings → Emails**), or they count as different authors. Credit a collaborator with a `Co-authored-by:` trailer instead.
 
