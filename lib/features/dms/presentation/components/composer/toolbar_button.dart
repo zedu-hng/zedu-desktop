@@ -37,7 +37,8 @@ class ToolbarButton extends StatelessWidget {
             size: 18,
             color: isActive
                 ? colors.primary
-                : colors.textPrimary, // Changed from alpha 0.75 to full opacity textPrimary for high contrast
+                : colors
+                      .textPrimary, // Changed from alpha 0.75 to full opacity textPrimary for high contrast
           ),
         ),
       ),
