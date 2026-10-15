@@ -33,7 +33,7 @@ Widget buildLoginViewUnderTest({FakeAuthNotifier? notifier}) {
     overrides: [
       authNotifierProvider.overrideWith(() => notifier ?? FakeAuthNotifier()),
     ],
-    child: const MaterialApp(home: LoginView()),
+    child: buildTestMaterialApp(const LoginView()),
   );
 }
 
