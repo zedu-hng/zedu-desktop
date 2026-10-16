@@ -193,8 +193,11 @@ class _LoginViewState extends ConsumerState<LoginView> {
                         label: 'Password',
                         hint: 'Password',
                         textInputAction: TextInputAction.done,
-                        validator: (value) =>
-                            Validators.validatePassword(context, value),
+                        validator: (value) => Validators.validateRequired(
+                          context,
+                          value?.trim(),
+                          fieldName: 'Password',
+                        ),
                       ),
                       context.gapV(8),
                       Row(
