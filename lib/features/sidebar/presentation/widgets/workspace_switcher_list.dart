@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -56,7 +58,7 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                         Navigator.pop(context);
                         showDialog<void>(
                           context: context,
-                          builder: (context) => InviteTeammatesModal(),
+                          builder: (context) => const InviteTeammatesModal(),
                         );
                       },
                     ),
@@ -163,22 +165,25 @@ class WorkspaceSwitcherList extends ConsumerWidget {
   Widget _buildFooter(BuildContext context) {
     final colors = context.colors;
 
-    return InkWell(
-      onTap: () {
-        Navigator.pop(context);
-        context.push(AppRouter.createOrganization);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Icon(Icons.add, color: colors.textHint, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'Add a new organization',
-              style: TextStyle(color: colors.textPrimary, fontSize: 14),
-            ),
-          ],
+    return Tooltip(
+      message: 'Add a new organization',
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          context.push(AppRouter.createOrganization);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.add, color: colors.textHint, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Add a new organization',
+                style: TextStyle(color: colors.textPrimary, fontSize: 14),
+              ),
+            ],
+          ),
         ),
       ),
     );
