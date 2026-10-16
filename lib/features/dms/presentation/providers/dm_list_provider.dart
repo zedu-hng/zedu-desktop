@@ -25,6 +25,52 @@ final selectedDmProvider =
       SelectedDmNotifier.new,
     );
 
+class DmConversationActions {
+  final Set<String> pinnedIds;
+  final Set<String> blockedIds;
+  final Set<String> deletedIds;
+
+  const DmConversationActions({
+    this.pinnedIds = const {},
+    this.blockedIds = const {},
+    this.deletedIds = const {},
+  });
+
+  DmConversationActions copyWith({
+    Set<String>? pinnedIds,
+    Set<String>? blockedIds,
+    Set<String>? deletedIds,
+  }) => DmConversationActions(
+    pinnedIds: pinnedIds ?? this.pinnedIds,
+    blockedIds: blockedIds ?? this.blockedIds,
+    deletedIds: deletedIds ?? this.deletedIds,
+  );
+}
+
+class DmConversationActionsNotifier extends Notifier<DmConversationActions> {
+  @override
+  DmConversationActions build() => const DmConversationActions();
+
+  void togglePinned(String channelId) {
+    final ids = Set<String>.from(state.pinnedIds);
+    ids.contains(channelId) ? ids.remove(channelId) : ids.add(channelId);
+    state = state.copyWith(pinnedIds: ids);
+  }
+
+  void block(String channelId) {
+    state = state.copyWith(blockedIds: {...state.blockedIds, channelId});
+  }
+
+  void delete(String channelId) {
+    state = state.copyWith(deletedIds: {...state.deletedIds, channelId});
+  }
+}
+
+final dmConversationActionsProvider =
+    NotifierProvider<DmConversationActionsNotifier, DmConversationActions>(
+      DmConversationActionsNotifier.new,
+    );
+
 class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
   int _currentPage = 1;
   bool _hasMore = true;
