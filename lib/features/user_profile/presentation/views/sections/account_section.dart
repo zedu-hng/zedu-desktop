@@ -39,6 +39,7 @@ class AccountSection extends StatelessWidget {
                       right: 8,
                       child: SquareIconButton(
                         icon: Icons.edit_outlined,
+                        tooltip: 'Edit profile',
                         onTap: () =>
                             _showAccountDialog(context, account, onSave),
                       ),

@@ -22,15 +22,17 @@ class SquareIconButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.size = 32,
+    this.tooltip,
   });
 
   final IconData icon;
   final VoidCallback onTap;
   final double size;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final button = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -42,6 +44,32 @@ class SquareIconButton extends StatelessWidget {
         ),
         child: Icon(icon, size: size * 0.56, color: const Color(0xFF374151)),
       ),
+    );
+
+    final tip = tooltip;
+    if (tip == null) return button;
+    return Tooltip(
+      message: tip,
+      waitDuration: const Duration(milliseconds: 400),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      textStyle: const TextStyle(
+        color: Color(0xFF374151),
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: button,
     );
   }
 }
