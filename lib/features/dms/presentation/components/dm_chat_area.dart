@@ -367,7 +367,90 @@ class _DmChatHeader extends StatelessWidget {
             },
           ),
           const SizedBox(width: 12),
-          Icon(Icons.more_vert, color: colors.textHint),
+          PopupMenuButton<String>(
+            tooltip: 'More options',
+            position: PopupMenuPosition.under,
+            icon: Icon(Icons.more_vert, color: colors.textHint),
+            onSelected: (action) {
+              switch (action) {
+                case 'view_profile':
+                  debugPrint('View profile clicked');
+                case 'mute_notifications':
+                  debugPrint('Mute notifications clicked');
+                case 'pin_conversation':
+                  debugPrint('Pin conversation clicked');
+                case 'search_in_conversation':
+                  debugPrint('Search in conversation clicked');
+                case 'view_files':
+                  debugPrint('View files clicked');
+                case 'clear_history':
+                  debugPrint('Clear history clicked');
+                case 'block_user':
+                  debugPrint('Block User clicked');
+                case 'delete_conversation':
+                  debugPrint('Delete conversation clicked');
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'view_profile',
+                child: Text(
+                  'View profile',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'mute_notifications',
+                child: Text(
+                  'Mute notifications',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'pin_conversation',
+                child: Text(
+                  'Pin conversation',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'search_in_conversation',
+                child: Text(
+                  'Search in conversation',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'view_files',
+                child: Text(
+                  'View files',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'clear_history',
+                child: Text(
+                  'Clear history',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'block_user',
+                child: Text(
+                  'Block User',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete_conversation',
+                child: Text(
+                  'Delete conversation',
+                  style: TextStyle(color: Color(0xFFD93025)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
