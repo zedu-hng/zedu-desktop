@@ -509,55 +509,6 @@ class _DmChatHeader extends StatelessWidget {
           const Spacer(),
           Consumer(
             builder: (context, ref, child) {
-              return IconButton(
-                icon: Icon(
-                  ref.watch(notificationSettingsProvider).isMuted(
-                        conversation.participantId,
-                      )
-                      ? Icons.notifications_off_outlined
-                      : Icons.notifications_active_outlined,
-                ),
-                tooltip: ref.watch(notificationSettingsProvider).isMuted(
-                      conversation.participantId,
-                    )
-                    ? 'Unmute notifications'
-                    : 'Test Notification (Delayed 5s)',
-                onPressed: () {
-                  if (ref
-                      .read(notificationSettingsProvider)
-                      .isMuted(conversation.participantId)) {
-                    ref
-                        .read(notificationSettingsProvider.notifier)
-                        .unmuteParticipant(conversation.participantId);
-                    return;
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Notification will fire in 5 seconds. Minimize the app now!',
-                      ),
-                    ),
-                  );
-                  Future.delayed(const Duration(seconds: 5), () {
-                    ref
-                        .read(notificationServiceProvider)
-                        .handleIncomingMessage(
-                          {
-                            'user_id': conversation.participantId,
-                            'content': 'Hello! This is a test DM notification.',
-                          },
-                          conversation.channelId,
-                          conversation.displayName,
-                          forceShow: true,
-                        );
-                  });
-                },
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-          Consumer(
-            builder: (context, ref, child) {
               return InkWell(
                 onTap: () {
                   ref
