@@ -164,6 +164,20 @@ Windows (PowerShell):
 Copy-Item .env.example .env
 ```
 
+## Running on Windows(locally)
+
+Windows needs a few extra steps on a fresh clone to run locally, including a manual fix for the Agora plugin in your Pub cache. The full guide is in [`windows-setup-locally.md`](windows-setup-locally.md).
+
+Tested with Flutter 3.47.7 and Visual Studio 2026 Community (Desktop development with C++). Run every command in PowerShell, do not run Flutter as administrator, and never commit or share your `.env` file.
+
+The guide walks from a fresh clone to a running app and covers these build errors:
+
+- `Cannot extract through symlink` from the Agora plugin
+- `No file or variants found for asset: .env`
+- `error STL1011` in `audioplayers_windows`
+- `file cannot create directory: C:/Program Files/zedu` during install
+
+
 ## Common commands
 
 ```sh
