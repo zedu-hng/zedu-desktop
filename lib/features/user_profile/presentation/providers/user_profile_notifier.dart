@@ -370,12 +370,50 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
             jsonEncode(jsonList),
           );
         }
+        await loadInvites();
 
       case Failure<TeamMember>():
         state = state.copyWith(
           isSaving: false,
           error: result.error.friendlyMessage,
         );
+    }
+  }
+
+  Future<void> loadInvites({int page = 1, String search = ''}) async {
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    if (orgId == null || orgId.isEmpty) return;
+    state = state.copyWith(isInvitesLoading: true, invitesPage: page);
+    final result = await _repository.getInvites(
+      orgId: orgId,
+      page: page,
+      search: search,
+    );
+    if (!ref.mounted) return;
+    switch (result) {
+      case Success<List<TeamMember>>():
+        state = state.copyWith(invites: result.value, isInvitesLoading: false);
+      case Failure<List<TeamMember>>():
+        state = state.copyWith(
+          isInvitesLoading: false,
+          error: result.error.friendlyMessage,
+        );
+    }
+  }
+
+  Future<void> deleteInvite(String inviteId) async {
+    final result = await _repository.deleteInvite(inviteId);
+    switch (result) {
+      case Success<void>():
+        state = state.copyWith(
+          invites: [
+            for (final invite in state.invites)
+              if (invite.id != inviteId) invite,
+          ],
+          successMessage: 'Invite deleted.',
+        );
+      case Failure<void>():
+        state = state.copyWith(error: result.error.friendlyMessage);
     }
   }
 
@@ -492,6 +530,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       isLoading: false,
       error: error,
     );
+    await loadInvites();
   }
 
   String? _getError(List<dynamic> results) {

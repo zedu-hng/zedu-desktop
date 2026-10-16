@@ -5,6 +5,11 @@ class UserManagementSection extends StatefulWidget {
   const UserManagementSection({
     super.key,
     required this.members,
+    required this.invites,
+    required this.invitesPage,
+    required this.isInvitesLoading,
+    required this.onLoadInvites,
+    required this.onDeleteInvite,
     required this.isSaving,
     required this.onInvite,
     required this.onUpdate,
@@ -12,6 +17,11 @@ class UserManagementSection extends StatefulWidget {
   });
 
   final List<TeamMember> members;
+  final List<TeamMember> invites;
+  final int invitesPage;
+  final bool isInvitesLoading;
+  final Future<void> Function({int page, String search}) onLoadInvites;
+  final Future<void> Function(String inviteId) onDeleteInvite;
   final bool isSaving;
   final Future<void> Function({required String email, required String role})
   onInvite;
@@ -24,11 +34,15 @@ class UserManagementSection extends StatefulWidget {
 
 class _UserManagementSectionState extends State<UserManagementSection> {
   final _searchController = TextEditingController();
+  final _inviteSearchController = TextEditingController();
+  String _inviteSearch = '';
   String _roleFilter = 'All Roles';
+  bool _showInvites = false;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _inviteSearchController.dispose();
     super.dispose();
   }
 
@@ -43,33 +57,17 @@ class _UserManagementSectionState extends State<UserManagementSection> {
       return matchesQuery && matchesRole;
     }).toList();
 
+    if (_showInvites) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [..._headerAndTabs(context), _invitesCard(context)],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ProfileSectionHeader(
-          title: 'Your Team',
-          subtitle: 'Manage all members of your team.',
-          trailing: AppButton(
-            label: 'Invite People',
-            expand: false,
-            height: 44,
-            loading: widget.isSaving,
-            onPressed: () => _showInviteDialog(context, widget.onInvite),
-          ),
-        ),
-        const SizedBox(height: 34),
-        Row(
-          children: [
-            _TabLabel(
-              label: 'Members',
-              count: widget.members.length,
-              active: true,
-            ),
-            const SizedBox(width: 32),
-            const _TabLabel(label: 'Invites', count: 1, active: false),
-          ],
-        ),
-        const SizedBox(height: 24),
+        ..._headerAndTabs(context),
         ProfileCard(
           padding: EdgeInsets.zero,
           child: Column(
@@ -207,6 +205,172 @@ class _UserManagementSectionState extends State<UserManagementSection> {
     );
   }
 
+  List<Widget> _headerAndTabs(BuildContext context) => [
+    ProfileSectionHeader(
+      title: 'Your Team',
+      subtitle: 'Manage all members of your team.',
+      trailing: AppButton(
+        label: 'Invite People',
+        expand: false,
+        height: 44,
+        loading: widget.isSaving,
+        onPressed: () => _showInviteDialog(context, widget.onInvite),
+      ),
+    ),
+    const SizedBox(height: 34),
+    Row(
+      children: [
+        InkWell(
+          onTap: () => setState(() => _showInvites = false),
+          child: _TabLabel(
+            label: 'Members',
+            count: widget.members.length,
+            active: !_showInvites,
+          ),
+        ),
+        const SizedBox(width: 32),
+        InkWell(
+          onTap: () => setState(() => _showInvites = true),
+          child: _TabLabel(
+            label: 'Invites',
+            count: widget.invites.length,
+            active: _showInvites,
+          ),
+        ),
+      ],
+    ),
+    const SizedBox(height: 24),
+  ];
+
+  Widget _invitesCard(BuildContext context) {
+    final invites = widget.invites;
+    final page = widget.invitesPage;
+    return ProfileCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                width: 300,
+                child: TextField(
+                  controller: _inviteSearchController,
+                  onSubmitted: (value) {
+                    _inviteSearch = value.trim();
+                    widget.onLoadInvites(search: _inviteSearch);
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Search by email',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (widget.isInvitesLoading)
+            const Padding(
+              padding: EdgeInsets.all(48),
+              child: CircularProgressIndicator(),
+            )
+          else if (invites.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(48),
+              child: Text(
+                'No invites found',
+                style: context.textTheme.bodyMedium,
+              ),
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 880,
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    const Color(0xFFFAFAFA),
+                  ),
+                  columns: const [
+                    DataColumn(label: Text('Email Address')),
+                    DataColumn(label: Text('Role')),
+                    DataColumn(label: Text('Date Invited')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Actions')),
+                  ],
+                  rows: [
+                    for (final invite in invites)
+                      DataRow(
+                        cells: [
+                          DataCell(_MemberIdentity(email: invite.email)),
+                          DataCell(Text(invite.role)),
+                          DataCell(Text(_formatDate(invite.dateJoined))),
+                          const DataCell(ProfileStatusPill(status: 'invited')),
+                          DataCell(
+                            SquareIconButton(
+                              icon: Icons.delete_outline,
+                              size: 28,
+                              onTap: () => showProfileConfirmDialog(
+                                context,
+                                title: 'Delete invite?',
+                                message:
+                                    'The invite sent to ${invite.email} will be cancelled.',
+                                confirmLabel: 'Delete invite',
+                                destructive: true,
+                                onConfirm: () =>
+                                    widget.onDeleteInvite(invite.id),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                AppButton.outlined(
+                  label: 'Previous',
+                  expand: false,
+                  height: 36,
+                  disabled: page <= 1,
+                  onPressed: () => widget.onLoadInvites(
+                    page: page - 1,
+                    search: _inviteSearch,
+                  ),
+                ),
+                const Spacer(),
+                Text('$page', style: context.textTheme.bodySmall),
+                const Spacer(),
+                AppButton.outlined(
+                  label: 'Next',
+                  expand: false,
+                  height: 36,
+                  disabled: invites.length < invitesPageSize,
+                  onPressed: () => widget.onLoadInvites(
+                    page: page + 1,
+                    search: _inviteSearch,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showInviteDialog(
     BuildContext context,
     Future<void> Function({required String email, required String role})
@@ -286,6 +450,14 @@ class _TabLabel extends StatelessWidget {
       ],
     );
   }
+}
+
+String _formatDate(String iso) {
+  final date = DateTime.tryParse(iso)?.toLocal();
+  if (date == null) return iso;
+  const months =
+      'January February March April May June July August September October November December';
+  return '${months.split(' ')[date.month - 1]} ${date.day}, ${date.year}';
 }
 
 class _MemberIdentity extends StatelessWidget {

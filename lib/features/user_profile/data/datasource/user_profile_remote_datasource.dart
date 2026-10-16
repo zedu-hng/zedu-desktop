@@ -32,6 +32,12 @@ abstract interface class UserProfileRemoteDataSource {
     required String role,
     required String orgId,
   });
+  Future<List<TeamMemberModel>> getInvites({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  });
+  Future<void> deleteInvite(String inviteId);
   Future<TeamMemberModel> updateMember(TeamMember member);
   Future<void> removeMember(String memberId);
   Future<List<RolePermissionModel>> getRolesAndPermissions();
@@ -369,6 +375,46 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       dateJoined: 'Pending',
       status: TeamMemberStatus.pending,
       name: email.split('@').first,
+    );
+  }
+
+  @override
+  Future<List<TeamMemberModel>> getInvites({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  }) async {
+    if (_config.usesMockData) return const [];
+    final response = await _apiBaseService.get<Map<String, dynamic>>(
+      path: '/organisations/$orgId/invites',
+      queryParameters: {
+        'page': page,
+        'limit': invitesPageSize,
+        if (search.isNotEmpty) 'search': search,
+      },
+    );
+    final data = response.data['data'] as List<dynamic>? ?? const [];
+    // Like web, only show invites that are still waiting to be accepted.
+    return data
+        .cast<Map<String, dynamic>>()
+        .where((invite) => invite['status'] == 'invited')
+        .map(
+          (invite) => TeamMemberModel(
+            id: invite['id'] as String? ?? '',
+            email: invite['email'] as String? ?? '',
+            role: invite['role'] as String? ?? 'User',
+            dateJoined: invite['created_at'] as String? ?? '',
+            status: TeamMemberStatus.pending,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> deleteInvite(String inviteId) async {
+    if (_config.usesMockData) return;
+    await _apiBaseService.delete<Map<String, dynamic>>(
+      path: '/invite/$inviteId',
     );
   }
 
