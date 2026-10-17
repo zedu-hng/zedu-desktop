@@ -2,9 +2,14 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class BillingSection extends ConsumerStatefulWidget {
-  const BillingSection({super.key, required this.billing});
+  const BillingSection({
+    super.key,
+    required this.billing,
+    required this.onManageUsers,
+  });
 
   final BillingInfo billing;
+  final VoidCallback onManageUsers;
 
   @override
   ConsumerState<BillingSection> createState() => _BillingSectionState();
@@ -67,7 +72,7 @@ class _BillingSectionState extends ConsumerState<BillingSection> {
               ),
               const SizedBox(width: 24),
               OutlinedButton(
-                onPressed: () {},
+                onPressed: widget.onManageUsers,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: colors.primary,
                   side: BorderSide(color: colors.borderOutline),
@@ -80,7 +85,7 @@ class _BillingSectionState extends ConsumerState<BillingSection> {
                   ),
                 ),
                 child: const Text(
-                  'Invite People',
+                  'Manage users',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),

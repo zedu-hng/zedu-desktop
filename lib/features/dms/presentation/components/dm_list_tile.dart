@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -32,6 +34,20 @@ class DmListTile extends ConsumerWidget {
     final selected = ref.watch(selectedDmProvider);
     final isSelected = selected?.channelId == conversation.channelId;
     final hasUnread = conversation.unreadCount > 0;
+
+    // Draft indicator: watch the store so the tile rebuilds when a draft is
+    // created/edited/cleared. Kick off a one-shot load for entries not yet
+    // cached (load() notifies listeners when done, which rebuilds this tile).
+    final draftStore = ref.watch(dmDraftStoreProvider);
+    final draftEntry = draftStore.peek(conversation.channelId);
+    if (draftEntry == null && !draftStore.hasLoaded(conversation.channelId)) {
+      scheduleMicrotask(() {
+        if (context.mounted) {
+          ref.read(dmDraftStoreProvider).load(conversation.channelId);
+        }
+      });
+    }
+    final hasDraft = draftEntry != null;
 
     return InkWell(
       onTap: () {
@@ -83,15 +99,54 @@ class DmListTile extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    conversation.previewMessage,
-                    style: TextStyle(
-                      color: colors.onPrimary.withValues(alpha: 0.86),
-                      fontSize: 11,
+                  if (hasDraft)
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.primary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Draft',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            draftEntry.text.trim(),
+                            style: TextStyle(
+                              color: colors.onPrimary,
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Text(
+                      conversation.previewMessage,
+                      style: TextStyle(
+                        color: colors.onPrimary.withValues(alpha: 0.86),
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                 ],
               ),
             ),
