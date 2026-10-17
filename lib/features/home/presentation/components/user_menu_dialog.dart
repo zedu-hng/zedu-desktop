@@ -199,10 +199,25 @@ class UserMenuDialog extends ConsumerWidget {
                     : 'Set yourself as active',
                 iconColor: isOnline ? colors.presenceActive : colors.textHint,
                 onTap: () async {
+                  // Capture everything needed before the menu closes: once
+                  // the dialog route is disposed, neither `context` nor `ref`
+                  // may be touched again. The outcome carries its own error
+                  // message, so nothing is re-read from the widget tree.
+                  final overlay = Overlay.of(context, rootOverlay: true);
+                  final notifier = ref.read(authNotifierProvider.notifier);
                   Navigator.pop(context);
-                  await ref
-                      .read(authNotifierProvider.notifier)
-                      .toggleOnlineStatus();
+                  final outcome = await notifier.toggleOnlineStatus();
+                  switch (outcome) {
+                    case PresenceFailed(:final message):
+                      if (!overlay.mounted) return;
+                      AppToastService.showWith(
+                        overlay,
+                        type: AppToastType.error,
+                        message: message,
+                      );
+                    case PresenceConfirmed() || PresenceSkipped():
+                      break;
+                  }
                 },
               ),
 

@@ -9,11 +9,22 @@ class AppToastService {
     BuildContext context, {
     required AppToastType type,
     required String message,
+  }) => showWith(
+    Overlay.of(context, rootOverlay: true),
+    type: type,
+    message: message,
+  );
+
+  /// Shows the toast on an [OverlayState] captured ahead of an async gap, so
+  /// callers can still surface feedback after their own widget tree is gone.
+  static void showWith(
+    OverlayState overlay, {
+    required AppToastType type,
+    required String message,
   }) {
     _current?.remove();
     _current = null;
 
-    final overlay = Overlay.of(context);
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (ctx) {

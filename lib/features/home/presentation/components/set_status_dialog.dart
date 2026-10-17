@@ -61,7 +61,8 @@ class _SetStatusDialogState extends ConsumerState<SetStatusDialog> {
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
-    final online = ref.read(authNotifierProvider).user?.status.online ?? true;
+    // No online flag here: the notifier sends the latest confirmed presence
+    // at request time, so this dialog can never push a stale value.
     final success = await ref
         .read(authNotifierProvider.notifier)
         .changeStatus(
@@ -69,7 +70,6 @@ class _SetStatusDialogState extends ConsumerState<SetStatusDialog> {
           text: _textCtrl.text.trim(),
           timeout: _timeout,
           pauseNotifications: _pauseNotifications,
-          online: online,
         );
 
     if (!mounted) return;
