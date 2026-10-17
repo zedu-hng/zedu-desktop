@@ -22,15 +22,18 @@ class WorkspaceSwitcherHeader extends ConsumerWidget {
               child: Row(
                 children: [
                   Flexible(
-                    child: Text(
-                      selectedWorkspace.name,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: colors.onPrimary,
-                        letterSpacing: 0.2,
+                    child: Tooltip(
+                      message: selectedWorkspace.name,
+                      child: Text(
+                        selectedWorkspace.name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: colors.onPrimary,
+                          letterSpacing: 0.2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 4),
