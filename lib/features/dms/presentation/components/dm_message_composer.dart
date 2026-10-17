@@ -52,6 +52,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   /// was typed against.
   late DmDraftStore _drafts;
 
+  /// Set when this conversation is deleted, so closing the composer doesn't
+  /// save its text back as a draft.
+  bool _channelDeleted = false;
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +95,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       }
       _drafts = ref.read(dmDraftStoreProvider);
       _draftChannelId = widget.channelId;
+      _channelDeleted = false;
 
       setState(() {
         _pendingFiles = [];
@@ -109,7 +114,9 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     // the write is deferred because the store notifies providers, which isn't
     // allowed while the tree is unmounting.
     _draftSaveDebounce?.cancel();
-    if (!_isEditMode && _controller.text.trim().isNotEmpty) {
+    if (!_isEditMode &&
+        !_channelDeleted &&
+        _controller.text.trim().isNotEmpty) {
       final drafts = _drafts;
       final channelId = _draftChannelId ?? widget.channelId;
       final text = _controller.text;
@@ -443,6 +450,16 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     final colors = context.colors;
     // A user or org change replaces the store; follow it.
     ref.listen(dmDraftStoreProvider, (_, next) => _drafts = next);
+    ref.listen(
+      dmConversationActionsProvider.select(
+        (actions) => actions.deletedIds.contains(widget.channelId),
+      ),
+      (_, deleted) {
+        if (!deleted) return;
+        _channelDeleted = true;
+        _draftSaveDebounce?.cancel();
+      },
+    );
 
     final mainColumn = Column(
       mainAxisSize: MainAxisSize.min,

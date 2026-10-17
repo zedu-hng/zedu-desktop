@@ -92,10 +92,7 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
         final deleted = await ref
             .read(dmConversationActionsProvider.notifier)
             .delete(conversation.channelId);
-        if (!mounted) return;
-        if (deleted) {
-          ref.read(selectedDmProvider.notifier).select(null);
-        } else {
+        if (!deleted && mounted) {
           _showActionNotice("Couldn't delete the conversation. Try again.");
         }
     }

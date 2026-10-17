@@ -54,7 +54,8 @@ class DmConversationActionsNotifier extends Notifier<DmConversationActions> {
   }
 
   /// Deletes the conversation on the server, then hides it from the list
-  /// until the next refresh drops it. Returns false if the request failed.
+  /// until the next refresh drops it and discards its draft. Closes it only
+  /// if it's still the open DM. Returns false if the request failed.
   Future<bool> delete(String channelId) async {
     final orgId = ref.read(currentOrgIdProvider);
     if (orgId.isEmpty) return false;
@@ -66,6 +67,10 @@ class DmConversationActionsNotifier extends Notifier<DmConversationActions> {
       return false;
     }
     state = state.copyWith(deletedIds: {...state.deletedIds, channelId});
+    ref.read(dmDraftStoreProvider).clear(channelId);
+    if (ref.read(selectedDmProvider)?.channelId == channelId) {
+      ref.read(selectedDmProvider.notifier).select(null);
+    }
     return true;
   }
 }
