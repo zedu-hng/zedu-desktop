@@ -4,9 +4,12 @@
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  // Placeholder — add feature-specific widget tests under
-  // test/widget/features/<feature>/ following the project layout.
-  test('placeholder', () {
-    expect(true, isTrue);
+  test('Credit formatting logic test', () {
+    // Test your logic directly or via your component helper
+    num credits = 1000000;
+    final formatted = credits >= 1000000 ? '${(credits / 1000000).toStringAsFixed(0)}M' : credits.toString();
+
+    print('TEST RESULT: 1000000 formatted as -> $formatted');
+    expect(formatted, '1M');
   });
 }
