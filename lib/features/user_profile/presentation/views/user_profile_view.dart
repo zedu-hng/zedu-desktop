@@ -86,6 +86,7 @@ class _ProfileContent extends StatelessWidget {
               invites: state.invites,
               invitesPage: state.invitesPage,
               isInvitesLoading: state.isInvitesLoading,
+              invitesLoadFailed: state.invitesLoadFailed,
               onLoadInvites: notifier.loadInvites,
               onDeleteInvite: notifier.deleteInvite,
               isSaving: state.isSaving,
