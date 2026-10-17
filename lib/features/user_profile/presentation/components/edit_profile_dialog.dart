@@ -34,7 +34,7 @@ const List<String> _kTimezones = [
 Future<void> showEditProfileDialog(
   BuildContext context,
   ProfileAccount account,
-  ValueChanged<ProfileAccount> onSave,
+  Future<void> Function(ProfileAccount) onSave,
 ) async {
   await showDialog<void>(
     context: context,
@@ -46,7 +46,7 @@ class _EditProfileDialog extends StatefulWidget {
   const _EditProfileDialog({required this.account, required this.onSave});
 
   final ProfileAccount account;
-  final ValueChanged<ProfileAccount> onSave;
+  final Future<void> Function(ProfileAccount) onSave;
 
   @override
   State<_EditProfileDialog> createState() => _EditProfileDialogState();
@@ -65,10 +65,12 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
 
   late String selectedTimezone;
   late String selectedCountry;
+  bool isSaving = false;
 
   @override
   void initState() {
     super.initState();
+
     nameCtrl = TextEditingController(text: widget.account.name);
     displayNameCtrl = TextEditingController(text: widget.account.displayName);
     usernameCtrl = TextEditingController(text: widget.account.username);
@@ -95,6 +97,42 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
     titleCtrl.dispose();
     pronunciationCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveChanges() async {
+    if (isSaving) return;
+
+    if (!(formKey.currentState?.validate() ?? false)) return;
+
+    setState(() => isSaving = true);
+
+    final updatedAccount = widget.account.copyWith(
+      name: nameCtrl.text.trim(),
+      displayName: displayNameCtrl.text.trim(),
+      username: usernameCtrl.text.trim(),
+      email: emailCtrl.text.trim(),
+      phoneNumber: phoneCtrl.text.trim(),
+      title: titleCtrl.text.trim(),
+      namePronunciation: pronunciationCtrl.text.trim(),
+      timezone: selectedTimezone,
+      country: selectedCountry,
+    );
+
+    try {
+      await widget.onSave(updatedAccount);
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => isSaving = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to save profile: $error')),
+        );
+      }
+    }
   }
 
   @override
@@ -126,7 +164,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: isSaving ? null : () => Navigator.pop(context),
                     icon: Icon(Icons.close, color: colors.textHint),
                   ),
                 ],
@@ -260,9 +298,12 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                                     ),
                                   )
                                   .toList(),
-                              onChanged: (v) => setState(
-                                () => selectedTimezone = v ?? selectedTimezone,
-                              ),
+                              onChanged: isSaving
+                                  ? null
+                                  : (v) => setState(
+                                      () => selectedTimezone =
+                                          v ?? selectedTimezone,
+                                    ),
                             ),
                             const SizedBox(height: 16),
 
@@ -296,6 +337,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                                     return TextFormField(
                                       controller: controller,
                                       focusNode: focusNode,
+                                      enabled: !isSaving,
                                       decoration: InputDecoration(
                                         hintText: 'Search or select a country',
                                         hintStyle: context.textTheme.bodySmall
@@ -421,9 +463,11 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             const SizedBox(height: 12),
                             Center(
                               child: TextButton.icon(
-                                onPressed: () {
-                                  // Upload photo placeholder
-                                },
+                                onPressed: isSaving
+                                    ? null
+                                    : () {
+                                        // Upload photo placeholder.
+                                      },
                                 icon: Icon(
                                   Icons.upload_outlined,
                                   size: 16,
@@ -440,9 +484,11 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             ),
                             Center(
                               child: TextButton(
-                                onPressed: () {
-                                  // Remove photo placeholder
-                                },
+                                onPressed: isSaving
+                                    ? null
+                                    : () {
+                                        // Remove photo placeholder.
+                                      },
                                 child: Text(
                                   'Remove photo',
                                   style: context.textTheme.bodySmall?.copyWith(
@@ -469,7 +515,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: isSaving ? null : () => Navigator.pop(context),
                     child: Text(
                       'Cancel',
                       style: TextStyle(color: colors.textPrimary),
@@ -477,27 +523,10 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                   ),
                   const SizedBox(width: 12),
                   AppButton(
-                    label: 'Save Changes',
+                    label: isSaving ? 'Saving...' : 'Save Changes',
                     expand: false,
                     height: 40,
-                    onPressed: () {
-                      if (formKey.currentState?.validate() ?? false) {
-                        widget.onSave(
-                          widget.account.copyWith(
-                            name: nameCtrl.text.trim(),
-                            displayName: displayNameCtrl.text.trim(),
-                            username: usernameCtrl.text.trim(),
-                            email: emailCtrl.text.trim(),
-                            phoneNumber: phoneCtrl.text.trim(),
-                            title: titleCtrl.text.trim(),
-                            namePronunciation: pronunciationCtrl.text.trim(),
-                            timezone: selectedTimezone,
-                            country: selectedCountry,
-                          ),
-                        );
-                        Navigator.pop(context);
-                      }
-                    },
+                    onPressed: isSaving ? null : _saveChanges,
                   ),
                 ],
               ),
