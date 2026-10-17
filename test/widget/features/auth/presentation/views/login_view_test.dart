@@ -238,5 +238,38 @@ void main() {
       expect(capturedEmail, 'user@example.com');
       expect(capturedPassword, 'Secret123');
     });
+
+    testWidgets(
+      'accepts an email with a trailing space and submits it trimmed',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1440, 1024));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        String? capturedEmail;
+
+        await tester.pumpWidget(
+          buildLoginViewUnderTest(
+            notifier: FakeAuthNotifier(
+              onLogin: (email, password) => capturedEmail = email,
+            ),
+          ),
+        );
+        await tester.pump();
+
+        await tester.enterText(
+          find.byType(TextFormField).at(0),
+          'user@example.com ',
+        );
+        await tester.enterText(find.byType(TextFormField).at(1), 'Secret123');
+
+        final loginButton = find.widgetWithText(ElevatedButton, 'Login');
+        await tester.ensureVisible(loginButton);
+        await tester.tap(loginButton);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Please enter a valid email'), findsNothing);
+        expect(capturedEmail, 'user@example.com');
+      },
+    );
   });
 }
