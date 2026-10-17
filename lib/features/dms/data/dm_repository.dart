@@ -42,6 +42,16 @@ class DmRepository {
     return list;
   }
 
+  /// Deletes the DM channel on the server, for both participants.
+  Future<void> deleteConversation({
+    required String orgId,
+    required String channelId,
+  }) async {
+    await _apiClient.delete<Map<String, dynamic>>(
+      path: '/organisations/$orgId/dms/$channelId',
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getMessages(
     String channelId, {
     int page = 1,

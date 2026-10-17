@@ -27,22 +27,18 @@ final selectedDmProvider =
 
 class DmConversationActions {
   final Set<String> pinnedIds;
-  final Set<String> blockedIds;
   final Set<String> deletedIds;
 
   const DmConversationActions({
     this.pinnedIds = const {},
-    this.blockedIds = const {},
     this.deletedIds = const {},
   });
 
   DmConversationActions copyWith({
     Set<String>? pinnedIds,
-    Set<String>? blockedIds,
     Set<String>? deletedIds,
   }) => DmConversationActions(
     pinnedIds: pinnedIds ?? this.pinnedIds,
-    blockedIds: blockedIds ?? this.blockedIds,
     deletedIds: deletedIds ?? this.deletedIds,
   );
 }
@@ -57,12 +53,20 @@ class DmConversationActionsNotifier extends Notifier<DmConversationActions> {
     state = state.copyWith(pinnedIds: ids);
   }
 
-  void block(String channelId) {
-    state = state.copyWith(blockedIds: {...state.blockedIds, channelId});
-  }
-
-  void delete(String channelId) {
+  /// Deletes the conversation on the server, then hides it from the list
+  /// until the next refresh drops it. Returns false if the request failed.
+  Future<bool> delete(String channelId) async {
+    final orgId = ref.read(currentOrgIdProvider);
+    if (orgId.isEmpty) return false;
+    try {
+      await ref
+          .read(dmRepositoryProvider)
+          .deleteConversation(orgId: orgId, channelId: channelId);
+    } catch (_) {
+      return false;
+    }
     state = state.copyWith(deletedIds: {...state.deletedIds, channelId});
+    return true;
   }
 }
 

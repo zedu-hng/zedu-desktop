@@ -70,13 +70,9 @@ class DmSidebarList extends ConsumerWidget {
                     final visibleConversations =
                         conversations
                             .where(
-                              (conversation) =>
-                                  !actions.blockedIds.contains(
-                                    conversation.channelId,
-                                  ) &&
-                                  !actions.deletedIds.contains(
-                                    conversation.channelId,
-                                  ),
+                              (conversation) => !actions.deletedIds.contains(
+                                conversation.channelId,
+                              ),
                             )
                             .toList()
                           ..sort((a, b) {

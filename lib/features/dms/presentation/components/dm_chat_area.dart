@@ -80,33 +80,23 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
               .clearLocalHistory();
           _showActionNotice('Loaded history cleared locally.');
         }
-      case 'block_user':
-        final confirmed = await _confirmConversationAction(
-          title: 'Block ${conversation.displayName}?',
-          message:
-              'This will hide the conversation from your DM list on this device.',
-          confirmLabel: 'Block User',
-          destructive: true,
-        );
-        if (confirmed && mounted) {
-          ref
-              .read(dmConversationActionsProvider.notifier)
-              .block(conversation.channelId);
-          ref.read(selectedDmProvider.notifier).select(null);
-        }
       case 'delete_conversation':
         final confirmed = await _confirmConversationAction(
           title: 'Delete conversation?',
           message:
-              'This will remove the conversation from your DM list on this device.',
+              'This permanently deletes the conversation with ${conversation.displayName} for both of you.',
           confirmLabel: 'Delete conversation',
           destructive: true,
         );
-        if (confirmed && mounted) {
-          ref
-              .read(dmConversationActionsProvider.notifier)
-              .delete(conversation.channelId);
+        if (!confirmed || !mounted) return;
+        final deleted = await ref
+            .read(dmConversationActionsProvider.notifier)
+            .delete(conversation.channelId);
+        if (!mounted) return;
+        if (deleted) {
           ref.read(selectedDmProvider.notifier).select(null);
+        } else {
+          _showActionNotice("Couldn't delete the conversation. Try again.");
         }
     }
   }
@@ -614,13 +604,6 @@ class _DmChatHeader extends StatelessWidget {
                 value: 'clear_history',
                 child: Text(
                   'Clear history',
-                  style: TextStyle(color: colors.textPrimary),
-                ),
-              ),
-              PopupMenuItem(
-                value: 'block_user',
-                child: Text(
-                  'Block User',
                   style: TextStyle(color: colors.textPrimary),
                 ),
               ),
