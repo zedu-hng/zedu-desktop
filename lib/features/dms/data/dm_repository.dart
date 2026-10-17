@@ -42,7 +42,8 @@ class DmRepository {
     return list;
   }
 
-  /// Deletes the DM channel on the server, for both participants.
+  /// Removes the DM from the caller's list on the server. The other
+  /// participant keeps the conversation and its messages.
   Future<void> deleteConversation({
     required String orgId,
     required String channelId,

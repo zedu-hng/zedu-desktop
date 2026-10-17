@@ -84,7 +84,7 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
         final confirmed = await _confirmConversationAction(
           title: 'Delete conversation?',
           message:
-              'This permanently deletes the conversation with ${conversation.displayName} for both of you.',
+              'This removes the conversation from your DM list. ${conversation.displayName} can still see it.',
           confirmLabel: 'Delete conversation',
           destructive: true,
         );
