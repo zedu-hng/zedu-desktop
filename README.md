@@ -139,9 +139,10 @@ APP_FLAVOR=development
 ## Clone
 
 The repository root **is** the Flutter project (`pubspec.yaml` and `lib/` at the top level).
+Clone your team's fork, replacing `<your-team>` with your team's GitHub organization.
 
 ```sh
-git clone https://github.com/hngprojects/zedu-desktop.git
+git clone https://github.com/<your-team>/zedu-desktop.git
 cd zedu-desktop
 ```
 
