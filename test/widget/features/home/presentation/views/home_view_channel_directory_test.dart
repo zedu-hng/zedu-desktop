@@ -35,11 +35,11 @@ Widget buildHomeViewUnderTest() {
             channels: [
               Channel(
                 id: '1',
-                name: 'advanced',
-                description: 'Advanced track',
+                name: 'random',
+                description: 'Random talk',
                 organisationId: 'org1',
                 ownerId: 'u1',
-                membersCount: 312,
+                membersCount: 15,
                 isJoined: true,
               ),
             ],
@@ -75,10 +75,10 @@ void main() {
         expect(find.text('Directories'), findsOneWidget);
         expect(find.text('People'), findsWidgets);
         expect(find.text('Channels'), findsWidgets);
-        expect(find.text('# advanced'), findsOneWidget);
+        expect(find.text('# random'), findsOneWidget);
 
         // Tap the channel item in the directory
-        await tester.tap(find.text('# advanced'));
+        await tester.tap(find.text('# random'));
         await tester.pumpAndSettle();
 
         // Navigates back cleanly to chat area

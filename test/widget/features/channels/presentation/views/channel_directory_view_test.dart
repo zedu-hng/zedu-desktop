@@ -18,29 +18,11 @@ Widget buildTestWidget({ChannelState? channelState}) {
         channels: [
           Channel(
             id: '1',
-            name: 'advanced',
-            description: 'Advanced track',
+            name: 'general',
+            description: 'General channel for workspace discussions',
             organisationId: 'org1',
             ownerId: 'u1',
-            membersCount: 312,
-            isJoined: true,
-          ),
-          Channel(
-            id: '2',
-            name: 'all-teams',
-            description: 'All teams discussion',
-            organisationId: 'org1',
-            ownerId: 'u2',
-            membersCount: 7,
-            isJoined: false,
-          ),
-          Channel(
-            id: '3',
-            name: 'announcement',
-            description: 'Announcements',
-            organisationId: 'org1',
-            ownerId: 'u3',
-            membersCount: 1903,
+            membersCount: 1,
             isJoined: true,
           ),
         ],
@@ -67,13 +49,23 @@ void main() {
       expect(find.text('People'), findsOneWidget);
       expect(find.text('Channels'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('# advanced'), findsOneWidget);
-      expect(find.text('# all-teams'), findsOneWidget);
-      expect(find.text('# announcement'), findsOneWidget);
-      expect(find.text('Joined'), findsNWidgets(2));
-      expect(find.text('312 members'), findsOneWidget);
-      expect(find.text('7 members'), findsOneWidget);
+      expect(find.text('# general'), findsOneWidget);
+      expect(find.text('Joined'), findsOneWidget);
+      expect(find.text('1 members'), findsOneWidget);
     });
+
+    testWidgets(
+      'falls back to active #general channel when channels are empty',
+      (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(channelState: const ChannelState()),
+        );
+        await tester.pump();
+
+        expect(find.text('# general'), findsOneWidget);
+        expect(find.text('Joined'), findsOneWidget);
+      },
+    );
 
     testWidgets('filters channel list when search text is entered', (
       tester,
@@ -81,12 +73,16 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pump();
 
-      await tester.enterText(find.byType(TextField), 'advanced');
+      await tester.enterText(find.byType(TextField), 'general');
       await tester.pump();
 
-      expect(find.text('# advanced'), findsOneWidget);
-      expect(find.text('# all-teams'), findsNothing);
-      expect(find.text('# announcement'), findsNothing);
+      expect(find.text('# general'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'nonexistent');
+      await tester.pump();
+
+      expect(find.text('# general'), findsNothing);
+      expect(find.text('No channels found.'), findsOneWidget);
     });
 
     testWidgets('tapping channel selects it via activeChatProvider', (
@@ -102,11 +98,11 @@ void main() {
                   channels: [
                     Channel(
                       id: '1',
-                      name: 'advanced',
-                      description: 'Advanced track',
+                      name: 'general',
+                      description: 'General channel',
                       organisationId: 'org1',
                       ownerId: 'u1',
-                      membersCount: 312,
+                      membersCount: 1,
                       isJoined: true,
                     ),
                   ],
@@ -135,11 +131,11 @@ void main() {
         ActiveChatType.channelDirectory,
       );
 
-      await tester.tap(find.text('# advanced'));
+      await tester.tap(find.text('# general'));
       await tester.pump();
 
       expect(container.read(activeChatProvider).type, ActiveChatType.channel);
-      expect(container.read(activeChatProvider).id, 'advanced');
+      expect(container.read(activeChatProvider).id, 'general');
     });
   });
 }

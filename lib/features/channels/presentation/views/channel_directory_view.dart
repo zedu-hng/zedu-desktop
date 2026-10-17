@@ -13,32 +13,14 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static final _sampleChannels = [
+  static final _defaultChannels = [
     Channel(
-      id: 'advanced',
-      name: 'advanced',
-      description: 'Advanced discussions',
+      id: 'general',
+      name: 'general',
+      description: 'General channel for workspace discussions',
       organisationId: '',
       ownerId: '',
-      membersCount: 312,
-      isJoined: true,
-    ),
-    Channel(
-      id: 'all-teams',
-      name: 'all-teams',
-      description: 'All teams channel',
-      organisationId: '',
-      ownerId: '',
-      membersCount: 7,
-      isJoined: false,
-    ),
-    Channel(
-      id: 'announcement',
-      name: 'announcement',
-      description: 'Workspace announcements',
-      organisationId: '',
-      ownerId: '',
-      membersCount: 1903,
+      membersCount: 1,
       isJoined: true,
     ),
   ];
@@ -58,7 +40,7 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
     final sourceChannels =
         channelState.channels.isNotEmpty || channelState.isLoading
         ? channelState.channels
-        : _sampleChannels;
+        : _defaultChannels;
 
     final filteredChannels = sourceChannels.where((c) {
       if (_searchQuery.isEmpty) return true;
