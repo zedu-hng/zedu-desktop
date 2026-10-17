@@ -226,10 +226,10 @@ class UserMenuDialog extends ConsumerWidget {
               _MenuItemButton(
                 icon: Icons.person_outline,
                 label: 'Profile…',
-               onTap: () {
-                Navigator.pop(context);
-                ref.read(personalProfilePanelProvider.notifier).state = true;
-              },
+                onTap: () {
+                  Navigator.pop(context);
+                  ref.read(personalProfilePanelProvider.notifier).state = true;
+                },
               ),
               _MenuItemButton(
                 icon: Icons.settings_outlined,

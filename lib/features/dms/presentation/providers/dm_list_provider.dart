@@ -94,19 +94,6 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
       _hasMore = false;
     }
 
-    if (results.isEmpty && page == 1) {
-      return [
-        DmConversation(
-          channelId: 'mock-channel-id-123',
-          username: 'Test User',
-          participantId: 'mock-user-id',
-          previewMessage:
-              'This is a test conversation. Tap to test the composer.',
-          unreadCount: 0,
-        ),
-      ];
-    }
-
     return results;
   }
 
