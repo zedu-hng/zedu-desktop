@@ -48,24 +48,23 @@ class SquareIconButton extends StatelessWidget {
 
     final tip = tooltip;
     if (tip == null) return button;
+    final colors = context.colors;
     return Tooltip(
       message: tip,
       waitDuration: const Duration(milliseconds: 400),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      textStyle: const TextStyle(
-        color: Color(0xFF374151),
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
+      textStyle: context.textTheme.labelMedium?.copyWith(
+        color: colors.textPrimary,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.background,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
+        border: Border.all(color: colors.divider),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A000000),
+            color: colors.textPrimary.withValues(alpha: 0.1),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
