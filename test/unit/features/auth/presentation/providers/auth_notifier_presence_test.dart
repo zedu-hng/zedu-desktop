@@ -928,6 +928,236 @@ void main() {
     );
   });
 
+  group('Issue #127 concurrency defect regressions (FC1–FC3)', () {
+    test(
+      'FC1: old organisation completion must not poison next toggle',
+      () async {
+        final (container, notifier, repo) = await _buildSession();
+        final gate = Completer<Result<void>>();
+        final sent = <bool>[];
+        when(() => repo.setPresence(online: any(named: 'online'))).thenAnswer((
+          inv,
+        ) {
+          sent.add(inv.namedArguments[#online] as bool);
+          return sent.length == 1
+              ? gate.future
+              : Future.value(const Success(null));
+        });
+        final old = notifier.toggleOnlineStatus();
+        await _flushAsync();
+        when(() => repo.getCurrentUser()).thenAnswer(
+          (_) async => Success(_buildUser(org: 'org-2', online: true)),
+        );
+        await notifier.refreshCurrentUser();
+        expect(container.read(authNotifierProvider).user!.currentOrg, 'org-2');
+        gate.complete(const Success(null));
+        expect(await old, isA<PresenceSkipped>());
+        expect(await notifier.toggleOnlineStatus(), isA<PresenceConfirmed>());
+        expect(
+          sent,
+          [false, false],
+          reason:
+              'A discarded org-1 confirmation cannot seed the org-2 presence cache',
+        );
+      },
+    );
+
+    test(
+      'FC2: old session pending mutation must not suppress fresh server presence',
+      () async {
+        final (container, notifier, repo) = await _buildSession();
+        final gate = Completer<Result<void>>();
+        _stubSetPresence(repo, gate.future);
+        final old = notifier.toggleOnlineStatus();
+        await _flushAsync();
+        when(() => _storage().deleteAccessToken()).thenAnswer((_) async {});
+        when(() => _storage().saveAccessToken(any())).thenAnswer((_) async {});
+        _stubLogin(repo, _buildUser(id: 'user-2', online: true));
+        await notifier.logout();
+        await notifier.login(email: 'new@example.com', password: 'Password123');
+        when(() => repo.getCurrentUser()).thenAnswer(
+          (_) async => Success(_buildUser(id: 'user-2', online: false)),
+        );
+        await notifier.refreshCurrentUser();
+        final adopted = container
+            .read(authNotifierProvider)
+            .user!
+            .status
+            .online;
+        gate.complete(const Success(null));
+        expect(await old, isA<PresenceSkipped>());
+        expect(
+          adopted,
+          isFalse,
+          reason:
+              'A mutation in the previous session must not make this refresh overlapping',
+        );
+      },
+    );
+
+    test(
+      'FC2: old session mutation completing after new session mutation does not corrupt counter',
+      () async {
+        final (container, notifier, repo) = await _buildSession();
+        final oldGate = Completer<Result<void>>();
+        _stubSetPresence(repo, oldGate.future);
+        final old = notifier.toggleOnlineStatus();
+        await _flushAsync();
+
+        when(() => _storage().deleteAccessToken()).thenAnswer((_) async {});
+        when(() => _storage().saveAccessToken(any())).thenAnswer((_) async {});
+        _stubLogin(repo, _buildUser(id: 'user-2', online: true));
+        await notifier.logout();
+        await notifier.login(email: 'new@example.com', password: 'Password123');
+
+        // Start and complete a mutation in session 2
+        _stubChangeStatus(repo, Future.value(const Success(null)));
+        expect(
+          await notifier.changeStatus(
+            icon: '🚀',
+            text: 'Session 2',
+            timeout: StatusTimeout.oneHour,
+            pauseNotifications: false,
+          ),
+          isTrue,
+        );
+
+        // Complete old request from session 1 after session 2 mutation
+        oldGate.complete(const Success(null));
+        expect(await old, isA<PresenceSkipped>());
+
+        // Subsequent refresh in session 2 adopts fresh server presence without being blocked
+        when(() => repo.getCurrentUser()).thenAnswer(
+          (_) async => Success(_buildUser(id: 'user-2', online: false)),
+        );
+        await notifier.refreshCurrentUser();
+        expect(
+          container.read(authNotifierProvider).user!.status.online,
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'FC3: successful queued status must survive a later failed status write',
+      () async {
+        final (container, notifier, repo) = await _buildSession();
+        final a = Completer<Result<void>>();
+        final b = Completer<Result<void>>();
+        final replies = [a.future, b.future];
+        when(
+          () => repo.changeStatus(
+            icon: any(named: 'icon'),
+            text: any(named: 'text'),
+            pauseNotifications: any(named: 'pauseNotifications'),
+            statusTimeout: any(named: 'statusTimeout'),
+            clearStatus: any(named: 'clearStatus'),
+            online: any(named: 'online'),
+          ),
+        ).thenAnswer((_) => replies.removeAt(0));
+
+        final first = notifier.changeStatus(
+          icon: '',
+          text: 'First',
+          timeout: StatusTimeout.oneHour,
+          pauseNotifications: false,
+        );
+        await _flushAsync();
+        final second = notifier.changeStatus(
+          icon: '',
+          text: 'Second',
+          timeout: StatusTimeout.oneHour,
+          pauseNotifications: false,
+        );
+        a.complete(const Success(null));
+        expect(await first, isTrue);
+        b.complete(
+          const Failure<void>(
+            ApiFailure(
+              message: 'Rejected',
+              kind: ApiFailureKind.client,
+              statusCode: 400,
+            ),
+          ),
+        );
+        expect(await second, isFalse);
+        expect(
+          container.read(authNotifierProvider).user!.status.text,
+          'First',
+          reason:
+              'First persisted successfully and Second failed without replacing it',
+        );
+      },
+    );
+
+    test(
+      'FC3: successful clearStatus survives a later failed changeStatus',
+      () async {
+        final (container, notifier, repo) = await _buildSession(
+          seedUser: _buildUser(online: true),
+        );
+        // Give user initial custom status
+        _stubChangeStatus(repo, Future.value(const Success(null)));
+        await notifier.changeStatus(
+          icon: '💬',
+          text: 'Initial',
+          timeout: StatusTimeout.oneHour,
+          pauseNotifications: false,
+        );
+        expect(
+          container.read(authNotifierProvider).user!.status.text,
+          'Initial',
+        );
+
+        final a = Completer<Result<void>>();
+        final b = Completer<Result<void>>();
+        final replies = [a.future, b.future];
+        when(
+          () => repo.changeStatus(
+            icon: any(named: 'icon'),
+            text: any(named: 'text'),
+            pauseNotifications: any(named: 'pauseNotifications'),
+            statusTimeout: any(named: 'statusTimeout'),
+            clearStatus: any(named: 'clearStatus'),
+            online: any(named: 'online'),
+          ),
+        ).thenAnswer((_) => replies.removeAt(0));
+
+        final clear = notifier.clearStatus();
+        await _flushAsync();
+        final change = notifier.changeStatus(
+          icon: '🚀',
+          text: 'NewStatus',
+          timeout: StatusTimeout.oneHour,
+          pauseNotifications: false,
+        );
+
+        a.complete(const Success(null));
+        expect(await clear, isTrue);
+
+        b.complete(
+          const Failure<void>(
+            ApiFailure(
+              message: 'Failed to save',
+              kind: ApiFailureKind.client,
+              statusCode: 500,
+            ),
+          ),
+        );
+        expect(await change, isFalse);
+
+        final status = container.read(authNotifierProvider).user!.status;
+        expect(
+          status.text,
+          isNull,
+          reason:
+              'Cleared status was confirmed and survives subsequent failure',
+        );
+        expect(status.emoji, isNull);
+      },
+    );
+  });
+
   group('UserModel.toEntity presence hydration', () {
     test('carries the parsed online flag into User.status', () {
       expect(_modelUser(online: false).toEntity().status.online, isFalse);
