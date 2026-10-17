@@ -10,6 +10,7 @@ const googleRedirectTimeout = Duration(minutes: 3);
 ///
 /// Returns null if nothing arrives within [timeout], e.g. because the user
 /// closed the browser tab, so an abandoned sign-in doesn't wait forever.
+/// Also returns null if [server] is closed while waiting.
 Future<HttpRequest?> waitForLoopbackRedirect(
   HttpServer server, {
   Duration timeout = googleRedirectTimeout,
@@ -18,6 +19,8 @@ Future<HttpRequest?> waitForLoopbackRedirect(
     return await server.first.timeout(timeout);
   } on TimeoutException {
     return null;
+  } on StateError {
+    return null; // the server closed before a request arrived
   }
 }
 
@@ -27,6 +30,11 @@ class AuthNotifier extends Notifier<AuthState> {
   late AuthInterceptor _interceptor;
 
   static const _tag = 'AuthNotifier';
+
+  // The Google sign-in still waiting for the browser, if any. Clicking Google
+  // again replaces it, so the new attempt can bind the loopback port.
+  HttpServer? _googleServer;
+  int _googleAttempt = 0;
 
   @override
   AuthState build() {
@@ -248,15 +256,21 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> loginWithGoogle() async {
     AppLogger.d('Google Sign-In attempt', tag: _tag);
+    final attempt = ++_googleAttempt;
     state = state.copyWith(isLoading: true, clearError: true);
 
     HttpServer? server;
     try {
+      // An earlier attempt may still be waiting for the browser: drop it so
+      // this one can use the port.
+      await _googleServer?.close(force: true);
+
       final config = locator<AppConfig>();
       const port = 8000; // Standard redirect port for desktop
 
       // 1. Bind to localhost port to intercept the redirect
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+      _googleServer = server;
       AppLogger.d('Local loopback server listening on port $port', tag: _tag);
 
       final redirectUri = 'http://127.0.0.1:$port'; // Desktop Loopback URI
@@ -275,6 +289,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
       // 3. Wait for Google's redirect containing the authorization code
       final request = await waitForLoopbackRedirect(server);
+      if (attempt != _googleAttempt) return; // replaced by a newer attempt
       if (request == null) {
         AppLogger.w(
           'Google Sign-In timed out waiting for the browser',
@@ -351,10 +366,12 @@ class AuthNotifier extends Notifier<AuthState> {
           );
       }
     } catch (e) {
+      if (attempt != _googleAttempt) return; // replaced by a newer attempt
       AppLogger.e('Google Sign-In failed', tag: _tag, error: e);
       state = state.copyWith(isLoading: false, error: 'Google Sign-In failed');
     } finally {
       await server?.close();
+      if (attempt == _googleAttempt) _googleServer = null;
     }
   }
 

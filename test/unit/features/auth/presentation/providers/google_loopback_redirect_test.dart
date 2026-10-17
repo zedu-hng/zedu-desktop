@@ -37,6 +37,18 @@ void main() {
       await browser;
     });
 
+    test('stops waiting when the server is closed by a new attempt', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+
+      final waiting = waitForLoopbackRedirect(
+        server,
+        timeout: const Duration(seconds: 5),
+      );
+      await server.close(force: true);
+
+      expect(await waiting, isNull);
+    });
+
     test('frees the port for a retry after timing out', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final port = server.port;
