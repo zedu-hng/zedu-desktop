@@ -2,7 +2,7 @@
 <!--
   MSIX manifest template for Zedu Desktop.
 
-  scripts/windows/package_msix.ps1 fills the {{...}} placeholders and writes the
+  windows/packaging/package_msix.ps1 fills the {{...}} placeholders and writes the
   result into the staging folder. Do not put real values here: the identity and
   publisher come from script parameters, the version from pubspec.yaml.
 

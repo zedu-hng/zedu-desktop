@@ -23,7 +23,7 @@
 #
 # Usage:
 #   $env:ZEDU_VM_GUEST_PASSWORD = '...'; $env:ZEDU_VM_PASSWORD = '...'
-#   .\scripts\windows\vm_test_msix.ps1 -VmxPath "E:\VMs\Win11\Windows 11 x64.vmx" `
+#   .\windows\packaging\vm_test_msix.ps1 -VmxPath "E:\VMs\Win11\Windows 11 x64.vmx" `
 #       -SnapshotName "Clean Base" -GuestUser tester
 #
 # Lessons carried over from the MeBrain VM tests are kept as comments below:

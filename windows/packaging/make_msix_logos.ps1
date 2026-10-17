@@ -6,7 +6,7 @@
 # commit the result. No Python or extra tools: System.Drawing only.
 #
 # Usage:
-#   powershell -ExecutionPolicy Bypass -File scripts\windows\make_msix_logos.ps1
+#   powershell -ExecutionPolicy Bypass -File windows\packaging\make_msix_logos.ps1
 #   ... -Source path\to\icon.png -Background "#6458F5"
 # ---------------------------------------------------------------------------
 

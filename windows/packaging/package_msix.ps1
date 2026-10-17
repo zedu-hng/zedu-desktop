@@ -8,9 +8,9 @@
 # Output: build\msix\Zedu_<version>.msix (build\ is git-ignored).
 #
 # Usage (from the repo root, PowerShell):
-#   .\scripts\windows\package_msix.ps1 -Sign
-#   .\scripts\windows\package_msix.ps1 -SkipBuild -Sign      # reuse the last build
-#   .\scripts\windows\package_msix.ps1 -Version 0.1.0.7       # explicit version
+#   .\windows\packaging\package_msix.ps1 -Sign
+#   .\windows\packaging\package_msix.ps1 -SkipBuild -Sign      # reuse the last build
+#   .\windows\packaging\package_msix.ps1 -Version 0.1.0.7       # explicit version
 #
 # Needs: Flutter, Visual Studio 2022+ with "Desktop development with C++"
 # (including "C++ ATL" for flutter_secure_storage), and the Windows 10/11 SDK

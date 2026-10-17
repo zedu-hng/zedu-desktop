@@ -186,7 +186,7 @@ Mock dependencies at the layer boundary being tested.
 
 ## Windows installer (MSIX)
 
-`scripts/windows/` builds Zedu Desktop as an MSIX package and tests it on a clean VM. Run the scripts from the repo root in PowerShell (Windows PowerShell 5.1 or PowerShell 7). A `Get-Item : Could not find item ...\AppData` line during the build comes from a plugin's symlink resolver (`super_native_extensions`) and is harmless.
+`windows/packaging/` builds Zedu Desktop as an MSIX package and tests it on a clean VM. Run the scripts from the repo root in PowerShell (Windows PowerShell 5.1 or PowerShell 7). A `Get-Item : Could not find item ...\AppData` line during the build comes from a plugin's symlink resolver (`super_native_extensions`) and is harmless.
 
 **Requirements:**
 - Flutter.
@@ -197,7 +197,7 @@ Mock dependencies at the layer boundary being tested.
 ### Build a package
 
 ```powershell
-.\scripts\windows\package_msix.ps1 -Sign
+.\windows\packaging\package_msix.ps1 -Sign
 ```
 
 This runs `flutter build windows --release`, stages the Release folder together with the MSVC runtime, fills in `windows/packaging/AppxManifest.template.xml` and packs `build\msix\Zedu_<version>.msix`.
@@ -205,7 +205,7 @@ This runs `flutter build windows --release`, stages the Release folder together 
 - **`-SkipBuild`:** reuses the last release build.
 - **`-VsInstance`:** pins CMake to a Visual Studio install. Use it if several are installed and the build fails with `atlstr.h` not found.
 
-The manifest declares the `zedu://` protocol and the microphone and webcam capabilities used for voice notes and calls. Tile and splash images live in `windows/packaging/Assets`. Regenerate them after an app icon change with `scripts\windows\make_msix_logos.ps1`.
+The manifest declares the `zedu://` protocol and the microphone and webcam capabilities used for voice notes and calls. Tile and splash images live in `windows/packaging/Assets`. Regenerate them after an app icon change with `windows\packaging\make_msix_logos.ps1`.
 
 ### Test signing and installing
 
@@ -229,7 +229,7 @@ Store builds use the Partner Center identity (`-IdentityName`, `-Publisher`) and
 ```powershell
 $env:ZEDU_VM_GUEST_PASSWORD = '<guest login>'
 $env:ZEDU_VM_PASSWORD = '<VM encryption password, Windows 11 + vTPM only>'
-.\scripts\windows\vm_test_msix.ps1 -VmxPath "E:\VMs\Win11\Windows 11 x64.vmx" -SnapshotName "Clean Base" -GuestUser tester
+.\windows\packaging\vm_test_msix.ps1 -VmxPath "E:\VMs\Win11\Windows 11 x64.vmx" -SnapshotName "Clean Base" -GuestUser tester
 ```
 
 Take the snapshot with that guest user (an administrator) signed in at the desktop. Logs, screenshots and `summary.txt` go to `build\msix\vm-test\<timestamp>\`, and the script exits with code 1 if any check fails.

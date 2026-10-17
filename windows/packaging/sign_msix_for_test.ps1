@@ -12,7 +12,7 @@
 # and no password to keep.
 #
 # Usage:
-#   .\scripts\windows\sign_msix_for_test.ps1 -MsixPath build\msix\Zedu_0.1.0.0.msix
+#   .\windows\packaging\sign_msix_for_test.ps1 -MsixPath build\msix\Zedu_0.1.0.0.msix
 # ---------------------------------------------------------------------------
 
 [CmdletBinding()]
