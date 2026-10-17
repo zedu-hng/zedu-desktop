@@ -49,7 +49,10 @@ enum StatusTimeout {
   oneHour('1 hour'),
   today('today'),
   thisWeek('this week'),
-  dontRemove("don't remove");
+  // The backend rejects "don't remove" ("invalid expiry value"); its accepted
+  // never-expire values are "dont-clear" / "don't-clear" / "dont clear" /
+  // "don't clear" (see zedu-be Profile.ParseStatusExpiry).
+  dontRemove('dont-clear');
 
   const StatusTimeout(this.apiValue);
 

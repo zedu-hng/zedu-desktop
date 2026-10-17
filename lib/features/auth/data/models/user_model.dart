@@ -123,5 +123,6 @@ class UserModel {
     subscriptionPlanId: organisation.subscriptionPlanId,
     aiCreditsPurchasable:
         organisation.organisationPlan.planDetails.aiCreditsPurchasable,
+    status: UserStatus(online: online),
   );
 }
