@@ -68,9 +68,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       final previousChannel = _draftChannelId ?? oldWidget.channelId;
       final previousText = _controller.text;
       if (previousText.trim().isNotEmpty) {
-        ref
-            .read(dmDraftStoreProvider)
-            .save(previousChannel, previousText);
+        ref.read(dmDraftStoreProvider).save(previousChannel, previousText);
       } else {
         ref.read(dmDraftStoreProvider).clear(previousChannel);
       }
@@ -94,8 +92,8 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     final flushText = _isEditMode ? null : _controller.text;
     flushText?.trim().isNotEmpty == true
         ? ref
-            .read(dmDraftStoreProvider)
-            .save(_draftChannelId ?? widget.channelId, flushText!)
+              .read(dmDraftStoreProvider)
+              .save(_draftChannelId ?? widget.channelId, flushText!)
         : null;
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -105,9 +103,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   }
 
   Future<void> _restoreDraft() async {
-    final entry = await ref
-        .read(dmDraftStoreProvider)
-        .load(widget.channelId);
+    final entry = await ref.read(dmDraftStoreProvider).load(widget.channelId);
     if (!mounted) return;
     if (entry == null || _controller.text.isNotEmpty) return;
 
@@ -343,11 +339,12 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   void _insertEmoji(String emoji) {
     final text = _controller.text;
     final sel = _controller.selection;
-    final pos = sel.isValid ? sel.baseOffset : text.length;
-    final newText = text.substring(0, pos) + emoji + text.substring(pos);
+    final start = sel.isValid ? sel.start : text.length;
+    final end = sel.isValid ? sel.end : text.length;
+    final newText = text.replaceRange(start, end, emoji);
     _controller.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(offset: pos + emoji.length),
+      selection: TextSelection.collapsed(offset: start + emoji.length),
     );
     _focusNode.requestFocus();
   }
