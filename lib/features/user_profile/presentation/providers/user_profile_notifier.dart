@@ -5,11 +5,12 @@ import 'package:zedu/features/features.dart';
 
 class UserProfileNotifier extends Notifier<UserProfileState> {
   late final UserProfileRepository _repository;
+  int _invitesRequest = 0;
 
   @override
   UserProfileState build() {
     _repository = ref.read(userProfileRepositoryProvider);
-    load();
+    Future.microtask(load);
     return const UserProfileState(isLoading: true);
   }
 
@@ -342,9 +343,8 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     );
     switch (result) {
       case Success<TeamMember>():
-        final newTeamMembers = [...state.teamMembers, result.value];
+        // The invite is not a member yet; it shows up in the Invites tab.
         state = state.copyWith(
-          teamMembers: newTeamMembers,
           isSaving: false,
           successMessage: 'Invite sent successfully.',
         );
@@ -353,7 +353,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
         final config = locator<AppConfig>();
         if (config.usesMockData) {
           final storage = locator<SecureStorageService>();
-          final jsonList = newTeamMembers
+          final jsonList = state.teamMembers
               .map(
                 (m) => {
                   'id': m.id,
@@ -371,12 +371,64 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
             jsonEncode(jsonList),
           );
         }
+        await loadInvites(search: state.invitesSearch);
 
       case Failure<TeamMember>():
         state = state.copyWith(
           isSaving: false,
           error: result.error.friendlyMessage,
         );
+    }
+  }
+
+  Future<void> loadInvites({int page = 1, String search = ''}) async {
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    if (orgId == null || orgId.isEmpty) return;
+    final request = ++_invitesRequest;
+    state = state.copyWith(
+      isInvitesLoading: true,
+      invitesPage: page,
+      invitesSearch: search,
+      clearError: true,
+      clearSuccess: true,
+    );
+    final result = await _repository.getInvites(
+      orgId: orgId,
+      page: page,
+      search: search,
+    );
+    // A newer request has started, so this response is stale.
+    if (!ref.mounted || request != _invitesRequest) return;
+    switch (result) {
+      case Success<List<TeamMember>>():
+        state = state.copyWith(
+          invites: result.value,
+          invitesLoadFailed: false,
+          isInvitesLoading: false,
+        );
+      case Failure<List<TeamMember>>():
+        state = state.copyWith(
+          invitesLoadFailed: true,
+          isInvitesLoading: false,
+          error: result.error.friendlyMessage,
+        );
+    }
+  }
+
+  Future<void> deleteInvite(String inviteId) async {
+    state = state.copyWith(clearError: true, clearSuccess: true);
+    final result = await _repository.deleteInvite(inviteId);
+    switch (result) {
+      case Success<void>():
+        state = state.copyWith(
+          invites: [
+            for (final invite in state.invites)
+              if (invite.id != inviteId) invite,
+          ],
+          successMessage: 'Invite deleted.',
+        );
+      case Failure<void>():
+        state = state.copyWith(error: result.error.friendlyMessage);
     }
   }
 
@@ -493,6 +545,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       isLoading: false,
       error: error,
     );
+    await loadInvites();
   }
 
   String? _getError(List<dynamic> results) {

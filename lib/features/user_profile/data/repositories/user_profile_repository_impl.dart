@@ -96,6 +96,22 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
   }
 
   @override
+  Future<Result<List<TeamMember>>> getInvites({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  }) {
+    return _guard(
+      () => _remote.getInvites(orgId: orgId, page: page, search: search),
+    );
+  }
+
+  @override
+  Future<Result<void>> deleteInvite(String inviteId) {
+    return _guard(() => _remote.deleteInvite(inviteId));
+  }
+
+  @override
   Future<Result<TeamMember>> updateMember(TeamMember member) {
     return _guard(() => _remote.updateMember(member));
   }
