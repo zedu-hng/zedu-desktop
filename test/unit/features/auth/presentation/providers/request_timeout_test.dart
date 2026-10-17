@@ -121,8 +121,8 @@ void main() {
         container.read(authNotifierProvider).status,
         AuthStatus.unauthenticated,
       );
-      // Existing session cleanup is unchanged by the timeout configuration fix.
-      expect(storage.token, isNull);
+      // Respect the squad baseline: a timeout preserves the saved session token.
+      expect(storage.token, 'local-test-token-not-a-real-credential');
     },
   );
 }
