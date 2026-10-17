@@ -35,6 +35,9 @@ class AuthNotifier extends Notifier<AuthState> {
   // again replaces it, so the new attempt can bind the loopback port.
   HttpServer? _googleServer;
   int _googleAttempt = 0;
+  // Attempts take turns claiming the port, so two quick clicks can't both
+  // try to bind it at once.
+  Future<void> _googlePortClaim = Future.value();
 
   @override
   AuthState build() {
@@ -260,17 +263,26 @@ class AuthNotifier extends Notifier<AuthState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     HttpServer? server;
+    final earlierClaim = _googlePortClaim;
+    final claim = Completer<void>();
+    _googlePortClaim = claim.future;
     try {
-      // An earlier attempt may still be waiting for the browser: drop it so
-      // this one can use the port.
-      await _googleServer?.close(force: true);
-
       final config = locator<AppConfig>();
       const port = 8000; // Standard redirect port for desktop
 
-      // 1. Bind to localhost port to intercept the redirect
-      server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
-      _googleServer = server;
+      try {
+        await earlierClaim;
+        // An earlier attempt may still be waiting for the browser: drop it so
+        // this one can use the port.
+        await _googleServer?.close(force: true);
+
+        // 1. Bind to localhost port to intercept the redirect
+        server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+        _googleServer = server;
+      } finally {
+        claim.complete();
+      }
+      if (attempt != _googleAttempt) return; // replaced by a newer attempt
       AppLogger.d('Local loopback server listening on port $port', tag: _tag);
 
       final redirectUri = 'http://127.0.0.1:$port'; // Desktop Loopback URI
@@ -347,6 +359,9 @@ class AuthNotifier extends Notifier<AuthState> {
         grantCode: grantCode,
         redirectUri: redirectUri,
       );
+      // A newer attempt took over while the backend was answering: let it
+      // decide the outcome instead of saving this login.
+      if (attempt != _googleAttempt) return;
       switch (result) {
         case Success<AuthSession>():
           AppLogger.i('Google Sign-In succeeded — token persisted', tag: _tag);
