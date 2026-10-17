@@ -297,11 +297,24 @@ class AuthNotifier extends Notifier<AuthState> {
       });
 
       AppLogger.d('Launching Google Auth URL in browser', tag: _tag);
-      await launchUrl(authUrl, mode: LaunchMode.externalApplication);
+      await openInBrowser(authUrl);
 
       // 3. Wait for Google's redirect containing the authorization code
       final request = await waitForLoopbackRedirect(server);
-      if (attempt != _googleAttempt) return; // replaced by a newer attempt
+      if (attempt != _googleAttempt) {
+        // Replaced by a newer attempt. Still answer the browser so its tab
+        // doesn't hang.
+        if (request != null) {
+          await _answerBrowser(
+            request,
+            title: 'Sign-in replaced',
+            message:
+                'A newer Google sign-in was started in Zedu. You can close '
+                'this tab and finish signing in from the newest one.',
+          );
+        }
+        return;
+      }
       if (request == null) {
         AppLogger.w(
           'Google Sign-In timed out waiting for the browser',
@@ -315,38 +328,36 @@ class AuthNotifier extends Notifier<AuthState> {
       }
       final grantCode = request.uri.queryParameters['code'];
 
-      // Return a clean success page to the user in their browser
-      request.response
-        ..statusCode = HttpStatus.ok
-        ..headers.contentType = ContentType.html
-        ..write('''
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>Authentication Successful</title>
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 50px; background-color: #f9f9f9; }
-                .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; max-width: 400px; }
-                h1 { color: #4CAF50; margin-top: 0; }
-                p { color: #666; font-size: 16px; }
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <h1>Sign In Successful!</h1>
-                <p>You have successfully authenticated with Zedu. You can now close this tab and return to the application.</p>
-              </div>
-            </body>
-            </html>
-          ''');
-      await request.response.close();
+      // Return a clean page to the user in their browser
+      if (grantCode == null) {
+        await _answerBrowser(
+          request,
+          title: 'Sign-in cancelled',
+          message:
+              'Google sign-in was cancelled. You can close this tab and try '
+              'again from Zedu.',
+        );
+      } else {
+        await _answerBrowser(
+          request,
+          title: 'Sign In Successful!',
+          message:
+              'You have successfully authenticated with Zedu. You can now '
+              'close this tab and return to the application.',
+          success: true,
+        );
+      }
 
       await server.close();
       server = null;
 
       if (grantCode == null) {
+        // e.g. error=access_denied: the user pressed Cancel on Google's page.
         AppLogger.w('Google Sign-In aborted or code not found', tag: _tag);
-        state = state.copyWith(isLoading: false);
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Google sign-in was cancelled.',
+        );
         return;
       }
 
@@ -388,6 +399,44 @@ class AuthNotifier extends Notifier<AuthState> {
       await server?.close();
       if (attempt == _googleAttempt) _googleServer = null;
     }
+  }
+
+  /// Opens Google's sign-in page in the user's browser. Tests replace this.
+  @visibleForTesting
+  Future<void> openInBrowser(Uri url) =>
+      launchUrl(url, mode: LaunchMode.externalApplication);
+
+  /// Shows a short page in the browser tab that Google redirected to.
+  Future<void> _answerBrowser(
+    HttpRequest request, {
+    required String title,
+    required String message,
+    bool success = false,
+  }) async {
+    request.response
+      ..statusCode = HttpStatus.ok
+      ..headers.contentType = ContentType.html
+      ..write('''
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>$title</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-align: center; padding: 50px; background-color: #f9f9f9; }
+              .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; max-width: 400px; }
+              h1 { color: ${success ? '#4CAF50' : '#666'}; margin-top: 0; }
+              p { color: #666; font-size: 16px; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h1>$title</h1>
+              <p>$message</p>
+            </div>
+          </body>
+          </html>
+        ''');
+    await request.response.close();
   }
 
   // ── Status / Presence ────────────────────────────────────────────────────────
