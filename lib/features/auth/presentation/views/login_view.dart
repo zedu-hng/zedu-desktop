@@ -22,6 +22,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
   }
 
   Future<void> _onLoginPressed() async {
+    if (ref.read(authNotifierProvider).isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     ref
@@ -193,6 +194,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                         label: 'Password',
                         hint: 'Password',
                         textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _onLoginPressed(),
                         validator: (value) =>
                             Validators.validatePassword(context, value),
                       ),
