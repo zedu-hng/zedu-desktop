@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
@@ -34,6 +35,11 @@ Widget buildMagicLinkRouterUnderTest({
         path: AppRouter.magicLinkSent,
         builder: (context, state) =>
             MagicLinkSentView(email: state.extra! as String),
+      ),
+      GoRoute(
+        path: AppRouter.signup,
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('Sign up screen'))),
       ),
     ],
   );
@@ -107,6 +113,38 @@ void main() {
       expect(find.text('Awesome! mail sent.'), findsOneWidget);
       expect(find.textContaining('anonymoususer@gmail.com'), findsOneWidget);
       expect(find.byType(AuthHeaderStrip), findsOneWidget);
+    });
+
+    testWidgets('sign up link navigates to the signup screen', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(buildMagicLinkRouterUnderTest());
+      await tester.pumpAndSettle();
+
+      const linkText = 'Sign up';
+      final paragraphFinder = find.textContaining(linkText, findRichText: true);
+      final paragraph =
+          paragraphFinder.evaluate().single.renderObject as RenderParagraph;
+      final plainText = paragraph.text.toPlainText();
+      final startOffset = plainText.indexOf(linkText);
+      final box = paragraph
+          .getBoxesForSelection(
+            TextSelection(
+              baseOffset: startOffset,
+              extentOffset: startOffset + linkText.length,
+            ),
+          )
+          .single
+          .toRect();
+
+      await tester.tapAt(
+        tester.getTopLeft(paragraphFinder) +
+            Offset(box.left + box.width / 2, box.top + box.height / 2),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sign up screen'), findsOneWidget);
     });
   });
 }
