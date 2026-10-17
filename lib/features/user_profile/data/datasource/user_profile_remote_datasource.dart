@@ -390,14 +390,22 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       queryParameters: {
         'page': page,
         'limit': invitesPageSize,
+        'invite_status': 'invited',
         if (search.isNotEmpty) 'search': search,
       },
     );
     final data = response.data['data'] as List<dynamic>? ?? const [];
-    // Like web, only show invites that are still waiting to be accepted.
+    // Only pending invites, and the backend ignores `search`, so match the
+    // email on the loaded page here.
+    final query = search.toLowerCase();
     return data
         .cast<Map<String, dynamic>>()
         .where((invite) => invite['status'] == 'invited')
+        .where(
+          (invite) => ((invite['email'] as String?) ?? '')
+              .toLowerCase()
+              .contains(query),
+        )
         .map(
           (invite) => TeamMemberModel(
             id: invite['id'] as String? ?? '',

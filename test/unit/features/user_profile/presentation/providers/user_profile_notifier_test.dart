@@ -195,5 +195,159 @@ void main() {
 
       expect(container.read(userProfileNotifierProvider).teamMembers, _members);
     });
+
+    test('shows the delete toast again on a second delete', () async {
+      when(
+        () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) async => const Success(_members));
+      when(
+        () => repository.deleteInvite(any()),
+      ).thenAnswer((_) async => const Success(null));
+      await loaded();
+
+      final messages = <String?>[];
+      container.listen<UserProfileState>(
+        userProfileNotifierProvider,
+        (_, next) => messages.add(next.successMessage),
+      );
+      final notifier = container.read(userProfileNotifierProvider.notifier);
+      await notifier.deleteInvite('a');
+      await notifier.deleteInvite('b');
+
+      // The view toasts only when the message changes, so it has to be cleared
+      // between deletes for the second toast to show.
+      var shown = 0;
+      String? previous;
+      for (final message in messages) {
+        if (message == 'Invite deleted.' && previous != message) shown++;
+        previous = message;
+      }
+      expect(shown, 2);
+    });
+
+    test('still toasts that an invite was sent', () async {
+      when(
+        () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) async => const Success(_members));
+      when(
+        () => repository.inviteMember(
+          email: any(named: 'email'),
+          role: any(named: 'role'),
+          orgId: any(named: 'orgId'),
+        ),
+      ).thenAnswer((_) async => Success(_members[1]));
+      await loaded();
+
+      final messages = <String?>[];
+      container.listen<UserProfileState>(
+        userProfileNotifierProvider,
+        (_, next) => messages.add(next.successMessage),
+      );
+      final notifier = container.read(userProfileNotifierProvider.notifier);
+      await notifier.inviteMember(email: 'new@example.com', role: 'User');
+
+      expect(messages, contains('Invite sent successfully.'));
+    });
+
+    test(
+      'ignores an invites response that arrives after a newer one',
+      () async {
+        when(
+          () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+        ).thenAnswer((_) async => const Success(_members));
+        await loaded();
+        final notifier = container.read(userProfileNotifierProvider.notifier);
+
+        final slow = Completer<Result<List<TeamMember>>>();
+        when(
+          () => repository.getInvites(
+            orgId: any(named: 'orgId'),
+            page: any(named: 'page'),
+            search: any(named: 'search'),
+          ),
+        ).thenAnswer(
+          (call) => call.namedArguments[#search] == 'old'
+              ? slow.future
+              : Future.value(Success([_members[1]])),
+        );
+
+        final first = notifier.loadInvites(search: 'old');
+        await notifier.loadInvites(search: 'new');
+        slow.complete(Success([_members[0]]));
+        await first;
+
+        expect(container.read(userProfileNotifierProvider).invites, [
+          _members[1],
+        ]);
+      },
+    );
+
+    test(
+      'flags a failed invites load and clears it on the next success',
+      () async {
+        when(
+          () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+        ).thenAnswer((_) async => const Success(_members));
+        await loaded();
+        final notifier = container.read(userProfileNotifierProvider.notifier);
+        when(
+          () => repository.getInvites(
+            orgId: any(named: 'orgId'),
+            page: any(named: 'page'),
+            search: any(named: 'search'),
+          ),
+        ).thenAnswer(
+          (_) async => const Failure(
+            ApiFailure(message: 'Forbidden', kind: ApiFailureKind.client),
+          ),
+        );
+
+        await notifier.loadInvites();
+        expect(
+          container.read(userProfileNotifierProvider).invitesLoadFailed,
+          isTrue,
+        );
+
+        when(
+          () => repository.getInvites(
+            orgId: any(named: 'orgId'),
+            page: any(named: 'page'),
+            search: any(named: 'search'),
+          ),
+        ).thenAnswer((_) async => const Success(<TeamMember>[]));
+        await notifier.loadInvites();
+        expect(
+          container.read(userProfileNotifierProvider).invitesLoadFailed,
+          isFalse,
+        );
+      },
+    );
+
+    test('reloads invites with the same search after sending one', () async {
+      when(
+        () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+      ).thenAnswer((_) async => const Success(_members));
+      when(
+        () => repository.inviteMember(
+          email: any(named: 'email'),
+          role: any(named: 'role'),
+          orgId: any(named: 'orgId'),
+        ),
+      ).thenAnswer((_) async => Success(_members[1]));
+      await loaded();
+      final notifier = container.read(userProfileNotifierProvider.notifier);
+
+      await notifier.loadInvites(search: 'guest');
+      await notifier.inviteMember(email: 'new@example.com', role: 'User');
+
+      // Once for the search itself and once for the reload after the invite.
+      verify(
+        () => repository.getInvites(
+          orgId: any(named: 'orgId'),
+          page: any(named: 'page'),
+          search: 'guest',
+        ),
+      ).called(2);
+    });
   });
 }

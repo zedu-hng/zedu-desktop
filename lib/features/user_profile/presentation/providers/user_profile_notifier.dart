@@ -5,6 +5,7 @@ import 'package:zedu/features/features.dart';
 
 class UserProfileNotifier extends Notifier<UserProfileState> {
   late final UserProfileRepository _repository;
+  int _invitesRequest = 0;
 
   @override
   UserProfileState build() {
@@ -370,7 +371,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
             jsonEncode(jsonList),
           );
         }
-        await loadInvites();
+        await loadInvites(search: state.invitesSearch);
 
       case Failure<TeamMember>():
         state = state.copyWith(
@@ -383,18 +384,31 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   Future<void> loadInvites({int page = 1, String search = ''}) async {
     final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
     if (orgId == null || orgId.isEmpty) return;
-    state = state.copyWith(isInvitesLoading: true, invitesPage: page);
+    final request = ++_invitesRequest;
+    state = state.copyWith(
+      isInvitesLoading: true,
+      invitesPage: page,
+      invitesSearch: search,
+      clearError: true,
+      clearSuccess: true,
+    );
     final result = await _repository.getInvites(
       orgId: orgId,
       page: page,
       search: search,
     );
-    if (!ref.mounted) return;
+    // A newer request has started, so this response is stale.
+    if (!ref.mounted || request != _invitesRequest) return;
     switch (result) {
       case Success<List<TeamMember>>():
-        state = state.copyWith(invites: result.value, isInvitesLoading: false);
+        state = state.copyWith(
+          invites: result.value,
+          invitesLoadFailed: false,
+          isInvitesLoading: false,
+        );
       case Failure<List<TeamMember>>():
         state = state.copyWith(
+          invitesLoadFailed: true,
           isInvitesLoading: false,
           error: result.error.friendlyMessage,
         );
@@ -402,6 +416,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   }
 
   Future<void> deleteInvite(String inviteId) async {
+    state = state.copyWith(clearError: true, clearSuccess: true);
     final result = await _repository.deleteInvite(inviteId);
     switch (result) {
       case Success<void>():

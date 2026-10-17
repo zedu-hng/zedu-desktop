@@ -8,6 +8,7 @@ class UserManagementSection extends StatefulWidget {
     required this.invites,
     required this.invitesPage,
     required this.isInvitesLoading,
+    required this.invitesLoadFailed,
     required this.onLoadInvites,
     required this.onDeleteInvite,
     required this.isSaving,
@@ -20,6 +21,7 @@ class UserManagementSection extends StatefulWidget {
   final List<TeamMember> invites;
   final int invitesPage;
   final bool isInvitesLoading;
+  final bool invitesLoadFailed;
   final Future<void> Function({int page, String search}) onLoadInvites;
   final Future<void> Function(String inviteId) onDeleteInvite;
   final bool isSaving;
@@ -285,7 +287,9 @@ class _UserManagementSectionState extends State<UserManagementSection> {
             Padding(
               padding: const EdgeInsets.all(48),
               child: Text(
-                'No invites found',
+                widget.invitesLoadFailed
+                    ? "Couldn't load invites."
+                    : 'No invites found',
                 style: context.textTheme.bodyMedium,
               ),
             )
@@ -344,7 +348,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                   label: 'Previous',
                   expand: false,
                   height: 36,
-                  disabled: page <= 1,
+                  disabled: page <= 1 || widget.isInvitesLoading,
                   onPressed: () => widget.onLoadInvites(
                     page: page - 1,
                     search: _inviteSearch,
@@ -357,7 +361,9 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                   label: 'Next',
                   expand: false,
                   height: 36,
-                  disabled: invites.length < invitesPageSize,
+                  disabled:
+                      invites.length < invitesPageSize ||
+                      widget.isInvitesLoading,
                   onPressed: () => widget.onLoadInvites(
                     page: page + 1,
                     search: _inviteSearch,
