@@ -160,8 +160,15 @@ class _ChatAreaSwitcher extends ConsumerWidget {
   }
 }
 
-class _MainSidebar extends StatelessWidget {
+class _MainSidebar extends StatefulWidget {
   const _MainSidebar();
+
+  @override
+  State<_MainSidebar> createState() => _MainSidebarState();
+}
+
+class _MainSidebarState extends State<_MainSidebar> {
+  bool _isChannelsExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -176,22 +183,39 @@ class _MainSidebar extends StatelessWidget {
           const WorkspaceSwitcherHeader(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-            child: Row(
-              children: [
-                Icon(Icons.arrow_drop_down, color: colors.onPrimary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Channels',
-                  style: TextStyle(
-                    color: colors.onPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() {
+                    _isChannelsExpanded = !_isChannelsExpanded;
+                  });
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      _isChannelsExpanded
+                          ? Icons.arrow_drop_down
+                          : Icons.arrow_right,
+                      color: colors.onPrimary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Channels',
+                      style: TextStyle(
+                        color: colors.onPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-          const _ChannelItem(label: 'general'),
+          if (_isChannelsExpanded) const _ChannelItem(label: 'general'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Container(
