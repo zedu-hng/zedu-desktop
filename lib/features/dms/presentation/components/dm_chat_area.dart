@@ -121,7 +121,7 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                 onPressed: () => Navigator.pop(context, true),
                 style: destructive
                     ? TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFD93025),
+                        foregroundColor: context.colors.error,
                       )
                     : null,
                 child: Text(confirmLabel),
@@ -138,63 +138,10 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
     );
     await showDialog<void>(
       context: context,
-      builder: (context) {
-        final controller = TextEditingController();
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final query = controller.text.toLowerCase();
-            final results = history.messages.where(
-              (message) => (message['content']?.toString() ?? '')
-                  .toLowerCase()
-                  .contains(query),
-            );
-            return AlertDialog(
-              title: Text('Search ${widget.conversation.displayName}'),
-              content: SizedBox(
-                width: 420,
-                height: 360,
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    TextField(
-                      controller: controller,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        hintText: 'Search messages',
-                      ),
-                      onChanged: (_) => setDialogState(() {}),
-                    ),
-                    const SizedBox(height: 12),
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: query.isEmpty
-                            ? const [Text('Enter a search term')]
-                            : results
-                                  .map(
-                                    (message) => ListTile(
-                                      dense: true,
-                                      title: Text(
-                                        message['content']?.toString() ?? '',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (context) => _ConversationSearchDialog(
+        displayName: widget.conversation.displayName,
+        messages: history.messages,
+      ),
     );
   }
 
@@ -247,6 +194,16 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final isMuted = ref.watch(
+      notificationSettingsProvider.select(
+        (settings) => settings.isMuted(widget.conversation.participantId),
+      ),
+    );
+    final isPinned = ref.watch(
+      dmConversationActionsProvider.select(
+        (actions) => actions.pinnedIds.contains(widget.conversation.channelId),
+      ),
+    );
 
     return DropTarget(
       onDragDone: (detail) {
@@ -267,6 +224,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
               children: [
                 _DmChatHeader(
                   conversation: widget.conversation,
+                  isMuted: isMuted,
+                  isPinned: isPinned,
                   onMenuAction: _handleMenuAction,
                 ),
                 Expanded(
@@ -479,11 +438,91 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   }
 }
 
+class _ConversationSearchDialog extends StatefulWidget {
+  final String displayName;
+  final List<Map<String, dynamic>> messages;
+
+  const _ConversationSearchDialog({
+    required this.displayName,
+    required this.messages,
+  });
+
+  @override
+  State<_ConversationSearchDialog> createState() =>
+      _ConversationSearchDialogState();
+}
+
+class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _controller.text.toLowerCase();
+    final results = widget.messages.where(
+      (message) =>
+          (message['content']?.toString() ?? '').toLowerCase().contains(query),
+    );
+    return AlertDialog(
+      title: Text('Search ${widget.displayName}'),
+      content: SizedBox(
+        width: 420,
+        height: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(hintText: 'Search messages'),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: query.isEmpty
+                    ? const [Text('Enter a search term')]
+                    : results
+                          .map(
+                            (message) => ListTile(
+                              dense: true,
+                              title: Text(message['content']?.toString() ?? ''),
+                            ),
+                          )
+                          .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
 class _DmChatHeader extends StatelessWidget {
   final DmConversation conversation;
+  final bool isMuted;
+  final bool isPinned;
   final ValueChanged<String> onMenuAction;
 
-  const _DmChatHeader({required this.conversation, required this.onMenuAction});
+  const _DmChatHeader({
+    required this.conversation,
+    required this.isMuted,
+    required this.isPinned,
+    required this.onMenuAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -574,14 +613,14 @@ class _DmChatHeader extends StatelessWidget {
               PopupMenuItem(
                 value: 'mute_notifications',
                 child: Text(
-                  'Mute notifications',
+                  isMuted ? 'Unmute notifications' : 'Mute notifications',
                   style: TextStyle(color: colors.textPrimary),
                 ),
               ),
               PopupMenuItem(
                 value: 'pin_conversation',
                 child: Text(
-                  'Pin conversation',
+                  isPinned ? 'Unpin conversation' : 'Pin conversation',
                   style: TextStyle(color: colors.textPrimary),
                 ),
               ),
@@ -607,11 +646,11 @@ class _DmChatHeader extends StatelessWidget {
                   style: TextStyle(color: colors.textPrimary),
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete_conversation',
                 child: Text(
                   'Delete conversation',
-                  style: TextStyle(color: Color(0xFFD93025)),
+                  style: TextStyle(color: colors.error),
                 ),
               ),
             ],
