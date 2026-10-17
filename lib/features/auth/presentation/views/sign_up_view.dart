@@ -104,165 +104,179 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Center(
-          child: SizedBox(
-            width: 520,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                context.gapV(80),
-                Text.rich(
-                  TextSpan(
-                    text: 'Stay Focused While ',
-                    style: context.textTheme.headlineMedium?.copyWith(
-                      color: context.colors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: SizedBox(
+                width: 520,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    context.gapV(24),
+                    Text.rich(
                       TextSpan(
-                        text: 'Zedu Handles The\nHustle',
+                        text: 'Stay Focused While ',
                         style: context.textTheme.headlineMedium?.copyWith(
-                          color: context.colors.primary,
+                          color: context.colors.textPrimary,
                           fontWeight: FontWeight.w700,
                         ),
+                        children: [
+                          TextSpan(
+                            text: 'Zedu Handles The\nHustle',
+                            style: context.textTheme.headlineMedium?.copyWith(
+                              color: context.colors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                context.gapV(48),
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AppTextField(
-                        controller: _usernameController,
-                        label: 'Username',
-                        hint: 'Enter your username',
-                        textInputAction: TextInputAction.next,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Username is required';
-                          }
-                          return null;
-                        },
+                      textAlign: TextAlign.center,
+                    ),
+                    context.gapV(24),
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppTextField(
+                            controller: _usernameController,
+                            label: 'Username',
+                            hint: 'Enter your username',
+                            textInputAction: TextInputAction.next,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Username is required';
+                              }
+                              return null;
+                            },
+                          ),
+                          context.gapV(16),
+                          AppTextField(
+                            controller: _emailController,
+                            label: 'Email address',
+                            hint: 'Enter your email',
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) =>
+                                Validators.validateEmail(context, value),
+                          ),
+                          context.gapV(16),
+                          AppTextField(
+                            isPassword: true,
+                            controller: _passwordController,
+                            label: 'Password',
+                            hint: 'Password',
+                            textInputAction: TextInputAction.done,
+                            validator: (value) {
+                              if (value == null || value.length < 8) {
+                                return 'Password must be at least 8 characters long';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
-                      context.gapV(16),
-                      AppTextField(
-                        controller: _emailController,
-                        label: 'Email address',
-                        hint: 'Enter your email',
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        validator: (value) =>
-                            Validators.validateEmail(context, value),
+                    ),
+                    context.gapV(24),
+                    AppButton(
+                      label: 'Create Account',
+                      loading: authState.isLoading,
+                      onPressed: _onCreateAccountPressed,
+                    ),
+                    context.gapV(16),
+                    Padding(
+                      padding: context.symmetric(horizontal: 100, vertical: 0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: context.colors.divider,
+                              height: 0.67,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'OR',
+                              style: textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.72,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: context.colors.divider,
+                              height: 0.67,
+                            ),
+                          ),
+                        ],
                       ),
-                      context.gapV(16),
-                      AppTextField(
-                        isPassword: true,
-                        controller: _passwordController,
-                        label: 'Password',
-                        hint: 'Password',
-                        textInputAction: TextInputAction.done,
-                        validator: (value) {
-                          if (value == null || value.length < 8) {
-                            return 'Password must be at least 8 characters long';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                context.gapV(24),
-                AppButton(
-                  label: 'Create Account',
-                  loading: authState.isLoading,
-                  onPressed: _onCreateAccountPressed,
-                ),
-                context.gapV(32),
-                Padding(
-                  padding: context.symmetric(horizontal: 100, vertical: 0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          color: context.colors.divider,
-                          height: 0.67,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'OR',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.72,
+                    ),
+                    context.gapV(16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SocialAuthButton(
+                            icon: 'assets/svgs/google_logo.svg',
+                            label: 'Sign up with Google',
+                            onPressed: () => AppToastService.show(
+                              context,
+                              type: AppToastType.info,
+                              message: 'Google sign up is not available yet.',
                             ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          color: context.colors.divider,
-                          height: 0.67,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SocialAuthButton(
+                            icon: 'assets/svgs/apple_logo.svg',
+                            label: 'Sign up with Apple',
+                            onPressed: () => AppToastService.show(
+                              context,
+                              type: AppToastType.info,
+                              message: 'Apple sign up is not available yet.',
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                context.gapV(32),
-                SocialAuthButton(
-                  icon: 'assets/svgs/google_logo.svg',
-                  label: 'Sign up with Google',
-                  onPressed: () => AppToastService.show(
-                    context,
-                    type: AppToastType.info,
-                    message: 'Google sign up is not available yet.',
-                  ),
-                ),
-                context.gapV(12),
-                SocialAuthButton(
-                  icon: 'assets/svgs/apple_logo.svg',
-                  label: 'Sign up with Apple',
-                  onPressed: () => AppToastService.show(
-                    context,
-                    type: AppToastType.info,
-                    message: 'Apple sign up is not available yet.',
-                  ),
-                ),
-                context.gapV(32),
-                Text.rich(
-                  TextSpan(
-                    text: 'By Signing up, you agree to our ',
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: context.colors.textSecondary,
+                      ],
                     ),
-                    children: [
+                    context.gapV(16),
+                    Text.rich(
                       TextSpan(
-                        text: 'terms of service',
+                        text: 'By Signing up, you agree to our ',
                         style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.primary,
+                          color: context.colors.textSecondary,
                         ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
+                        children: [
+                          TextSpan(
+                            text: 'terms of service',
+                            style: context.textTheme.bodySmall?.copyWith(
+                              color: context.colors.primary,
+                            ),
+                            recognizer: TapGestureRecognizer()..onTap = () {},
+                          ),
+                          const TextSpan(text: ' and '),
+                          TextSpan(
+                            text: 'privacy policy',
+                            style: context.textTheme.bodySmall?.copyWith(
+                              color: context.colors.primary,
+                            ),
+                            recognizer: TapGestureRecognizer()..onTap = () {},
+                          ),
+                        ],
                       ),
-                      const TextSpan(text: ' and '),
-                      TextSpan(
-                        text: 'privacy policy',
-                        style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.primary,
-                        ),
-                        recognizer: TapGestureRecognizer()..onTap = () {},
-                      ),
-                    ],
-                  ),
-                  textAlign: TextAlign.center,
+                      textAlign: TextAlign.center,
+                    ),
+                    context.gapV(8),
+                  ],
                 ),
-                context.gapV(48),
-              ],
+              ),
             ),
           ),
         ),

@@ -124,6 +124,7 @@ class UserMenuDialog extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: InkWell(
+                  mouseCursor: SystemMouseCursors.click,
                   borderRadius: BorderRadius.circular(8),
                   onTap: () async {
                     Navigator.pop(context);
@@ -300,6 +301,7 @@ class _MenuItemButton extends StatelessWidget {
     final resolvedIconColor = iconColor ?? itemColor;
 
     return InkWell(
+      mouseCursor: SystemMouseCursors.click,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
