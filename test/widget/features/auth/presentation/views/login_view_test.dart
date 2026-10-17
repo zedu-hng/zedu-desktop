@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 import '../../../../../helpers/helpers.dart';
@@ -8,18 +10,24 @@ class FakeAuthNotifier extends AuthNotifier {
   FakeAuthNotifier({
     AuthState initial = const AuthState(status: AuthStatus.unauthenticated),
     void Function(String email, String password)? onLogin,
+    Future<void>? pendingLogin,
   }) : _initial = initial,
-       _onLogin = onLogin;
+       _onLogin = onLogin,
+       _pendingLogin = pendingLogin;
 
   final AuthState _initial;
   final void Function(String email, String password)? _onLogin;
+  final Future<void>? _pendingLogin;
 
   @override
   AuthState build() => _initial;
 
   @override
   Future<void> login({required String email, required String password}) async {
+    state = state.copyWith(isLoading: true);
     _onLogin?.call(email, password);
+    await _pendingLogin;
+    state = state.copyWith(isLoading: false);
   }
 
   @override
@@ -33,12 +41,122 @@ Widget buildLoginViewUnderTest({FakeAuthNotifier? notifier}) {
     overrides: [
       authNotifierProvider.overrideWith(() => notifier ?? FakeAuthNotifier()),
     ],
-    child: const MaterialApp(home: LoginView()),
+    child: buildTestMaterialApp(const LoginView()),
   );
 }
 
 void main() {
   group('LoginView', () {
+    Future<void> pumpDesktopLogin(
+      WidgetTester tester,
+      FakeAuthNotifier notifier,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(buildLoginViewUnderTest(notifier: notifier));
+      await tester.pump();
+    }
+
+    for (final invalidEmail in ['', 'invalid-email']) {
+      testWidgets('Enter validates email "$invalidEmail" without logging in', (
+        tester,
+      ) async {
+        var loginCalls = 0;
+        await pumpDesktopLogin(
+          tester,
+          FakeAuthNotifier(onLogin: (_, _) => loginCalls++),
+        );
+        await tester.enterText(find.byType(TextFormField).at(0), invalidEmail);
+        await tester.enterText(find.byType(TextFormField).at(1), '');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            invalidEmail.isEmpty
+                ? 'Email is required'
+                : 'Please enter a valid email',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Password is required'), findsOneWidget);
+        expect(loginCalls, 0);
+      });
+    }
+
+    testWidgets('Enter submits valid credentials once and permits retry', (
+      tester,
+    ) async {
+      final pendingLogin = Completer<void>();
+      final attempts = <(String, String)>[];
+      await pumpDesktopLogin(
+        tester,
+        FakeAuthNotifier(
+          onLogin: (email, password) => attempts.add((email, password)),
+          pendingLogin: pendingLogin.future,
+        ),
+      );
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'user@example.com',
+      );
+      final passwordField = find.byType(TextFormField).at(1);
+      await tester.enterText(passwordField, 'Secret123');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+
+      // Refocus after each submission: Flutter's done action unfocuses the field.
+      // Submit again before pumping to exercise the synchronous loading guard.
+      await tester.tap(passwordField);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      await tester.tap(passwordField);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(attempts, [('user@example.com', 'Secret123')]);
+      expect(
+        tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+        isNull,
+      );
+
+      pendingLogin.complete();
+      await tester.pumpAndSettle();
+      await tester.tap(passwordField);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(attempts, [
+        ('user@example.com', 'Secret123'),
+        ('user@example.com', 'Secret123'),
+      ]);
+    });
+
+    testWidgets(
+      'Enter does not submit while authentication is already loading',
+      (tester) async {
+        var loginCalls = 0;
+        await pumpDesktopLogin(
+          tester,
+          FakeAuthNotifier(
+            initial: const AuthState(
+              status: AuthStatus.unauthenticated,
+              isLoading: true,
+            ),
+            onLogin: (_, _) => loginCalls++,
+          ),
+        );
+        await tester.enterText(
+          find.byType(TextFormField).at(0),
+          'user@example.com',
+        );
+        await tester.enterText(find.byType(TextFormField).at(1), 'Secret123');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+
+        expect(loginCalls, 0);
+      },
+    );
+
     testWidgets('renders form fields and login button when unauthenticated', (
       tester,
     ) async {
