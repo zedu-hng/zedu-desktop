@@ -47,9 +47,15 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
   Timer? _draftSaveDebounce;
 
+  /// Draft store for the current user and org. Held in a field because `ref`
+  /// can't be used in [dispose], and a flush must go to the store the draft
+  /// was typed against.
+  late DmDraftStore _drafts;
+
   @override
   void initState() {
     super.initState();
+    _drafts = ref.read(dmDraftStoreProvider);
     _controller = RichTextController();
     _controller.addListener(_onTextChanged);
     _draftChannelId = widget.channelId;
@@ -66,17 +72,31 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     if (oldWidget.channelId != widget.channelId) {
       _draftSaveDebounce?.cancel();
       final previousChannel = _draftChannelId ?? oldWidget.channelId;
-      final previousText = _controller.text;
-      if (previousText.trim().isNotEmpty) {
-        ref.read(dmDraftStoreProvider).save(previousChannel, previousText);
+      final previousDrafts = _drafts;
+      final wasEditing = _isEditMode;
+
+      // Edit-mode text is an already-sent message, never a draft. Otherwise
+      // flush the previous conversation's text. Store and chat-history writes
+      // notify providers, so they're deferred until the build has finished.
+      if (wasEditing) {
+        final previousHistory = ref.read(
+          chatHistoryProvider(oldWidget.channelId),
+        );
+        Future.microtask(previousHistory.cancelEditing);
       } else {
-        ref.read(dmDraftStoreProvider).clear(previousChannel);
+        final previousText = _controller.text;
+        Future.microtask(
+          () => previousDrafts.save(previousChannel, previousText),
+        );
       }
+      _drafts = ref.read(dmDraftStoreProvider);
       _draftChannelId = widget.channelId;
 
       setState(() {
         _pendingFiles = [];
         _showEmojiPicker = false;
+        _isEditMode = false;
+        _editingMessageId = null;
       });
       _controller.clear();
       _restoreDraft();
@@ -85,16 +105,16 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
   @override
   void dispose() {
-    // Flush any un-debounced text synchronously using the last known text.
-    // (The debounced save normally covers this; this is just insurance because
-    // dispose cannot await async work.)
+    // Flush any un-debounced text. The debounced save normally covers this;
+    // the write is deferred because the store notifies providers, which isn't
+    // allowed while the tree is unmounting.
     _draftSaveDebounce?.cancel();
-    final flushText = _isEditMode ? null : _controller.text;
-    flushText?.trim().isNotEmpty == true
-        ? ref
-              .read(dmDraftStoreProvider)
-              .save(_draftChannelId ?? widget.channelId, flushText!)
-        : null;
+    if (!_isEditMode && _controller.text.trim().isNotEmpty) {
+      final drafts = _drafts;
+      final channelId = _draftChannelId ?? widget.channelId;
+      final text = _controller.text;
+      Future.microtask(() => drafts.save(channelId, text));
+    }
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -103,7 +123,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   }
 
   Future<void> _restoreDraft() async {
-    final entry = await ref.read(dmDraftStoreProvider).load(widget.channelId);
+    final entry = await _drafts.load(widget.channelId);
     if (!mounted) return;
     if (entry == null || _controller.text.isNotEmpty) return;
 
@@ -123,7 +143,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     _draftSaveDebounce?.cancel();
     _draftSaveDebounce = Timer(const Duration(milliseconds: 250), () {
       if (!mounted) return;
-      ref.read(dmDraftStoreProvider).save(widget.channelId, text);
+      _drafts.save(widget.channelId, text);
     });
   }
 
@@ -209,7 +229,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
 
     // The message is out, so the draft no longer exists.
     _draftSaveDebounce?.cancel();
-    ref.read(dmDraftStoreProvider).clear(widget.channelId);
+    _drafts.clear(widget.channelId);
 
     _controller.clear();
     setState(() => _pendingFiles = []);
@@ -421,6 +441,8 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // A user or org change replaces the store; follow it.
+    ref.listen(dmDraftStoreProvider, (_, next) => _drafts = next);
 
     final mainColumn = Column(
       mainAxisSize: MainAxisSize.min,
