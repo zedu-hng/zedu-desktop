@@ -159,6 +159,10 @@ class _ChatAreaSwitcher extends ConsumerWidget {
       return const NewGroupChatView();
     }
 
+    if (activeChat.type == ActiveChatType.channelDirectory) {
+      return const ChannelDirectoryView();
+    }
+
     if (state == HomeSidebarType.dms) {
       if (selectedDm != null) {
         return DmChatArea(conversation: selectedDm);
@@ -234,37 +238,7 @@ class _MainSidebarState extends State<_MainSidebar> {
             ),
           ),
           if (_isChannelsExpanded) const _ChannelItem(label: 'general'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: colors.onPrimary.withValues(alpha: 0.24),
-                ),
-                borderRadius: BorderRadius.circular(6),
-                color: colors.onPrimary.withValues(alpha: 0.05),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'View all channels',
-                      style: TextStyle(
-                        color: colors.onPrimary.withValues(alpha: 0.7),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: colors.onPrimary.withValues(alpha: 0.7),
-                    size: 16,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const _ViewAllChannelsButton(),
           const _AddChannelButton(),
           const SizedBox(height: 20),
           Padding(
@@ -290,29 +264,111 @@ class _MainSidebarState extends State<_MainSidebar> {
   }
 }
 
-class _ChannelItem extends StatelessWidget {
+class _ViewAllChannelsButton extends ConsumerWidget {
+  const _ViewAllChannelsButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+    final activeChat = ref.watch(activeChatProvider);
+    final isSelected = activeChat.type == ActiveChatType.channelDirectory;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: isSelected
+            ? colors.onPrimary.withValues(alpha: 0.16)
+            : colors.onPrimary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: () {
+            ref.read(activeChatProvider.notifier).selectChannelDirectory();
+          },
+          hoverColor: colors.onPrimary.withValues(alpha: 0.12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isSelected
+                    ? colors.onPrimary.withValues(alpha: 0.6)
+                    : colors.onPrimary.withValues(alpha: 0.24),
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'View all channels',
+                    style: TextStyle(
+                      color: isSelected
+                          ? colors.onPrimary
+                          : colors.onPrimary.withValues(alpha: 0.7),
+                      fontSize: 13,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: isSelected
+                      ? colors.onPrimary
+                      : colors.onPrimary.withValues(alpha: 0.7),
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChannelItem extends ConsumerWidget {
   final String label;
 
   const _ChannelItem({required this.label});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final activeChat = ref.watch(activeChatProvider);
+    final isSelected =
+        activeChat.type == ActiveChatType.channel && activeChat.id == label;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          Text(
-            '#',
-            style: TextStyle(
-              color: colors.onPrimary.withValues(alpha: 0.54),
-              fontSize: 18,
+    return InkWell(
+      onTap: () {
+        ref.read(activeChatProvider.notifier).selectChannel(label);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          children: [
+            Text(
+              '#',
+              style: TextStyle(
+                color: isSelected
+                    ? colors.onPrimary
+                    : colors.onPrimary.withValues(alpha: 0.54),
+                fontSize: 18,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(label, style: TextStyle(color: colors.onPrimary, fontSize: 15)),
-        ],
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                color: colors.onPrimary,
+                fontSize: 15,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
