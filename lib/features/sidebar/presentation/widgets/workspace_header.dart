@@ -45,7 +45,8 @@ class WorkspaceSwitcherHeader extends ConsumerWidget {
           ),
           IconButton(
             onPressed: () {
-              // Add action
+              ref.read(selectedDmProvider.notifier).select(null);
+              ref.read(activeChatProvider.notifier).selectNewGroupChat();
             },
             icon: Icon(
               Icons.add,

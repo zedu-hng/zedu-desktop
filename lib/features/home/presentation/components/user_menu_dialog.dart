@@ -124,6 +124,7 @@ class UserMenuDialog extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: InkWell(
+                  mouseCursor: SystemMouseCursors.click,
                   borderRadius: BorderRadius.circular(8),
                   onTap: () async {
                     Navigator.pop(context);
@@ -225,10 +226,10 @@ class UserMenuDialog extends ConsumerWidget {
               _MenuItemButton(
                 icon: Icons.person_outline,
                 label: 'Profile…',
-                onTap: () {
-                  Navigator.pop(context);
-                  ref.read(personalProfilePanelProvider.notifier).state = true;
-                },
+               onTap: () {
+                Navigator.pop(context);
+                ref.read(personalProfilePanelProvider.notifier).state = true;
+              },
               ),
               _MenuItemButton(
                 icon: Icons.settings_outlined,
@@ -300,6 +301,7 @@ class _MenuItemButton extends StatelessWidget {
     final resolvedIconColor = iconColor ?? itemColor;
 
     return InkWell(
+      mouseCursor: SystemMouseCursors.click,
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

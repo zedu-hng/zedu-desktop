@@ -332,6 +332,33 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     _focusNode.requestFocus();
   }
 
+  /// Inserts a Markdown horizontal rule (`---`) on its own line at the cursor.
+  ///
+  /// The rule needs a blank line above it: `text\n---` is a setext heading,
+  /// not a divider.
+  void _insertDivider() {
+    final text = _controller.text;
+    final sel = _controller.selection;
+    final pos = sel.isValid ? sel.end : text.length;
+    final before = text.substring(0, pos);
+
+    final String leading;
+    if (before.isEmpty || before.endsWith('\n\n')) {
+      leading = '';
+    } else if (before.endsWith('\n')) {
+      leading = '\n';
+    } else {
+      leading = '\n\n';
+    }
+
+    final insert = '$leading---\n';
+    _controller.value = TextEditingValue(
+      text: before + insert + text.substring(pos),
+      selection: TextSelection.collapsed(offset: pos + insert.length),
+    );
+    _focusNode.requestFocus();
+  }
+
   void _toggleEmojiPicker() {
     setState(() => _showEmojiPicker = !_showEmojiPicker);
   }
@@ -631,7 +658,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                       ToolbarButton(
                         icon: Icons.horizontal_rule_rounded,
                         tooltip: 'Divider',
-                        onTap: () => _wrapSelection('/'),
+                        onTap: _insertDivider,
                         colors: colors,
                       ),
                       const SizedBox(width: 4),
