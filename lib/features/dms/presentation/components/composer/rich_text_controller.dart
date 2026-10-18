@@ -29,9 +29,11 @@ class RichTextController extends TextEditingController {
           token.start > 0 && !whitespace.hasMatch(text[token.start - 1]);
       var position = token.start;
       var remaining = token.end - token.start;
-      while (canClose && remaining > 0 && openings.isNotEmpty) {
+      while (canClose && remaining > 0) {
+        final index = openings.lastIndexWhere((o) => o.marker == marker);
+        if (index < 0) break;
+        openings.removeRange(index + 1, openings.length);
         final opening = openings.last;
-        if (opening.marker != marker) break;
         final length = opening.length < remaining ? opening.length : remaining;
         openings.removeLast();
         pair(opening.start + opening.length - length, position, length, marker);
