@@ -297,9 +297,14 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     maxLines: 8,
                     style: TextStyle(color: colors.textPrimary, fontSize: 15),
                     decoration: InputDecoration(
-                      hintText: widget.activeChat.type == ActiveChatType.groupDm
-                          ? 'Message group...'
-                          : 'Message #${widget.activeChat.id ?? "general"}',
+                      hintText: switch (widget.activeChat.type) {
+                        ActiveChatType.groupDm => 'Message group...',
+                        ActiveChatType.directMessage =>
+                          'Message @${widget.activeChat.id ?? "user"}',
+                        ActiveChatType.newGroupChat =>
+                          'Select a recipient above to start messaging...',
+                        _ => 'Message #${widget.activeChat.id ?? "general"}',
+                      },
                       hintStyle: TextStyle(color: colors.textHint),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),

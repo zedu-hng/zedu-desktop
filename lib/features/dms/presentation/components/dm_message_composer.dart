@@ -483,7 +483,9 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                       decoration: InputDecoration(
                         hintText: _isEditMode
                             ? 'Editing message…'
-                            : 'Message ${widget.recipientName}',
+                            : widget.recipientName.trim().isEmpty
+                                ? 'Type a message…'
+                                : 'Message ${widget.recipientName}',
                         hintStyle: TextStyle(
                           color: colors.textHint.withValues(alpha: 0.75),
                           fontSize: 12,
