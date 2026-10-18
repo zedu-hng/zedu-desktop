@@ -49,7 +49,7 @@ void main() {
         () => repository.getAccount(),
       ).thenAnswer((_) async => Success(ProfileAccount.empty()));
       when(
-        () => repository.getNotificationPreferences(),
+        () => repository.getNotificationPreferences(orgId: any(named: 'orgId')),
       ).thenAnswer((_) async => Success(NotificationPreferences.empty()));
       when(
         () => repository.getSecuritySessions(),
@@ -348,6 +348,76 @@ void main() {
           search: 'guest',
         ),
       ).called(2);
+    });
+
+    group('notification preferences', () {
+      final edited = NotificationPreferences.empty().copyWith(
+        mode: NotificationMode.mentionsOnly,
+      );
+
+      void stubSave(Future<Result<NotificationPreferences>> Function() answer) {
+        when(
+          () => repository.updateNotificationPreferences(
+            orgId: any(named: 'orgId'),
+            preferences: edited,
+          ),
+        ).thenAnswer((_) => answer());
+      }
+
+      setUp(() {
+        when(
+          () => repository.getTeamMembers(orgId: any(named: 'orgId')),
+        ).thenAnswer((_) async => const Success(_members));
+      });
+
+      test('makes the saved preferences the new baseline', () async {
+        stubSave(() async => Success(edited));
+        await loaded();
+        final notifier = container.read(userProfileNotifierProvider.notifier);
+
+        await notifier.updateNotificationPreferences(edited);
+
+        final state = container.read(userProfileNotifierProvider);
+        expect(state.notifications, edited);
+        expect(state.isSaving, isFalse);
+        expect(state.error, isNull);
+      });
+
+      test('keeps the old baseline and reports a failed save', () async {
+        stubSave(
+          () async => const Failure(
+            ApiFailure(message: 'Nope', kind: ApiFailureKind.client),
+          ),
+        );
+        await loaded();
+        final notifier = container.read(userProfileNotifierProvider.notifier);
+
+        await notifier.updateNotificationPreferences(edited);
+
+        final state = container.read(userProfileNotifierProvider);
+        expect(state.notifications, NotificationPreferences.empty());
+        expect(state.isSaving, isFalse);
+        expect(state.error, 'Nope');
+      });
+
+      test('ignores a second save while one is running', () async {
+        final pending = Completer<Result<NotificationPreferences>>();
+        stubSave(() => pending.future);
+        await loaded();
+        final notifier = container.read(userProfileNotifierProvider.notifier);
+
+        final first = notifier.updateNotificationPreferences(edited);
+        await notifier.updateNotificationPreferences(edited);
+        pending.complete(Success(edited));
+        await first;
+
+        verify(
+          () => repository.updateNotificationPreferences(
+            orgId: any(named: 'orgId'),
+            preferences: edited,
+          ),
+        ).called(1);
+      });
     });
   });
 }

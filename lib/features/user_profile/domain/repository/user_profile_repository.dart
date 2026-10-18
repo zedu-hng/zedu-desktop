@@ -6,10 +6,13 @@ abstract interface class UserProfileRepository {
   Future<Result<ProfileAccount>> updateAccount(ProfileAccount account);
   Future<Result<void>> deleteAccount();
 
-  Future<Result<NotificationPreferences>> getNotificationPreferences();
-  Future<Result<NotificationPreferences>> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  );
+  Future<Result<NotificationPreferences>> getNotificationPreferences({
+    required String? orgId,
+  });
+  Future<Result<NotificationPreferences>> updateNotificationPreferences({
+    required String? orgId,
+    required NotificationPreferences preferences,
+  });
 
   Future<Result<List<SecuritySession>>> getSecuritySessions();
   Future<Result<void>> changePassword({
