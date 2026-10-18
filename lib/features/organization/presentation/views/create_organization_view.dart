@@ -250,7 +250,7 @@ class _CreateOrganizationViewState
                         enabled: !isLoading,
                         initialSelection: _selectedCountry,
                         hintText: 'Select an option...',
-                        menuHeight: 320,
+                        menuHeight: 240,
                         requestFocusOnTap:
                             false, // behave like a plain dropdown, no typing
                         errorText: field.errorText,
