@@ -99,8 +99,8 @@ class _MagicLinkRequestViewState extends ConsumerState<MagicLinkRequestView> {
                     onPressed: _onGeneratePressed,
                   ),
                   context.gapV(18),
-                  RichText(
-                    text: TextSpan(
+                  Text.rich(
+                    TextSpan(
                       text: 'Don\'t have an account? ',
                       style: context.textTheme.bodyMedium?.copyWith(
                         color: context.colors.textPrimary,
@@ -111,6 +111,8 @@ class _MagicLinkRequestViewState extends ConsumerState<MagicLinkRequestView> {
                           style: context.textTheme.bodyMedium?.copyWith(
                             color: context.colors.primary,
                           ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () => context.push(AppRouter.signup),
                         ),
                       ],
                     ),

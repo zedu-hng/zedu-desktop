@@ -22,6 +22,7 @@ class FakeMagicLinkNotifier extends MagicLinkNotifier {
 
 Widget buildMagicLinkRouterUnderTest({
   FakeMagicLinkNotifier? magicLinkNotifier,
+  List<RouteBase> additionalRoutes = const [],
 }) {
   final router = GoRouter(
     initialLocation: AppRouter.magicLinkRequest,
@@ -35,6 +36,7 @@ Widget buildMagicLinkRouterUnderTest({
         builder: (context, state) =>
             MagicLinkSentView(email: state.extra! as String),
       ),
+      ...additionalRoutes,
     ],
   );
 
@@ -107,6 +109,45 @@ void main() {
       expect(find.text('Awesome! mail sent.'), findsOneWidget);
       expect(find.textContaining('anonymoususer@gmail.com'), findsOneWidget);
       expect(find.byType(AuthHeaderStrip), findsOneWidget);
+    });
+
+    testWidgets('request page navigates to signup when Sign up is tapped', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var navigatedToSignup = false;
+      await tester.pumpWidget(
+        buildMagicLinkRouterUnderTest(
+          additionalRoutes: [
+            GoRoute(
+              path: AppRouter.signup,
+              builder: (context, state) {
+                navigatedToSignup = true;
+                return const SizedBox();
+              },
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final textFinder = find.textContaining("Don't have an account?");
+      expect(textFinder, findsOneWidget);
+
+      final textWidget = tester.widget<Text>(textFinder);
+      final textSpan = textWidget.textSpan as TextSpan?;
+      expect(textSpan, isNotNull);
+
+      final signUpSpan = textSpan!.children!.first as TextSpan;
+      expect(signUpSpan.text, 'Sign up');
+      expect(signUpSpan.recognizer, isA<TapGestureRecognizer>());
+
+      (signUpSpan.recognizer as TapGestureRecognizer).onTap!();
+      await tester.pumpAndSettle();
+
+      expect(navigatedToSignup, isTrue);
     });
   });
 }
