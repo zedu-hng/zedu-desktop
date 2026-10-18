@@ -60,5 +60,31 @@ void main() {
       expect(find.text('Profile page'), findsOneWidget);
       expect(find.text('Settings'), findsNothing);
     });
+
+    testWidgets('footer shows "Add a new organization" tooltip', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 0.5;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await tester.pumpWidget(buildSwitcherUnderTest());
+      await tester.tap(find.text('Open menu'));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Add a new organization'), findsOneWidget);
+    });
+
+    testWidgets('workspace list item shows its name as tooltip', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 0.5;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await tester.pumpWidget(buildSwitcherUnderTest());
+      await tester.tap(find.text('Open menu'));
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Acme'), findsWidgets);
+    });
   });
 }
