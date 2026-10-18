@@ -46,6 +46,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
                           bottom: 0,
                           child: PersonalProfilePanel(),
                         ),
+                      const _HomeBuzzOverlay(),
                     ],
                   ),
                 ),
@@ -55,6 +56,75 @@ class _HomeViewState extends ConsumerState<HomeView> {
         ],
       ),
     );
+  }
+}
+
+class _HomeBuzzOverlay extends ConsumerWidget {
+  const _HomeBuzzOverlay();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final call = ref.watch(activeCallProvider).state;
+    final colors = context.colors;
+
+    if (call.status == CallStatus.calling) {
+      return Positioned(
+        top: 24,
+        right: 24,
+        child: Material(
+          color: Colors.transparent,
+          elevation: 8,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 320,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: colors.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.divider),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Starting Buzz in ${call.remoteUserName ?? '#general'}...',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Cancel Buzz',
+                  icon: const Icon(Icons.call_end, color: Colors.red),
+                  onPressed: () =>
+                      ref.read(activeCallProvider.notifier).cancelCall(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (call.status != CallStatus.active) {
+      return const SizedBox.shrink();
+    }
+
+    if (call.isFullPage) {
+      return const Positioned.fill(child: BuzzMeetingView());
+    }
+
+    return const BuzzMeetingView();
   }
 }
 
@@ -308,22 +378,24 @@ class _AddChannelButton extends StatelessWidget {
   }
 }
 
-class _ChatArea extends StatelessWidget {
+class _ChatArea extends ConsumerWidget {
   const _ChatArea();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
-        _buildChatHeader(context),
+        _buildChatHeader(context, ref),
         Expanded(child: _buildWelcomeScreen(context)),
         _buildMessageInput(context),
       ],
     );
   }
 
-  Widget _buildChatHeader(BuildContext context) {
+  Widget _buildChatHeader(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final call = ref.watch(activeCallProvider).state;
+    final canStartBuzz = call.status == CallStatus.none;
 
     return Container(
       height: 60,
@@ -342,7 +414,19 @@ class _ChatArea extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
+          _HeaderAction(
+            icon: Icons.headphones_outlined,
+            label: canStartBuzz ? 'Start Buzz' : 'Buzz in progress',
+            onTap: canStartBuzz
+                ? () => ref
+                      .read(activeCallProvider.notifier)
+                      .initiateCall(
+                        remoteUserId: 'channel:general',
+                        remoteUserName: '#general',
+                        channelId: 'general',
+                      )
+                : null,
+          ),
           const SizedBox(width: 12),
           CircleAvatar(
             radius: 14,
@@ -461,28 +545,45 @@ class _ChatArea extends StatelessWidget {
 class _HeaderAction extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
-  const _HeaderAction({required this.icon, required this.label});
+  const _HeaderAction({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.divider),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: colors.textPrimary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(color: colors.textPrimary, fontSize: 13),
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: onTap == null
+                    ? colors.divider.withValues(alpha: 0.5)
+                    : colors.divider,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: colors.textPrimary),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 13),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
