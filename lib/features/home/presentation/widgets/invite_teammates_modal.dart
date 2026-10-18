@@ -2,7 +2,10 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class InviteTeammatesModal extends ConsumerStatefulWidget {
-  const InviteTeammatesModal({super.key});
+  const InviteTeammatesModal({super.key, this.channelName, this.workspaceName});
+
+  final String? channelName;
+  final String? workspaceName;
 
   @override
   ConsumerState<InviteTeammatesModal> createState() =>
@@ -15,6 +18,36 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
   List<Map<String, dynamic>> _registeredUsers = [];
   List<Map<String, dynamic>> _filteredUsers = [];
   bool _isLoading = false;
+
+  String get _title {
+    if (widget.channelName != null && widget.channelName!.trim().isNotEmpty) {
+      final name = widget.channelName!.trim();
+      final formatted = name.startsWith('#') ? name : '#$name';
+      return 'Add people to $formatted';
+    }
+    final ws = widget.workspaceName?.trim();
+    if (ws != null && ws.isNotEmpty) {
+      return 'Add people to $ws';
+    }
+    final selectedWs = ref
+        .watch(workspaceProvider)
+        .selectedWorkspace
+        ?.name
+        .trim();
+    if (selectedWs != null && selectedWs.isNotEmpty) {
+      return 'Add people to $selectedWs';
+    }
+    return 'Add people to workspace';
+  }
+
+  String get _subtitle {
+    if (widget.channelName != null && widget.channelName!.trim().isNotEmpty) {
+      final name = widget.channelName!.trim();
+      final formatted = name.startsWith('#') ? name : '#$name';
+      return 'Search for people in your organisation and add them to $formatted.';
+    }
+    return 'Search for people in your organisation to invite them.';
+  }
 
   @override
   void initState() {
@@ -156,12 +189,16 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Add people to #general',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: colors.textPrimary,
+                Expanded(
+                  child: Text(
+                    _title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: colors.textPrimary,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -281,7 +318,7 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
               ),
             const SizedBox(height: 8),
             Text(
-              'Search for people in your organisation and add them to #general.',
+              _subtitle,
               style: TextStyle(fontSize: 12, color: colors.textHint),
             ),
             const SizedBox(height: 24),

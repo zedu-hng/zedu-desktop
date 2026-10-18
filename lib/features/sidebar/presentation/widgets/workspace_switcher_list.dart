@@ -52,7 +52,9 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                         Navigator.pop(context);
                         showDialog<void>(
                           context: context,
-                          builder: (context) => InviteTeammatesModal(),
+                          builder: (context) => InviteTeammatesModal(
+                            workspaceName: selectedWorkspace.name,
+                          ),
                         );
                       },
                     ),
