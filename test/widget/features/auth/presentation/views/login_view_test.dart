@@ -132,5 +132,25 @@ void main() {
       expect(capturedEmail, 'user@example.com');
       expect(capturedPassword, 'Secret123');
     });
+
+    testWidgets('Tab moves directly from email to password', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(buildLoginViewUnderTest());
+      await tester.pump();
+
+      await tester.tap(find.byType(TextFormField).at(0));
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      final passwordField = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(TextFormField).at(1),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(passwordField.focusNode.hasFocus, isTrue);
+    });
   });
 }

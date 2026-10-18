@@ -54,6 +54,35 @@ void main() {
   setUpAll(loadAppFonts);
 
   group('SignUpView layout', () {
+    testWidgets('Tab moves directly between registration fields', (
+      tester,
+    ) async {
+      await pumpSignUpAt(tester, const Size(1280, 720));
+
+      await tester.tap(find.byType(TextFormField).at(0));
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      final emailField = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(TextFormField).at(1),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(emailField.focusNode.hasFocus, isTrue);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      final passwordField = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(TextFormField).at(2),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(passwordField.focusNode.hasFocus, isTrue);
+    });
+
     testWidgets('fits a 1280x720 surface without scrolling', (tester) async {
       await pumpSignUpAt(tester, const Size(1280, 720));
 
