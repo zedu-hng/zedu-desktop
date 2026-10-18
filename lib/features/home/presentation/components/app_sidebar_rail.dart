@@ -69,28 +69,15 @@ class AppSidebarRail extends ConsumerWidget {
           const Spacer(),
           _RailBottomIcon(
             icon: Icons.notifications_none_outlined,
-            hasNotification: true,
+            // No unread-count source yet; show the dot once there is one.
+            hasNotification: false,
+            tooltip: 'Notifications',
             onTap: () {
-              // Fire a test notification replicating DM notification
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Notification will fire in 5 seconds.'),
-                  duration: Duration(seconds: 3),
-                ),
+              showDialog<void>(
+                context: context,
+                barrierColor: Colors.black.withValues(alpha: 0.3),
+                builder: (context) => const NotificationsDialog(),
               );
-              Future.delayed(const Duration(seconds: 5), () {
-                ref
-                    .read(notificationServiceProvider)
-                    .handleIncomingMessage(
-                      {
-                        'user_id': 'system_notification',
-                        'content': 'This is a test notification from Zedu.',
-                      },
-                      'system',
-                      'Zedu',
-                      forceShow: true,
-                    );
-              });
             },
           ),
           _RailBottomIcon(
@@ -201,19 +188,21 @@ class _RailBottomIcon extends StatelessWidget {
     required this.icon,
     this.hasNotification = false,
     this.selected = false,
+    this.tooltip,
     this.onTap,
   });
 
   final IconData icon;
   final bool hasNotification;
   final bool selected;
+  final String? tooltip;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return InkWell(
+    final button = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(7),
       child: Padding(
@@ -248,6 +237,13 @@ class _RailBottomIcon extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    if (tooltip == null) return button;
+    return Tooltip(
+      message: tooltip!,
+      waitDuration: const Duration(milliseconds: 350),
+      child: button,
     );
   }
 }
