@@ -31,16 +31,22 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
       _error = null;
     });
 
+    final name = _nameController.text.trim();
     final created = await ref
         .read(channelProvider.notifier)
         .createChannel(
-          name: _nameController.text.trim(),
+          name: name,
           description: _descController.text.trim(),
           topic: _topicController.text.trim(),
           isPrivate: _isPrivate,
         );
     if (!mounted) return;
     if (created) {
+      AppToastService.show(
+        context,
+        type: AppToastType.success,
+        message: 'Channel "#$name" created successfully.',
+      );
       Navigator.of(context).pop();
     } else {
       setState(() {
