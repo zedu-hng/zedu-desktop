@@ -38,6 +38,20 @@ abstract interface class UserProfileRemoteDataSource {
   Future<BillingInfoModel> getBillingInfo();
 }
 
+String webAppUrlFromApiBaseUrl(String apiBaseUrl) {
+  final apiUri = Uri.parse(apiBaseUrl);
+  final host = apiUri.host.startsWith('api.')
+      ? apiUri.host.substring(4)
+      : apiUri.host;
+
+  return Uri(
+    scheme: apiUri.scheme,
+    host: host,
+    port: apiUri.hasPort ? apiUri.port : null,
+    path: '/',
+  ).toString();
+}
+
 class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   const UserProfileRemoteDataSourceImpl({
     required AppConfig config,
@@ -341,6 +355,8 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     }
     final response = await _apiBaseService.post<Map<String, dynamic>>(
       path: '/invite',
+      // The backend builds the invite link from the request's Referer.
+      headers: {'Referer': webAppUrlFromApiBaseUrl(_config.apiBaseUrl)},
       data: {
         'org_id': orgId,
         'emails': [email],
