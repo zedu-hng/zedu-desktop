@@ -192,16 +192,16 @@ class _MainSidebar extends StatelessWidget {
             ),
           ),
           const _ChannelItem(label: 'general'),
-          Padding(
+                    Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: colors.onPrimary.withValues(alpha: 0.24),
+                  color: colors.onPrimary.withValues(alpha: 0.5),
                 ),
                 borderRadius: BorderRadius.circular(6),
-                color: colors.onPrimary.withValues(alpha: 0.05),
+                color: colors.onPrimary.withValues(alpha: 0.15),
               ),
               child: Row(
                 children: [
@@ -209,14 +209,14 @@ class _MainSidebar extends StatelessWidget {
                     child: Text(
                       'View all channels',
                       style: TextStyle(
-                        color: colors.onPrimary.withValues(alpha: 0.7),
+                        color: colors.onPrimary,
                         fontSize: 13,
                       ),
                     ),
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: colors.onPrimary.withValues(alpha: 0.7),
+                    color: colors.onPrimary,
                     size: 16,
                   ),
                 ],
