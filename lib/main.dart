@@ -12,6 +12,7 @@ Future<void> main() async {
   await loadAppEnv();
   setupLocator();
 
+
   runApp(const ProviderScope(child: App()));
 }
 
