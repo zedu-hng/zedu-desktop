@@ -36,12 +36,30 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
       children: [
         Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Text(
-            'Channel Directory',
-            style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colors.textPrimary,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Channel Directory',
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 16),
+              AppButton(
+                label: 'Add channel',
+                expand: false,
+                height: 40,
+                leading: const Icon(Icons.add, size: 18),
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => const CreateChannelModal(),
+                ),
+              ),
+            ],
           ),
         ),
         Padding(
@@ -70,11 +88,32 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
               ? const Center(child: CircularProgressIndicator())
               : filteredChannels.isEmpty
               ? Center(
-                  child: Text(
-                    'No channels found.',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colors.textSecondary,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'No channels found.',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      AppButton.outlined(
+                        label: 'Create a channel',
+                        expand: false,
+                        height: 40,
+                        leading: const Icon(Icons.add, size: 18),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colors.textPrimary,
+                          side: BorderSide(color: colors.divider),
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                        ),
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          builder: (_) => const CreateChannelModal(),
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
