@@ -42,27 +42,38 @@ class DmRepository {
     return list;
   }
 
+  /// Loads one page of a DM's history, newest first.
+  ///
+  /// DM history lives on the DM threads route, the same one the web app
+  /// uses. `/channels/:id/messages` rejects DM channels with a 400.
   Future<List<Map<String, dynamic>>> getMessages(
     String channelId, {
     int page = 1,
   }) async {
     final response = await _apiClient.get<Map<String, dynamic>>(
-      path: '/channels/$channelId/messages',
+      path: '/dms/channels/$channelId/threads',
       queryParameters: {'page': page, 'limit': pageSize},
     );
 
-    final data = response.data;
-    final rawMessages = data['messages'] ?? data['data'];
-    final messages = rawMessages is Map<String, dynamic>
-        ? rawMessages['messages'] ?? rawMessages['data']
-        : rawMessages;
+    final threads = response.data['data'];
+    if (threads is! List) return const [];
 
-    if (messages is! List) return const [];
-
-    return messages
+    return threads
         .whereType<Map<dynamic, dynamic>>()
-        .map((message) => Map<String, dynamic>.from(message))
+        .map((thread) => threadToMessage(Map<String, dynamic>.from(thread)))
         .toList();
+  }
+
+  /// Maps a DM thread to the message shape the chat UI reads: the thread's
+  /// `thread_id` becomes `id` and its `message` text becomes `content`.
+  /// Every other field (`user_id`, `username`, `created_at`, `media`, ...)
+  /// is kept as it is.
+  static Map<String, dynamic> threadToMessage(Map<String, dynamic> thread) {
+    return {
+      ...thread,
+      'id': thread['id'] ?? thread['thread_id'],
+      'content': thread['content'] ?? thread['message'] ?? '',
+    };
   }
 
   Future<void> sendMessage(

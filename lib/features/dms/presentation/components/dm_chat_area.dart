@@ -103,7 +103,26 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                                   ),
                                 ),
                               ),
-                            if (!historyState.hasMore)
+                            if (!historyState.isLoading &&
+                                historyState.loadError != null)
+                              messages.isEmpty
+                                  ? SliverFillRemaining(
+                                      hasScrollBody: false,
+                                      child: Center(
+                                        child: _HistoryLoadError(
+                                          message: historyState.loadError!,
+                                          onRetry: historyState.retry,
+                                        ),
+                                      ),
+                                    )
+                                  : SliverToBoxAdapter(
+                                      child: _HistoryLoadError(
+                                        message: historyState.loadError!,
+                                        onRetry: historyState.retry,
+                                      ),
+                                    ),
+                            if (!historyState.hasMore &&
+                                historyState.loadError == null)
                               SliverToBoxAdapter(
                                 child: DmProfileCard(
                                   conversation: widget.conversation,
@@ -671,6 +690,33 @@ class _AttachmentBubbleList extends StatelessWidget {
 
         return _buildGenericFile(fileName, fileLink, isImage, context);
       }).toList(),
+    );
+  }
+}
+
+class _HistoryLoadError extends StatelessWidget {
+  const _HistoryLoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: colors.textHint, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
     );
   }
 }
