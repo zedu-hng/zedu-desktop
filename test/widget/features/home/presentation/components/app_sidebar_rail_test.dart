@@ -22,46 +22,57 @@ Color _iconBackground(WidgetTester tester, IconData icon) {
 }
 
 void main() {
-  testWidgets('rail icons highlight on hover without clearing the active icon', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      buildTestMaterialApp(
-        ProviderScope(
-          child: SizedBox(
-            width: AppSidebarRail.width,
-            height: 600,
-            child: const AppSidebarRail(activeType: HomeSidebarType.home),
+  testWidgets(
+    'rail icons highlight on hover without clearing the active icon',
+    (tester) async {
+      await tester.pumpWidget(
+        buildTestMaterialApp(
+          ProviderScope(
+            child: const Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: AppSidebarRail.width,
+                  height: 600,
+                  child: AppSidebarRail(activeType: HomeSidebarType.home),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
-    );
-
-    final activeColor = AppPalette.light.primary.withValues(alpha: 0.95);
-    const railIcons = [
-      Icons.home_filled,
-      Icons.chat_bubble_outline,
-      Icons.people_outline,
-      Icons.folder_open_outlined,
-      Icons.phone_outlined,
-      Icons.notifications_none_outlined,
-      Icons.settings_outlined,
-    ];
-
-    for (final icon in railIcons) {
-      await tester.sendMouseMoveTo(tester.getCenter(find.byIcon(icon)));
-      await tester.pump();
-
-      expect(_iconBackground(tester, icon), activeColor);
-
-      await tester.sendMouseMoveTo(const Offset(200, 500));
-      await tester.pump();
-
-      expect(
-        _iconBackground(tester, icon),
-        icon == Icons.home_filled ? activeColor : Colors.transparent,
       );
-      expect(_iconBackground(tester, Icons.home_filled), activeColor);
-    }
-  });
+
+      final activeColor = AppPalette.light.primary.withValues(alpha: 0.95);
+      const railIcons = [
+        Icons.home_filled,
+        Icons.chat_bubble_outline,
+        Icons.people_outline,
+        Icons.folder_open_outlined,
+        Icons.phone_outlined,
+        Icons.notifications_none_outlined,
+        Icons.settings_outlined,
+      ];
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: const Offset(200, 500));
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+
+      for (final icon in railIcons) {
+        await gesture.moveTo(tester.getCenter(find.byIcon(icon)));
+        await tester.pump();
+
+        expect(_iconBackground(tester, icon), activeColor);
+
+        await gesture.moveTo(const Offset(200, 500));
+        await tester.pump();
+
+        expect(
+          _iconBackground(tester, icon),
+          icon == Icons.home_filled ? activeColor : Colors.transparent,
+        );
+        expect(_iconBackground(tester, Icons.home_filled), activeColor);
+      }
+    },
+  );
 }
