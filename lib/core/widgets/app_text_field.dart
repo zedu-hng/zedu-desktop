@@ -75,6 +75,8 @@ class _AppTextFieldState extends State<AppTextField> {
                 : const SizedBox.shrink()),
         const SizedBox(height: 6),
         Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
           onFocusChange: (hasFocus) {
             if (!hasFocus) {
               widget.onFocusLostOrSubmitted?.call();
