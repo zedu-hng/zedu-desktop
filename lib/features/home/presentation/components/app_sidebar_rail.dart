@@ -19,6 +19,16 @@ class AppSidebarRail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
 
+    final totalUnreadDms = ref
+        .watch(dmListProvider)
+        .maybeWhen(
+          data: (conversations) => conversations.fold<int>(
+            0,
+            (sum, conversation) => sum + conversation.unreadCount,
+          ),
+          orElse: () => 0,
+        );
+
     void select(HomeSidebarType type) {
       if (onTypeSelected != null) {
         onTypeSelected!(type);
@@ -48,6 +58,7 @@ class AppSidebarRail extends ConsumerWidget {
             icon: Icons.chat_bubble_outline,
             label: 'DMs',
             isActive: activeType == HomeSidebarType.dms,
+            badgeCount: totalUnreadDms,
             onTap: () => select(HomeSidebarType.dms),
           ),
           _RailNavItem(
