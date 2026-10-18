@@ -32,29 +32,56 @@ class UserProfileView extends ConsumerWidget {
 
     final state = ref.watch(userProfileNotifierProvider);
     final notifier = ref.read(userProfileNotifierProvider.notifier);
+    final workspaceName = ref.watch(
+      workspaceProvider.select((s) => s.selectedWorkspace?.name),
+    );
 
     return ProfileSettingsShell(
       selectedSection: state.section,
       onSectionSelected: notifier.selectSection,
-      child: _ProfileContent(state: state, notifier: notifier),
+      child: _ProfileContent(
+        state: state,
+        notifier: notifier,
+        workspaceName: workspaceName,
+      ),
     );
   }
 }
 
 class _ProfileContent extends StatelessWidget {
-  const _ProfileContent({required this.state, required this.notifier});
+  const _ProfileContent({
+    required this.state,
+    required this.notifier,
+    required this.workspaceName,
+  });
 
   final UserProfileState state;
   final UserProfileNotifier notifier;
+  final String? workspaceName;
+
+  static const padding = EdgeInsets.fromLTRB(28, 32, 40, 48);
+  static const maxContentWidth = 1000.0;
 
   @override
   Widget build(BuildContext context) {
+    // Notifications scrolls on its own so its unsaved-changes bar can stay
+    // pinned below the scrolling content.
+    if (state.section == UserProfileSection.notifications) {
+      return NotificationsSection(
+        preferences: state.notifications ?? NotificationPreferences.empty(),
+        isSaving: state.isSaving,
+        onSave: notifier.updateNotificationPreferences,
+        workspaceName: workspaceName,
+        padding: padding,
+        maxContentWidth: maxContentWidth,
+      );
+    }
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 32, 40, 48),
+      padding: padding,
       child: Align(
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
+          constraints: const BoxConstraints(maxWidth: maxContentWidth),
           child: switch (state.section) {
             UserProfileSection.account => AccountSection(
               account: state.account ?? ProfileAccount.empty(),
@@ -62,13 +89,7 @@ class _ProfileContent extends StatelessWidget {
               onSave: notifier.updateAccount,
               onDelete: notifier.deleteAccount,
             ),
-            UserProfileSection.notifications => NotificationsSection(
-              preferences:
-                  state.notifications ?? NotificationPreferences.empty(),
-              isSaving: state.isSaving,
-              onSave: notifier.updateNotificationPreferences,
-              onRevert: notifier.revertNotificationPreferences,
-            ),
+            UserProfileSection.notifications => const SizedBox.shrink(),
             UserProfileSection.security => SecuritySection(
               sessions: state.securitySessions,
               isSaving: state.isSaving,
