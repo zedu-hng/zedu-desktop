@@ -28,6 +28,6 @@ jobs:
     if: github.repository == 'zedu-hng/zedu-desktop'
     permissions:
       contents: read
-    uses: zedu-hng/zedu-ci/.github/workflows/pr-scans.yml@0bdd745a90e8ae01d7ebe5291d3e4b796758edb2
+    uses: zedu-hng/zedu-ci/.github/workflows/pr-scans.yml@bd1fc3c1ee1339192e1e73bdc5af3ed9dd46cc8e
     with:
       clamav_exclude_dirs: build .dart_tool android/.gradle ios/Pods macos/Pods
