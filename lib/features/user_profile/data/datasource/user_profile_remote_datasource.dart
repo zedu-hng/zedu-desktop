@@ -38,15 +38,19 @@ abstract interface class UserProfileRemoteDataSource {
   Future<BillingInfoModel> getBillingInfo();
 }
 
-String webAppUrlFromApiBaseUrl(String apiBaseUrl) {
+/// Resolves the web app origin for invitation links.
+String? resolveWebAppUrl({required String apiBaseUrl, String? webAppUrl}) {
+  final configuredUrl = webAppUrl?.trim();
+  if (configuredUrl != null && configuredUrl.isNotEmpty) {
+    return configuredUrl.endsWith('/') ? configuredUrl : '$configuredUrl/';
+  }
+
   final apiUri = Uri.parse(apiBaseUrl);
-  final host = apiUri.host.startsWith('api.')
-      ? apiUri.host.substring(4)
-      : apiUri.host;
+  if (!apiUri.host.startsWith('api.')) return null;
 
   return Uri(
     scheme: apiUri.scheme,
-    host: host,
+    host: apiUri.host.substring(4),
     port: apiUri.hasPort ? apiUri.port : null,
     path: '/',
   ).toString();
@@ -356,7 +360,13 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     final response = await _apiBaseService.post<Map<String, dynamic>>(
       path: '/invite',
       // The backend builds the invite link from the request's Referer.
-      headers: {'Referer': webAppUrlFromApiBaseUrl(_config.apiBaseUrl)},
+      headers: switch (resolveWebAppUrl(
+        apiBaseUrl: _config.apiBaseUrl,
+        webAppUrl: _config.webAppUrl,
+      )) {
+        final url? => {'Referer': url},
+        null => null,
+      },
       data: {
         'org_id': orgId,
         'emails': [email],
