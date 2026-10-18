@@ -168,6 +168,7 @@ class _SetStatusDialogState extends ConsumerState<SetStatusDialog> {
                     Expanded(
                       child: TextField(
                         controller: _textCtrl,
+                        onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
                           hintText: "What's your status?",
                           hintStyle: context.textTheme.bodyMedium?.copyWith(
