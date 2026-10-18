@@ -1,7 +1,7 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-class SecuritySection extends StatelessWidget {
+class SecuritySection extends StatefulWidget {
   const SecuritySection({
     super.key,
     required this.sessions,
@@ -18,6 +18,30 @@ class SecuritySection extends StatelessWidget {
   onChangePassword;
 
   @override
+  State<SecuritySection> createState() => _SecuritySectionState();
+}
+
+class _SecuritySectionState extends State<SecuritySection> {
+  bool _isChangingPassword = false;
+
+  Future<void> _handleChangePassword(BuildContext context) async {
+    await showChangePasswordDialog(
+      context,
+      ({required currentPassword, required newPassword}) async {
+        setState(() => _isChangingPassword = true);
+        try {
+          await widget.onChangePassword(
+            currentPassword: currentPassword,
+            newPassword: newPassword,
+          );
+        } finally {
+          if (mounted) setState(() => _isChangingPassword = false);
+        }
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,13 +53,12 @@ class SecuritySection extends StatelessWidget {
             label: 'Change password',
             expand: false,
             height: 44,
-            loading: isSaving,
-            onPressed: () =>
-                showChangePasswordDialog(context, onChangePassword),
+            loading: _isChangingPassword,
+            onPressed: () => _handleChangePassword(context),
           ),
         ),
         const SizedBox(height: 28),
-        _SessionsTable(sessions: sessions),
+        _SessionsTable(sessions: widget.sessions),
       ],
     );
   }

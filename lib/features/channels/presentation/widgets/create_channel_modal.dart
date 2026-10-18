@@ -22,18 +22,31 @@ class _CreateChannelModalState extends ConsumerState<CreateChannelModal> {
     super.dispose();
   }
 
-  void _createChannel() {
-    if (_nameController.text.trim().isEmpty) return;
+  Future<void> _createChannel() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
 
-    ref
+    final success = await ref
         .read(channelProvider.notifier)
         .createChannel(
-          name: _nameController.text.trim(),
+          name: name,
           description: _descController.text.trim(),
           topic: _topicController.text.trim(),
           isPrivate: _isPrivate,
         );
-    Navigator.of(context).pop();
+
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pop();
+    } else {
+      final errorMessage = ref.read(channelProvider).errorMessage ?? 'Failed to create channel';
+      AppToastService.show(
+        context,
+        type: AppToastType.error,
+        message: errorMessage,
+      );
+    }
   }
 
   @override

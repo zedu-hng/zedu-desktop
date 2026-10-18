@@ -45,13 +45,13 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
     required bool isPrivate,
     String? topic,
   }) async {
-    final body = {
+    final body = <String, dynamic>{
       'name': name,
       'description': description,
       'organisation_id': orgId,
       'username': username,
       'is_private': isPrivate,
-      'topic': ?topic,
+      if (topic != null && topic.isNotEmpty) 'topic': topic,
     };
     final response = await apiBaseService.post<Map<String, dynamic>>(
       path: '/channels',

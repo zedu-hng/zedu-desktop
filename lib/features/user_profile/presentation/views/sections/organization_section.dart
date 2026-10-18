@@ -1,7 +1,7 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-class OrganizationSection extends StatelessWidget {
+class OrganizationSection extends StatefulWidget {
   const OrganizationSection({
     super.key,
     required this.organization,
@@ -16,6 +16,36 @@ class OrganizationSection extends StatelessWidget {
   final ValueChanged<OrganizationProfile> onSave;
   final Future<void> Function() onDelete;
   final Future<void> Function() onLeave;
+
+  @override
+  State<OrganizationSection> createState() => _OrganizationSectionState();
+}
+
+class _OrganizationSectionState extends State<OrganizationSection> {
+  bool _isLeaving = false;
+  bool _isDeleting = false;
+
+  Future<void> _handleLeave(BuildContext context) async {
+    await _confirmLeave(context, () async {
+      setState(() => _isLeaving = true);
+      try {
+        await widget.onLeave();
+      } finally {
+        if (mounted) setState(() => _isLeaving = false);
+      }
+    });
+  }
+
+  Future<void> _handleDelete(BuildContext context) async {
+    await _confirmDelete(context, () async {
+      setState(() => _isDeleting = true);
+      try {
+        await widget.onDelete();
+      } finally {
+        if (mounted) setState(() => _isDeleting = false);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +66,12 @@ class OrganizationSection extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _OrganizationAvatar(initials: organization.initials),
+                    _OrganizationAvatar(initials: widget.organization.initials),
                     const SizedBox(height: 24),
                     const ProfileFieldLabel('Name'),
                     const SizedBox(height: 4),
                     Text(
-                      organization.name,
+                      widget.organization.name,
                       style: context.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -50,7 +80,7 @@ class OrganizationSection extends StatelessWidget {
                     const ProfileFieldLabel('Nature of business'),
                     const SizedBox(height: 4),
                     Text(
-                      organization.natureOfBusiness,
+                      widget.organization.natureOfBusiness,
                       style: context.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -59,7 +89,7 @@ class OrganizationSection extends StatelessWidget {
                     const ProfileFieldLabel('Country'),
                     const SizedBox(height: 4),
                     Text(
-                      organization.country,
+                      widget.organization.country,
                       style: context.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -73,8 +103,8 @@ class OrganizationSection extends StatelessWidget {
                     icon: Icons.edit_outlined,
                     onTap: () => showEditOrganizationDialog(
                       context,
-                      organization,
-                      onSave,
+                      widget.organization,
+                      widget.onSave,
                     ),
                   ),
                 ),
@@ -94,8 +124,8 @@ class OrganizationSection extends StatelessWidget {
                 side: BorderSide(color: context.colors.divider),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
               ),
-              loading: isSaving,
-              onPressed: () => _confirmLeave(context, onLeave),
+              loading: _isLeaving,
+              onPressed: _isDeleting ? null : () => _handleLeave(context),
             ),
             const SizedBox(width: 16),
             AppButton.outlined(
@@ -107,8 +137,8 @@ class OrganizationSection extends StatelessWidget {
                 side: const BorderSide(color: Color(0xFFEF4444)),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
               ),
-              loading: isSaving,
-              onPressed: () => _confirmDelete(context, onDelete),
+              loading: _isDeleting,
+              onPressed: _isLeaving ? null : () => _handleDelete(context),
             ),
           ],
         ),

@@ -86,8 +86,11 @@ class ChannelNotifier extends Notifier<ChannelState> {
     );
 
     if (result is Success<Channel>) {
-      state = state.copyWith(channels: [...state.channels, result.value]);
+      state = state.copyWith(channels: [...state.channels, result.value], errorMessage: null);
       return true;
+    } else if (result is Failure<Channel>) {
+      state = state.copyWith(errorMessage: result.error.message);
+      return false;
     } else {
       return false;
     }
