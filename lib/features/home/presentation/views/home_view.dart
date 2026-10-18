@@ -24,6 +24,8 @@ class _HomeViewState extends ConsumerState<HomeView> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final showProfile = ref.watch(personalProfilePanelProvider);
+    final showBuzzOverlay =
+        ref.watch(activeCallProvider).state.status != CallStatus.none;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -36,19 +38,21 @@ class _HomeViewState extends ConsumerState<HomeView> {
                 AppSidebarRail(activeType: ref.watch(homeSidebarProvider)),
                 const _MainSidebarSwitcher(),
                 Expanded(
-                  child: Stack(
-                    children: [
-                      const Positioned.fill(child: _ChatAreaSwitcher()),
-                      if (showProfile)
-                        const Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: PersonalProfilePanel(),
+                  child: !showProfile && !showBuzzOverlay
+                      ? const _ChatAreaSwitcher()
+                      : Stack(
+                          children: [
+                            const Positioned.fill(child: _ChatAreaSwitcher()),
+                            if (showProfile)
+                              const Positioned(
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                child: PersonalProfilePanel(),
+                              ),
+                            if (showBuzzOverlay) const _HomeBuzzOverlay(),
+                          ],
                         ),
-                      const _HomeBuzzOverlay(),
-                    ],
-                  ),
                 ),
               ],
             ),
