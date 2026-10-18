@@ -23,7 +23,7 @@ The full cycle for any piece of work:
 
 1. Pick up an **approved** ticket in ClickUp or Linear. No ticket, no work.
 2. Sync your fork's `dev` from `zedu-hng`.
-3. Create a ticket branch, do the work, and test it against the dev backend.
+3. Create a ticket branch, do the work, and test it against the live backend.
 4. Open **one PR** from your ticket branch into `zedu-hng/zedu-desktop:dev`. One ticket, one person, or a team PR that consolidates several members' work (see *One person per PR* below).
 5. Run the first build in your fork (see *How your PR gets built*). Your fork builds every push after that.
 6. Your team lead reviews and approves on the PR, and the **Lead approved** check goes green. Then Zedu reviewers review, using your fork's build.
@@ -37,7 +37,7 @@ The full cycle for any piece of work:
 1. Fork **`zedu-hng/zedu-desktop`** into your team's GitHub org. Not `zeduchat`: forking the wrong one points your PRs and **Sync fork** at the wrong repo. Not a personal account either: the org identifies your team, and PRs from personal forks fail **Lead approved**.
 2. In the fork, go to **Actions** and enable workflows. Forks have them off by default, and your PR builds run there.
 3. Register your team: your lead sends a Zedu reviewer the org name and every lead's GitHub handle. Reviewers add them to [`teams.yml` in `zedu-hng/zedu-ci`](https://github.com/zedu-hng/zedu-ci/blob/main/teams.yml), one file for every Zedu repo, so a team registered for another repo is already set. Until then, your PRs fail **Lead approved**.
-4. Builds need no configuration: CI points them at the dev backend (see [How your PR gets built](#how-your-pr-gets-built)). An `APP_ENV_FILE` variable left in the fork from earlier isn't read any more; delete it.
+4. Builds need no configuration: CI points them at the live backend (see [How your PR gets built](#how-your-pr-gets-built)). An `APP_ENV_FILE` variable left in the fork from earlier isn't read any more; delete it.
 5. Each contributor clones the **team fork**:
 
 ```bash
@@ -50,7 +50,7 @@ flutter run
 
 See the README for configuration and platform setup. Never commit `.env`.
 
-Set `API_BASE_URL` in your `.env` (or pass `--dart-define=API_BASE_URL=...`) to the dev backend, `https://api.hng.groups.zedu.chat/api/v1/`, or to your team's backend while you build backend work that isn't on dev yet. Don't leave the `.env.example` value: it points at Zedu's own staging, which bootcamp work never touches. The values CI uses are in [`build/zedu-desktop.env`](https://github.com/zedu-hng/zedu-ci/blob/main/build/zedu-desktop.env).
+Set `API_BASE_URL` in your `.env` (or pass `--dart-define=API_BASE_URL=...`) to the live backend, `https://api.zedu.chat/api/v1/`, or to your team's backend while you build backend work that isn't on dev yet. Don't leave the `.env.example` value: it points at Zedu's own staging, which bootcamp work never touches. The values CI uses are in [`build/zedu-desktop.env`](https://github.com/zedu-hng/zedu-ci/blob/main/build/zedu-desktop.env).
 
 ---
 
@@ -192,7 +192,7 @@ Dependency changes (`pubspec.yaml`, `pubspec.lock`) are fine when the ticket nee
 
 ## How your PR gets built
 
-Your fork builds your PR on its own Actions minutes. Every build talks to the **dev backend**, `https://api.hng.groups.zedu.chat`, so reviewers test every PR against the same backend.
+Your fork builds your PR on its own Actions minutes. Every build talks to the **live backend**, `https://api.zedu.chat`, unless the PR body has a `Backend URL:` line. Reviewers use test accounts.
 
 - **Needs backend work that isn't on dev yet?** Add a line to the PR description, under **Backend**: `Backend URL: https://api.<team>.groups.zedu.chat`. Your build then uses that backend, and the **Backend dependency** check stays red until you delete the line, once the backend change is on dev. Adding, changing or deleting the line after a build makes **Fork build** fail until you re-run PR build in your fork, so the build always matches the description.
 - Nothing secret goes into a build: `.env` ships inside the app.
