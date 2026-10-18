@@ -124,7 +124,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       _readMobileOverride(org),
     ]);
     final model = NotificationPreferencesModel.fromDeviceJson(
-      results[0]! as Map<String, dynamic>,
+      results[0] as Map<String, dynamic>,
       mobile: results[1] as Map<String, dynamic>?,
       timezone: results[2] as String?,
     );
