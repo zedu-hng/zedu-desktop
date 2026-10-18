@@ -13,18 +13,6 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
-  static final _defaultChannels = [
-    Channel(
-      id: 'general',
-      name: 'general',
-      description: 'General channel for workspace discussions',
-      organisationId: '',
-      ownerId: '',
-      membersCount: 1,
-      isJoined: true,
-    ),
-  ];
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -37,12 +25,8 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
     final colors = context.colors;
     final textTheme = context.textTheme;
 
-    final sourceChannels =
-        channelState.channels.isNotEmpty || channelState.isLoading
-        ? channelState.channels
-        : _defaultChannels;
-
-    final filteredChannels = sourceChannels.where((c) {
+    final channels = channelState.value ?? const <Channel>[];
+    final filteredChannels = channels.where((c) {
       if (_searchQuery.isEmpty) return true;
       return c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           c.description.toLowerCase().contains(_searchQuery.toLowerCase());

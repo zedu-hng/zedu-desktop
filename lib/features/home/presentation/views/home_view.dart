@@ -167,18 +167,10 @@ class _ChatAreaSwitcher extends ConsumerWidget {
       if (selectedDm != null) {
         return DmChatArea(conversation: selectedDm);
       } else {
-        return Container(
-          color: context.colors.background,
-          child: Center(
-            child: Text(
-              'Select a conversation to start messaging',
-              style: TextStyle(color: context.colors.textHint, fontSize: 16),
-            ),
-          ),
-        );
+        return const DmEmptyState();
       }
     }
-    return const _ChatArea();
+    return const HomeChatArea();
   }
 }
 
@@ -237,7 +229,7 @@ class _MainSidebarState extends State<_MainSidebar> {
               ),
             ),
           ),
-          if (_isChannelsExpanded) const _ChannelItem(label: 'general'),
+          if (_isChannelsExpanded) const SidebarChannelList(),
           const _ViewAllChannelsButton(),
           const _AddChannelButton(),
           const SizedBox(height: 20),
@@ -328,44 +320,36 @@ class _ViewAllChannelsButton extends ConsumerWidget {
   }
 }
 
-class _ChannelItem extends ConsumerWidget {
-  final String label;
-
-  const _ChannelItem({required this.label});
+class _AddChannelButton extends StatelessWidget {
+  const _AddChannelButton();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = context.colors;
-    final activeChat = ref.watch(activeChatProvider);
-    final isSelected =
-        activeChat.type == ActiveChatType.channel && activeChat.id == label;
 
     return InkWell(
-      onTap: () {
-        ref.read(activeChatProvider.notifier).selectChannel(label);
-      },
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => const CreateChannelModal(),
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            Text(
-              '#',
-              style: TextStyle(
-                color: isSelected
-                    ? colors.onPrimary
-                    : colors.onPrimary.withValues(alpha: 0.54),
-                fontSize: 18,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: colors.onPrimary.withValues(alpha: 0.38),
+                ),
+                borderRadius: BorderRadius.circular(4),
               ),
+              child: Icon(Icons.add, color: colors.onPrimary, size: 14),
             ),
             const SizedBox(width: 12),
             Text(
-              label,
-              style: TextStyle(
-                color: colors.onPrimary,
-                fontSize: 15,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
+              'Add channel',
+              style: TextStyle(color: colors.onPrimary, fontSize: 14),
             ),
           ],
         ),
@@ -374,53 +358,29 @@ class _ChannelItem extends ConsumerWidget {
   }
 }
 
-class _AddChannelButton extends StatelessWidget {
-  const _AddChannelButton();
+/// The Home pane for the channel picked in the sidebar.
+class HomeChatArea extends ConsumerWidget {
+  const HomeChatArea({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Shows the channel picked in the sidebar. Its messages are not listed
+    // yet, so the header, welcome text and input hint carry the name.
+    final chat = ref.watch(activeChatProvider);
+    final channelName = chat.type == ActiveChatType.channel
+        ? (chat.id ?? 'general')
+        : 'general';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: colors.onPrimary.withValues(alpha: 0.38),
-              ),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(Icons.add, color: colors.onPrimary, size: 14),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Add channel',
-            style: TextStyle(color: colors.onPrimary, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChatArea extends StatelessWidget {
-  const _ChatArea();
-
-  @override
-  Widget build(BuildContext context) {
     return Column(
       children: [
-        _buildChatHeader(context),
-        Expanded(child: _buildWelcomeScreen(context)),
-        _buildMessageInput(context),
+        _buildChatHeader(context, channelName),
+        Expanded(child: _buildWelcomeScreen(context, channelName)),
+        _buildMessageInput(context, channelName),
       ],
     );
   }
 
-  Widget _buildChatHeader(BuildContext context) {
+  Widget _buildChatHeader(BuildContext context, String channelName) {
     final colors = context.colors;
 
     return Container(
@@ -431,15 +391,18 @@ class _ChatArea extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            '# general',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: colors.textPrimary,
+          Expanded(
+            child: Text(
+              '# $channelName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: colors.textPrimary,
+              ),
             ),
           ),
-          const Spacer(),
           _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
           const SizedBox(width: 12),
           CircleAvatar(
@@ -454,7 +417,7 @@ class _ChatArea extends StatelessWidget {
     );
   }
 
-  Widget _buildWelcomeScreen(BuildContext context) {
+  Widget _buildWelcomeScreen(BuildContext context, String channelName) {
     final colors = context.colors;
 
     return SingleChildScrollView(
@@ -465,7 +428,7 @@ class _ChatArea extends StatelessWidget {
           Icon(Icons.celebration, size: 60, color: colors.primary),
           const SizedBox(height: 24),
           Text(
-            'Welcome to #general',
+            'Welcome to #$channelName',
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -474,7 +437,7 @@ class _ChatArea extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Share all information relating to general here. All team members await you! 😉',
+            'Share all information relating to $channelName here. All team members await you! 😉',
             style: TextStyle(fontSize: 16, color: colors.textPrimary),
           ),
           const SizedBox(height: 32),
@@ -484,7 +447,7 @@ class _ChatArea extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageInput(BuildContext context) {
+  Widget _buildMessageInput(BuildContext context, String channelName) {
     final colors = context.colors;
 
     return Container(
@@ -511,9 +474,9 @@ class _ChatArea extends StatelessWidget {
               ],
             ),
             Divider(height: 24, color: colors.divider),
-            const TextField(
+            TextField(
               decoration: InputDecoration(
-                hintText: 'Message Ruby - Social Media Handler',
+                hintText: 'Message #$channelName',
                 border: InputBorder.none,
                 isDense: true,
               ),

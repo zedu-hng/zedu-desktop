@@ -16,12 +16,12 @@ class FakeCreditsNotifier extends CreditsNotifier {
 }
 
 class FakeChannelNotifier extends ChannelNotifier {
-  FakeChannelNotifier(this.initialState);
+  FakeChannelNotifier(this.channels);
 
-  final ChannelState initialState;
+  final List<Channel> channels;
 
   @override
-  ChannelState build() => initialState;
+  Future<List<Channel>> build() async => channels;
 }
 
 Widget buildHomeViewUnderTest() {
@@ -30,21 +30,17 @@ Widget buildHomeViewUnderTest() {
       authNotifierProvider.overrideWith(FakeAuthNotifier.new),
       creditsNotifierProvider.overrideWith(FakeCreditsNotifier.new),
       channelProvider.overrideWith(
-        () => FakeChannelNotifier(
-          ChannelState(
-            channels: [
-              Channel(
-                id: '1',
-                name: 'random',
-                description: 'Random talk',
-                organisationId: 'org1',
-                ownerId: 'u1',
-                membersCount: 15,
-                isJoined: true,
-              ),
-            ],
+        () => FakeChannelNotifier([
+          Channel(
+            id: '1',
+            name: 'random',
+            description: 'Random talk',
+            organisationId: 'org1',
+            ownerId: 'u1',
+            membersCount: 15,
+            isJoined: true,
           ),
-        ),
+        ]),
       ),
     ],
     child: buildTestMaterialApp(const HomeView()),

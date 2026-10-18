@@ -3,34 +3,32 @@ import 'package:zedu/features/features.dart';
 import '../../../../../helpers/helpers.dart';
 
 class FakeChannelNotifier extends ChannelNotifier {
-  FakeChannelNotifier(this.initialState);
+  FakeChannelNotifier(this.channels);
 
-  final ChannelState initialState;
+  final List<Channel> channels;
 
   @override
-  ChannelState build() => initialState;
+  Future<List<Channel>> build() async => channels;
 }
 
-Widget buildTestWidget({ChannelState? channelState}) {
-  final channels =
-      channelState ??
-      ChannelState(
-        channels: [
-          Channel(
-            id: '1',
-            name: 'general',
-            description: 'General channel for workspace discussions',
-            organisationId: 'org1',
-            ownerId: 'u1',
-            membersCount: 1,
-            isJoined: true,
-          ),
-        ],
-      );
+Widget buildTestWidget({List<Channel>? channels}) {
+  final channelList =
+      channels ??
+      [
+        Channel(
+          id: '1',
+          name: 'general',
+          description: 'General channel for workspace discussions',
+          organisationId: 'org1',
+          ownerId: 'u1',
+          membersCount: 1,
+          isJoined: true,
+        ),
+      ];
 
   return ProviderScope(
     overrides: [
-      channelProvider.overrideWith(() => FakeChannelNotifier(channels)),
+      channelProvider.overrideWith(() => FakeChannelNotifier(channelList)),
       activeChatProvider.overrideWith(ActiveChatNotifier.new),
     ],
     child: buildTestMaterialApp(const ChannelDirectoryView()),
@@ -54,18 +52,14 @@ void main() {
       expect(find.text('1 members'), findsOneWidget);
     });
 
-    testWidgets(
-      'falls back to active #general channel when channels are empty',
-      (tester) async {
-        await tester.pumpWidget(
-          buildTestWidget(channelState: const ChannelState()),
-        );
-        await tester.pump();
+    testWidgets('shows the empty state when the workspace has no channels', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTestWidget(channels: const []));
+      await tester.pump();
 
-        expect(find.text('# general'), findsOneWidget);
-        expect(find.text('Joined'), findsOneWidget);
-      },
-    );
+      expect(find.text('No channels found.'), findsOneWidget);
+    });
 
     testWidgets('filters channel list when search text is entered', (
       tester,
@@ -93,21 +87,17 @@ void main() {
         ProviderScope(
           overrides: [
             channelProvider.overrideWith(
-              () => FakeChannelNotifier(
-                ChannelState(
-                  channels: [
-                    Channel(
-                      id: '1',
-                      name: 'general',
-                      description: 'General channel',
-                      organisationId: 'org1',
-                      ownerId: 'u1',
-                      membersCount: 1,
-                      isJoined: true,
-                    ),
-                  ],
+              () => FakeChannelNotifier([
+                Channel(
+                  id: '1',
+                  name: 'general',
+                  description: 'General channel',
+                  organisationId: 'org1',
+                  ownerId: 'u1',
+                  membersCount: 1,
+                  isJoined: true,
                 ),
-              ),
+              ]),
             ),
             activeChatProvider.overrideWith(ActiveChatNotifier.new),
           ],
