@@ -20,23 +20,7 @@ class DmProfileCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 39,
-            backgroundColor: colors.primary,
-            backgroundImage: conversation.effectiveAvatarUrl != null
-                ? NetworkImage(conversation.effectiveAvatarUrl!)
-                : null,
-            child: conversation.effectiveAvatarUrl == null
-                ? Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 28,
-                    ),
-                  )
-                : null,
-          ),
+          _buildAvatar(colors),
           const SizedBox(height: 12),
           Text(
             name,
@@ -69,7 +53,7 @@ class DmProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           OutlinedButton(
-            onPressed: () {},
+            onPressed: () => _showProfileDialog(context),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: colors.divider),
               shape: RoundedRectangleBorder(
@@ -85,6 +69,68 @@ class DmProfileCard extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(AppPalette colors) {
+    final name = conversation.displayName;
+    final avatarUrl = conversation.effectiveAvatarUrl;
+    return CircleAvatar(
+      radius: 39,
+      backgroundColor: colors.primary,
+      backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+      child: avatarUrl == null
+          ? Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 28,
+              ),
+            )
+          : null,
+    );
+  }
+
+  /// Shows the other person's profile using the details the DM already has.
+  void _showProfileDialog(BuildContext context) {
+    final colors = context.colors;
+    final email = conversation.participantEmail;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildAvatar(colors),
+            const SizedBox(height: 12),
+            Text(
+              conversation.displayName,
+              textAlign: TextAlign.center,
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colors.textPrimary,
+              ),
+            ),
+            if (email != null && email.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              SelectableText(
+                email,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: colors.textSecondary),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
           ),
         ],
       ),
