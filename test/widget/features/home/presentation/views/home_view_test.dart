@@ -53,6 +53,7 @@ void main() {
 
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Buzz Call'), findsOneWidget);
+    expect(find.byTooltip('Close Buzz'), findsOneWidget);
   });
 }
 

@@ -80,6 +80,14 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                       ),
                       const Spacer(),
                       IconButton(
+                        tooltip: 'Close Buzz',
+                        icon: const Icon(Icons.close, size: 16),
+                        color: colors.textHint,
+                        onPressed: () {
+                          ref.read(activeCallProvider.notifier).endCall();
+                        },
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.open_in_full, size: 16),
                         color: colors.textHint,
                         onPressed: () {
