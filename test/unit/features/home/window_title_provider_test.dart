@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zedu/core/core.dart';
-import 'package:zedu/core/widgets/window_title_provider.dart';
 import 'package:zedu/features/features.dart';
 
 class FakeChannelNotifier extends ChannelNotifier {

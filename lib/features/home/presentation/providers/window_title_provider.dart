@@ -17,7 +17,7 @@ String buildWindowTitle({required int unreadCount, String? workspaceName}) {
   final base = (workspaceName == null || workspaceName.isEmpty)
       ? 'Zedu'
       : 'Zedu - $workspaceName';
-      return unreadCount > 0 ? '($unreadCount) $base' : base;
+  return unreadCount > 0 ? '($unreadCount) $base' : base;
 }
 
 /// The title the desktop window should show right now.
