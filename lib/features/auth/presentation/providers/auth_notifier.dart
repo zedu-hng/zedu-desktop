@@ -448,9 +448,15 @@ class AuthNotifier extends Notifier<AuthState> {
           // org: keep the locally newer status and take only the fresh profile fields.
           adopted = fresh._withStatus(current.status);
         } else {
-          // No overlapping mutations, or the organisation changed:
-          // adopt server state and re-anchor presence and status cache.
-          adopted = fresh;
+          // On a same-organisation refresh, the profile response supplies
+          // presence but not custom-status fields. Preserve those locally
+          // confirmed fields while adopting the server's latest presence.
+          // Do not carry them into a different organisation.
+          adopted = orgChanged
+              ? fresh
+              : fresh._withStatus(
+                  current.status.copyWith(online: fresh.status.online),
+                );
           _setConfirmedOnline(
             online: fresh.status.online,
             sessionGeneration: sessionGeneration,
@@ -458,10 +464,10 @@ class AuthNotifier extends Notifier<AuthState> {
             orgId: fresh.currentOrg,
           );
           _confirmedCustomStatus = _ConfirmedCustomStatus(
-            emoji: fresh.status.emoji,
-            text: fresh.status.text,
-            expiresAt: fresh.status.expiresAt,
-            pauseNotifications: fresh.status.pauseNotifications,
+            emoji: adopted.status.emoji,
+            text: adopted.status.text,
+            expiresAt: adopted.status.expiresAt,
+            pauseNotifications: adopted.status.pauseNotifications,
             sessionGeneration: sessionGeneration,
             userId: fresh.id,
             orgId: fresh.currentOrg,
