@@ -111,6 +111,8 @@ class _MagicLinkRequestViewState extends ConsumerState<MagicLinkRequestView> {
                           style: context.textTheme.bodyMedium?.copyWith(
                             color: context.colors.primary,
                           ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () => context.push(AppRouter.signup),
                         ),
                       ],
                     ),
