@@ -30,7 +30,7 @@ class UserMenuDialog extends ConsumerWidget {
       child: Container(
         key: const ValueKey('user-menu-card'),
         width: cardWidth,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.only(top: 16, bottom: 8),
         decoration: BoxDecoration(
           color: colors.background,
           borderRadius: BorderRadius.circular(12),
