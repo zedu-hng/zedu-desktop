@@ -52,10 +52,15 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
 
   @override
   Future<ProfileAccountModel> getAccount() async {
-    if (_config.usesMockData) return ProfileAccountModel.fromJson(_account);
+    if (_config.usesMockData) {
+      // Return a copy of the current mock account, including saved changes.
+      return ProfileAccountModel.fromJson(Map<String, dynamic>.from(_account));
+    }
+
     final response = await _apiBaseService.get<Map<String, dynamic>>(
       path: '/profile/account',
     );
+
     return ProfileAccountModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -65,13 +70,36 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   Future<ProfileAccountModel> updateAccount(ProfileAccount account) async {
     if (_config.usesMockData) {
       AppLogger.d('Using mock data for PATCH /profile/account', tag: _tag);
+
+      // Save the updated fields so the next getAccount() call
+      // returns the new values instead of the original defaults.
+      _account.addAll({
+        'name': account.name,
+        'email': account.email,
+        'timezone': account.timezone,
+        'avatar_url': account.avatarUrl,
+        'display_name': account.displayName,
+        'username': account.username,
+        'phone_number': account.phoneNumber,
+        'title': account.title,
+        'name_pronunciation': account.namePronunciation,
+        'country': account.country,
+      });
+
       return ProfileAccountModel(
         name: account.name,
         email: account.email,
         timezone: account.timezone,
         avatarUrl: account.avatarUrl,
+        displayName: account.displayName,
+        username: account.username,
+        phoneNumber: account.phoneNumber,
+        title: account.title,
+        namePronunciation: account.namePronunciation,
+        country: account.country,
       );
     }
+
     final response = await _apiBaseService.patch<Map<String, dynamic>>(
       path: '/profile/account',
       data: {
@@ -79,8 +107,15 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         'email': account.email,
         'timezone': account.timezone,
         'avatar_url': account.avatarUrl,
+        'display_name': account.displayName,
+        'username': account.username,
+        'phone_number': account.phoneNumber,
+        'title': account.title,
+        'name_pronunciation': account.namePronunciation,
+        'country': account.country,
       },
     );
+
     return ProfileAccountModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -89,6 +124,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   @override
   Future<void> deleteAccount() async {
     if (_config.usesMockData) return;
+
     await _apiBaseService.delete<Map<String, dynamic>>(
       path: '/profile/account',
     );
@@ -99,9 +135,11 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     if (_config.usesMockData) {
       return NotificationPreferencesModel.fromJson(_notifications);
     }
+
     final response = await _apiBaseService.get<Map<String, dynamic>>(
       path: '/profile/notifications',
     );
+
     return NotificationPreferencesModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -120,6 +158,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         emailNotifications: preferences.emailNotifications,
       );
     }
+
     final response = await _apiBaseService.patch<Map<String, dynamic>>(
       path: '/profile/notifications',
       data: NotificationPreferencesModel(
@@ -130,6 +169,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         emailNotifications: preferences.emailNotifications,
       ).toJson(),
     );
+
     return NotificationPreferencesModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -140,10 +180,13 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     if (_config.usesMockData) {
       return _sessions.map(SecuritySessionModel.fromJson).toList();
     }
+
     final response = await _apiBaseService.get<Map<String, dynamic>>(
       path: '/profile/security/sessions',
     );
+
     final data = response.data['data'] as List<dynamic>;
+
     return data
         .cast<Map<String, dynamic>>()
         .map(SecuritySessionModel.fromJson)
@@ -159,6 +202,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       AppLogger.d('Using mock data for PUT /auth/change-password', tag: _tag);
       return;
     }
+
     await _apiBaseService.put<dynamic>(
       path: '/auth/change-password',
       data: {'old_password': currentPassword, 'new_password': newPassword},
@@ -170,9 +214,11 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     if (_config.usesMockData) {
       return OrganizationProfileModel.fromJson(_organization);
     }
+
     final response = await _apiBaseService.get<Map<String, dynamic>>(
       path: '/profile/organization',
     );
+
     return OrganizationProfileModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -190,6 +236,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         country: organization.country,
       );
     }
+
     final response = await _apiBaseService.patch<Map<String, dynamic>>(
       path: '/profile/organization',
       data: OrganizationProfileModel(
@@ -199,6 +246,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         country: organization.country,
       ).toJson(),
     );
+
     return OrganizationProfileModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -218,13 +266,16 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         country: country,
       );
     }
+
     try {
       final response = await _apiBaseService.post<Map<String, dynamic>>(
         path: '/organisations',
         data: {'name': name, 'type': type, 'country': country},
       );
-      // Small delay to ensure the event loop has processed the request
+
+      // Small delay to ensure the event loop has processed the request.
       await Future<void>.delayed(const Duration(milliseconds: 100));
+
       return OrganizationProfileModel.fromJson(
         response.data['data'] as Map<String, dynamic>,
       );
@@ -232,6 +283,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       if (e is DioException) {
         throw ApiFailure.fromDioException(e);
       }
+
       throw ApiFailure.unknown(e);
     }
   }
@@ -239,28 +291,32 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   @override
   Future<void> deleteOrganization() async {
     if (_config.usesMockData) return;
+
     await _apiBaseService.delete<Map<String, dynamic>>(
       path: '/profile/organization',
     );
   }
 
   @override
-  @override
   Future<List<TeamMemberModel>> getTeamMembers({String? orgId}) async {
     if (_config.usesMockData) {
       List<TeamMemberModel> loadedTeamMembers = [];
 
-      // Load persisted mock members if they exist
+      // Load persisted mock members if they exist.
       if (orgId != null) {
         final storage = locator<SecureStorageService>();
         final data = await storage.readData('mock_team_members_$orgId');
+
         if (data != null) {
           try {
             final List<dynamic> decoded = jsonDecode(data) as List<dynamic>;
+
             loadedTeamMembers = decoded
                 .map((e) => TeamMemberModel.fromJson(e as Map<String, dynamic>))
                 .toList();
-          } catch (_) {}
+          } catch (_) {
+            // Fall back to the default mock members.
+          }
         }
       }
 
@@ -269,9 +325,11 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       }
 
       final list = _members.map(TeamMemberModel.fromJson).toList();
-      // Dynamically generate 1000+ mock members to demonstrate efficient search and scroll!
+
+      // Generate mock members to demonstrate search and scrolling.
       if (list.length < 100) {
         final roles = ['User', 'Guess', 'Manager', 'Project Lead'];
+
         for (int i = 1; i <= 1000; i++) {
           list.add(
             TeamMemberModel(
@@ -286,6 +344,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
           );
         }
       }
+
       return list;
     }
 
@@ -297,17 +356,18 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
       final response = await _apiBaseService.get<Map<String, dynamic>>(
         path: '/organisations/$orgId/users',
       );
+
       final data = response.data['data'] as List<dynamic>?;
+
       if (data == null) return [];
 
       return data.cast<Map<String, dynamic>>().map((user) {
-        // Map backend user to TeamMemberModel
         return TeamMemberModel(
           id: user['id'] as String? ?? '',
           email: user['email'] as String? ?? '',
           role: user['role'] as String? ?? 'User',
           dateJoined: user['created_at'] as String? ?? '',
-          status: TeamMemberStatus.active, // Or parse from user['status']
+          status: TeamMemberStatus.active,
           name:
               user['name'] as String? ??
               user['username'] as String? ??
@@ -336,6 +396,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         name: email.split('@').first,
       );
     }
+
     final response = await _apiBaseService.post<Map<String, dynamic>>(
       path: '/invite',
       data: {
@@ -344,10 +405,13 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         'role_id': role,
       },
     );
+
     final data = response.data['data'] as Map<String, dynamic>;
     final invites = data['invitations'] as List<dynamic>? ?? [];
+
     if (invites.isNotEmpty) {
       final invite = invites.first as Map<String, dynamic>;
+
       return TeamMemberModel(
         id:
             invite['id'] as String? ??
@@ -359,6 +423,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         name: email.split('@').first,
       );
     }
+
     return TeamMemberModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       email: email,
@@ -382,10 +447,12 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
         avatarUrl: member.avatarUrl,
       );
     }
+
     final response = await _apiBaseService.patch<Map<String, dynamic>>(
       path: '/profile/organization/members/${member.id}',
       data: {'email': member.email, 'role': member.role},
     );
+
     return TeamMemberModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
@@ -394,6 +461,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   @override
   Future<void> removeMember(String memberId) async {
     if (_config.usesMockData) return;
+
     await _apiBaseService.delete<Map<String, dynamic>>(
       path: '/profile/organization/members/$memberId',
     );
@@ -404,10 +472,13 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     if (_config.usesMockData) {
       return _roles.map(RolePermissionModel.fromJson).toList();
     }
+
     final response = await _apiBaseService.get<Map<String, dynamic>>(
       path: '/profile/organization/roles',
     );
+
     final data = response.data['data'] as List<dynamic>;
+
     return data
         .cast<Map<String, dynamic>>()
         .map(RolePermissionModel.fromJson)
@@ -419,19 +490,29 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
     if (_config.usesMockData) {
       return BillingInfoModel.fromJson(_billing);
     }
+
     final response = await _apiBaseService.get<Map<String, dynamic>>(
       path: '/profile/organization/billing',
     );
+
     return BillingInfoModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
   }
 }
 
-const _account = {
+// Mutable mock account: updates remain available during this app session.
+final Map<String, dynamic> _account = {
   'name': 'Anonymous user',
   'email': 'anonymoususer@email.com',
   'timezone': 'Africa/Lagos',
+  'avatar_url': null,
+  'display_name': '',
+  'username': '',
+  'phone_number': '',
+  'title': '',
+  'name_pronunciation': '',
+  'country': '',
 };
 
 const _notifications = {
