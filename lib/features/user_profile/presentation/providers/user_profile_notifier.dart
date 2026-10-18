@@ -9,7 +9,8 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   @override
   UserProfileState build() {
     _repository = ref.read(userProfileRepositoryProvider);
-    load();
+    // Defer loading until Riverpod has installed this notifier's initial state.
+    Future<void>.microtask(load);
     return const UserProfileState(isLoading: true);
   }
 
