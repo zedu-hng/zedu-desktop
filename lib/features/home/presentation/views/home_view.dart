@@ -1,3 +1,4 @@
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -166,18 +167,97 @@ class _ChatAreaSwitcher extends ConsumerWidget {
     if (state == HomeSidebarType.dms) {
       if (selectedDm != null) {
         return DmChatArea(conversation: selectedDm);
-      } else {
-        return Container(
-          color: context.colors.background,
-          child: Center(
-            child: Text(
-              'Select a conversation to start messaging',
-              style: TextStyle(color: context.colors.textHint, fontSize: 16),
+      }
+
+      return Container(
+        color: context.colors.background,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF47459D)
+                          .withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: const Icon(
+                      Icons.forum_rounded,
+                      size: 48,
+                      color: Color(0xFF47459D),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Recent Messages',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your conversations will appear here. '
+                    'Start a new message to connect with your team.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.colors.textHint,
+                      fontSize: 15,
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Starting a new direct message '
+                            'is not available yet.',
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 20),
+                    label: const Text('New message'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF47459D),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Start a conversation with someone on your team.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.colors.textHint,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        );
-      }
+        ),
+      );
     }
+
     return const _ChatArea();
   }
 }

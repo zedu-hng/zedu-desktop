@@ -1,3 +1,4 @@
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -89,22 +90,13 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
 
   Future<List<DmConversation>> _fetchPage(String orgId, int page) async {
     final repository = ref.read(dmRepositoryProvider);
-    final results = await repository.getConversations(orgId: orgId, page: page);
+    final results = await repository.getConversations(
+      orgId: orgId,
+      page: page,
+    );
+
     if (results.length < DmRepository.pageSize) {
       _hasMore = false;
-    }
-
-    if (results.isEmpty && page == 1) {
-      return [
-        DmConversation(
-          channelId: 'mock-channel-id-123',
-          username: 'Test User',
-          participantId: 'mock-user-id',
-          previewMessage:
-              'This is a test conversation. Tap to test the composer.',
-          unreadCount: 0,
-        ),
-      ];
     }
 
     return results;
@@ -112,11 +104,13 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
 
   Future<void> loadMore() async {
     if (!_hasMore) return;
+
     final orgId = ref.read(currentOrgIdProvider);
     if (orgId.isEmpty) return;
 
     final current = state.value ?? [];
     _currentPage++;
+
     final next = await _fetchPage(orgId, _currentPage);
     state = AsyncValue.data([...current, ...next]);
   }
