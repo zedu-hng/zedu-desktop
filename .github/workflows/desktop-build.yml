@@ -1,0 +1,93 @@
+name: Desktop build
+
+# Team-fork only. On-demand Windows build of any branch, for testing a build without Flutter or
+# Visual Studio installed locally. PR build (zedu-ci pr-build-flutter.yml) only builds when the
+# branch has an open PR into zedu-hng, so team branches that go to zedu-vader dev never get one.
+# The build steps mirror pr-build-flutter.yml's Windows job; keep them in step when that changes.
+#
+# Run: gh workflow run desktop-build.yml -R zedu-vader/zedu-desktop --ref <branch>
+# Get: gh run download <run id> -R zedu-vader/zedu-desktop -n desktop-windows
+# Then unzip zedu-windows.zip and run zedu.exe (SmartScreen > More info > Run anyway).
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: API host the build talks to
+        required: true
+        default: api.hng.groups.zedu.chat
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: windows · ${{ inputs.backend }}
+    # audioplayers_windows still builds with /await, which Visual Studio 18 (windows-latest) removed.
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check backend host
+        env:
+          BACKEND: ${{ inputs.backend }}
+        run: |
+          [[ "$BACKEND" =~ ^[a-z0-9.-]+$ ]] || { echo "::error::backend must be a bare host, like api.hng.groups.zedu.chat"; exit 1; }
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: "3.41.5"
+          channel: stable
+          cache: true
+
+      # .env is a bundled asset (pubspec.yaml), so anyone with the build can read it: public values only.
+      # Same keys as zedu-ci's build/zedu-desktop.env.
+      - name: Write .env
+        env:
+          BACKEND: ${{ inputs.backend }}
+        run: |
+          printf '%s\n' \
+            "API_BASE_URL=https://$BACKEND/api/v1/" \
+            "USE_MOCK_DATA=false" \
+            "APP_FLAVOR=development" > .env
+
+      - run: flutter pub get
+
+      # agora_rtc_engine's CMake extracts its SDKs inside the plugin dir, which Flutter reaches through
+      # .plugin_symlinks; CMake refuses to extract through a symlink on Windows. Pre-extract into the
+      # real pub-cache dir and mark it .plugin_dev so the plugin skips its own download/extract.
+      - name: Pre-fetch Agora Windows SDKs
+        run: |
+          version=$(awk '/^  agora_rtc_engine:/{f=1} f&&/version:/{gsub(/"/,"",$2); print $2; exit}' pubspec.lock)
+          plugin="$(cygpath -u "$PUB_CACHE")/hosted/pub.dev/agora_rtc_engine-$version/windows"
+          script="$plugin/cmake/DownloadSDK.cmake"
+          for kind in IRIS NATIVE; do
+            url=$(sed -nE "s/^set\(${kind}_SDK_DOWNLOAD_URL \"([^\"]+)\"\)/\1/p" "$script")
+            dir="$plugin/third_party/$(echo "$kind" | tr '[:upper:]' '[:lower:]')/lib"
+            mkdir -p "$dir"
+            curl -sSfL "$url" -o "$RUNNER_TEMP/$kind.zip"
+            7z x -y -o"$dir" "$RUNNER_TEMP/$kind.zip" > /dev/null
+          done
+          touch "$plugin/.plugin_dev"
+
+      - run: flutter build windows --release
+
+      - name: Package
+        run: 7z a zedu-windows.zip ./build/windows/x64/runner/Release/*
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: desktop-windows
+          path: zedu-windows.zip
+          if-no-files-found: error
+          retention-days: 7
