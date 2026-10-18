@@ -99,13 +99,14 @@ class DmListTile extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  _formatTime(conversation.lastActivityAt),
-                  style: TextStyle(
-                    color: colors.onPrimary.withValues(alpha: 0.92),
-                    fontSize: 11,
+                if (conversation.hasActivity)
+                  Text(
+                    _formatTime(conversation.lastActivityAt),
+                    style: TextStyle(
+                      color: colors.onPrimary.withValues(alpha: 0.92),
+                      fontSize: 11,
+                    ),
                   ),
-                ),
                 if (hasUnread) ...[
                   const SizedBox(height: 4),
                   Container(

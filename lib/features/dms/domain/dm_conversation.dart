@@ -39,6 +39,8 @@ class DmConversation {
       ? avatarUrl
       : defaultAvatarUrl;
 
+  bool get hasActivity => previewThreads.isNotEmpty || lastReadAt != null;
+
   DateTime get lastActivityAt {
     if (previewThreads.isNotEmpty) {
       return previewThreads.first.createdAt;
