@@ -33,7 +33,7 @@ Widget buildLoginViewUnderTest({FakeAuthNotifier? notifier}) {
     overrides: [
       authNotifierProvider.overrideWith(() => notifier ?? FakeAuthNotifier()),
     ],
-    child: const MaterialApp(home: LoginView()),
+    child: buildTestMaterialApp(const LoginView()),
   );
 }
 
@@ -49,6 +49,25 @@ void main() {
       expect(find.text('Email address'), findsOneWidget);
       expect(find.text('Password'), findsWidgets);
       expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
+    });
+
+    testWidgets('header prompts users without an account to sign up', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(buildLoginViewUnderTest());
+      await tester.pump();
+
+      expect(
+        find.text("Don't have an account? Sign up", findRichText: true),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Already have an account? Sign up', findRichText: true),
+        findsNothing,
+      );
     });
 
     testWidgets('shows loading spinner when auth status is unknown', (
