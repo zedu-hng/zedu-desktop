@@ -25,7 +25,8 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
     final colors = context.colors;
     final textTheme = context.textTheme;
 
-    final filteredChannels = channelState.channels.where((c) {
+    final channels = channelState.value ?? const <Channel>[];
+    final filteredChannels = channels.where((c) {
       if (_searchQuery.isEmpty) return true;
       return c.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           c.description.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -134,8 +135,8 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
                       ),
                       onTap: () {
                         ref
-                            .read(selectedChannelIdProvider.notifier)
-                            .select(channel.id);
+                            .read(activeChatProvider.notifier)
+                            .selectChannel(channel.name);
                       },
                     );
                   },
