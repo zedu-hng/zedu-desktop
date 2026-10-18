@@ -21,4 +21,4 @@ jobs:
       actions: read
       pull-requests: write
       statuses: write
-    uses: zedu-hng/zedu-ci/.github/workflows/pr-review-comment.yml@0bdd745a90e8ae01d7ebe5291d3e4b796758edb2
+    uses: zedu-hng/zedu-ci/.github/workflows/pr-review-comment.yml@bd1fc3c1ee1339192e1e73bdc5af3ed9dd46cc8e
