@@ -1,5 +1,8 @@
 enum TeamMemberStatus { active, pending, inactive }
 
+/// Invites per page, shared by the datasource and the Invites tab.
+const invitesPageSize = 20;
+
 class TeamMember {
   const TeamMember({
     required this.id,

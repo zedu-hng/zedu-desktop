@@ -34,6 +34,12 @@ abstract interface class UserProfileRepository {
     required String role,
     required String orgId,
   });
+  Future<Result<List<TeamMember>>> getInvites({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  });
+  Future<Result<void>> deleteInvite(String inviteId);
   Future<Result<TeamMember>> updateMember(TeamMember member);
   Future<Result<void>> removeMember(String memberId);
   Future<Result<List<RolePermission>>> getRolesAndPermissions();
