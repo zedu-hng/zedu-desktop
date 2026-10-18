@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/dms/domain/notification_service.dart';
+import 'package:zedu/core/widgets/window_title_provider.dart';
 
 class DesktopManager extends ConsumerStatefulWidget {
   final Widget child;
@@ -19,6 +20,11 @@ class _DesktopManagerState extends ConsumerState<DesktopManager>
     super.initState();
     windowManager.addListener(this);
     trayManager.addListener(this);
+    ref.listenManual<String>(
+      windowTitleProvider,
+      (previous, next) => _applyTitle(next),
+      fireImmediately: true,
+    );
     _initDesktop();
   }
 
@@ -27,6 +33,14 @@ class _DesktopManagerState extends ConsumerState<DesktopManager>
     windowManager.removeListener(this);
     trayManager.removeListener(this);
     super.dispose();
+  }
+
+  Future<void> _applyTitle(String title) async {
+    try {
+      await windowManager.setTitle(title);
+    } catch (e) {
+      debugPrint('Failed to set window title: $e');
+    }
   }
 
   Future<void> _initDesktop() async {
