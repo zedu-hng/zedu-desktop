@@ -20,10 +20,10 @@ void main() {
   ) async {
     await tester.pumpWidget(
       buildTestMaterialApp(
-        const Scaffold(
+        Scaffold(
           body: DmMessageBody(
             content: 'A **bold message**.',
-            textStyle: TextStyle(fontSize: 14),
+            textStyle: const TextStyle(fontSize: 14),
             accentColor: AppPalette.light.primary,
           ),
         ),
