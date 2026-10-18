@@ -262,6 +262,7 @@ class _ModeCard extends StatelessWidget {
       button: true,
       label: '${option.title}. ${option.description}',
       excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: selected ? colors.primaryBg : colors.onPrimary,
         shape: RoundedRectangleBorder(
