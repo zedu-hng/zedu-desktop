@@ -70,7 +70,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
       case 'clear_history':
         final confirmed = await _confirmConversationAction(
           title: 'Clear history?',
-          message: 'Clear the loaded message history for ${conversation.displayName}?',
+          message:
+              'Clear the loaded message history for ${conversation.displayName}?',
           confirmLabel: 'Clear history',
         );
         if (confirmed && mounted) {
@@ -82,7 +83,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
       case 'block_user':
         final confirmed = await _confirmConversationAction(
           title: 'Block ${conversation.displayName}?',
-          message: 'This will hide the conversation from your DM list on this device.',
+          message:
+              'This will hide the conversation from your DM list on this device.',
           confirmLabel: 'Block User',
           destructive: true,
         );
@@ -95,7 +97,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
       case 'delete_conversation':
         final confirmed = await _confirmConversationAction(
           title: 'Delete conversation?',
-          message: 'This will remove the conversation from your DM list on this device.',
+          message:
+              'This will remove the conversation from your DM list on this device.',
           confirmLabel: 'Delete conversation',
           destructive: true,
         );
@@ -127,7 +130,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: destructive
-                    ? TextButton.styleFrom(foregroundColor: const Color(0xFFD93025))
+                    ? TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFD93025),
+                      )
                     : null,
                 child: Text(confirmLabel),
               ),
@@ -138,7 +143,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   }
 
   Future<void> _showConversationSearch() async {
-    final history = ref.read(chatHistoryProvider(widget.conversation.channelId));
+    final history = ref.read(
+      chatHistoryProvider(widget.conversation.channelId),
+    );
     await showDialog<void>(
       context: context,
       builder: (context) {
@@ -146,8 +153,11 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             final query = controller.text.toLowerCase();
-            final results = history.messages.where((message) =>
-                (message['content']?.toString() ?? '').toLowerCase().contains(query));
+            final results = history.messages.where(
+              (message) => (message['content']?.toString() ?? '')
+                  .toLowerCase()
+                  .contains(query),
+            );
             return AlertDialog(
               title: Text('Search ${widget.conversation.displayName}'),
               content: SizedBox(
@@ -159,7 +169,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                     TextField(
                       controller: controller,
                       autofocus: true,
-                      decoration: const InputDecoration(hintText: 'Search messages'),
+                      decoration: const InputDecoration(
+                        hintText: 'Search messages',
+                      ),
                       onChanged: (_) => setDialogState(() {}),
                     ),
                     const SizedBox(height: 12),
@@ -168,17 +180,26 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                         shrinkWrap: true,
                         children: query.isEmpty
                             ? const [Text('Enter a search term')]
-                            : results.map((message) => ListTile(
-                                dense: true,
-                                title: Text(message['content']?.toString() ?? ''),
-                              )).toList(),
+                            : results
+                                  .map(
+                                    (message) => ListTile(
+                                      dense: true,
+                                      title: Text(
+                                        message['content']?.toString() ?? '',
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                       ),
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
               ],
             );
           },
@@ -188,7 +209,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
   }
 
   Future<void> _showConversationFiles() async {
-    final history = ref.read(chatHistoryProvider(widget.conversation.channelId));
+    final history = ref.read(
+      chatHistoryProvider(widget.conversation.channelId),
+    );
     final files = history.messages
         .expand((message) => (message['media'] as List<dynamic>?) ?? const [])
         .toList();
@@ -207,21 +230,28 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                     final file = files[index] as Map;
                     return ListTile(
                       leading: const Icon(Icons.insert_drive_file_outlined),
-                      title: Text(file['file_name']?.toString() ?? 'Attachment'),
+                      title: Text(
+                        file['file_name']?.toString() ?? 'Attachment',
+                      ),
                       subtitle: Text(file['file_type']?.toString() ?? ''),
                     );
                   },
                 ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
   }
 
   void _showActionNotice(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

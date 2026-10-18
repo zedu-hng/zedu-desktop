@@ -68,9 +68,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
       final previousChannel = _draftChannelId ?? oldWidget.channelId;
       final previousText = _controller.text;
       if (previousText.trim().isNotEmpty) {
-        ref
-            .read(dmDraftStoreProvider)
-            .save(previousChannel, previousText);
+        ref.read(dmDraftStoreProvider).save(previousChannel, previousText);
       } else {
         ref.read(dmDraftStoreProvider).clear(previousChannel);
       }
@@ -94,8 +92,8 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     final flushText = _isEditMode ? null : _controller.text;
     flushText?.trim().isNotEmpty == true
         ? ref
-            .read(dmDraftStoreProvider)
-            .save(_draftChannelId ?? widget.channelId, flushText!)
+              .read(dmDraftStoreProvider)
+              .save(_draftChannelId ?? widget.channelId, flushText!)
         : null;
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
@@ -105,9 +103,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   }
 
   Future<void> _restoreDraft() async {
-    final entry = await ref
-        .read(dmDraftStoreProvider)
-        .load(widget.channelId);
+    final entry = await ref.read(dmDraftStoreProvider).load(widget.channelId);
     if (!mounted) return;
     if (entry == null || _controller.text.isNotEmpty) return;
 

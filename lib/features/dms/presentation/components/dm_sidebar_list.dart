@@ -67,19 +67,28 @@ class DmSidebarList extends ConsumerWidget {
                   ),
                   data: (conversations) {
                     final actions = ref.watch(dmConversationActionsProvider);
-                    final visibleConversations = conversations
-                        .where(
-                          (conversation) =>
-                              !actions.blockedIds.contains(conversation.channelId) &&
-                              !actions.deletedIds.contains(conversation.channelId),
-                        )
-                        .toList()
-                      ..sort((a, b) {
-                        final aPinned = actions.pinnedIds.contains(a.channelId);
-                        final bPinned = actions.pinnedIds.contains(b.channelId);
-                        if (aPinned != bPinned) return aPinned ? -1 : 1;
-                        return b.lastActivityAt.compareTo(a.lastActivityAt);
-                      });
+                    final visibleConversations =
+                        conversations
+                            .where(
+                              (conversation) =>
+                                  !actions.blockedIds.contains(
+                                    conversation.channelId,
+                                  ) &&
+                                  !actions.deletedIds.contains(
+                                    conversation.channelId,
+                                  ),
+                            )
+                            .toList()
+                          ..sort((a, b) {
+                            final aPinned = actions.pinnedIds.contains(
+                              a.channelId,
+                            );
+                            final bPinned = actions.pinnedIds.contains(
+                              b.channelId,
+                            );
+                            if (aPinned != bPinned) return aPinned ? -1 : 1;
+                            return b.lastActivityAt.compareTo(a.lastActivityAt);
+                          });
                     if (visibleConversations.isEmpty) {
                       return Center(
                         child: Text(
