@@ -216,9 +216,7 @@ class _InviteTeammatesModalState extends ConsumerState<InviteTeammatesModal> {
                     child: TextField(
                       controller: _emailController,
                       decoration: InputDecoration(
-                        hintText: _invites.isEmpty
-                            ? '|Enter name or email'
-                            : '',
+                        hintText: _invites.isEmpty ? 'Enter name or email' : '',
                         hintStyle: TextStyle(
                           color: colors.textHint.withValues(alpha: 0.7),
                         ),
