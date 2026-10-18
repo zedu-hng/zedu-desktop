@@ -8,6 +8,10 @@ class DesktopManager extends ConsumerStatefulWidget {
 
   const DesktopManager({super.key, required this.child});
 
+  static String get defaultTrayIconPath {
+    return Platform.isWindows ? 'app_icon.ico' : 'assets/pngs/zedu_logo.png';
+  }
+
   @override
   ConsumerState<DesktopManager> createState() => _DesktopManagerState();
 }
@@ -38,8 +42,10 @@ class _DesktopManagerState extends ConsumerState<DesktopManager>
     }
 
     try {
-      if (Platform.isWindows) {
-        await trayManager.setIcon('app_icon.ico');
+      final String trayIcon = DesktopManager.defaultTrayIconPath;
+      await trayManager.setIcon(trayIcon);
+      if (!Platform.isLinux) {
+        await trayManager.setToolTip('Zedu');
       }
 
       Menu menu = Menu(

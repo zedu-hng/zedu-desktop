@@ -37,6 +37,7 @@ class UserProfileView extends ConsumerWidget {
       selectedSection: state.section,
       onSectionSelected: notifier.selectSection,
       child: _ProfileContent(state: state, notifier: notifier),
+      onDismiss: () => context.go(AppRouter.home),
     );
   }
 }

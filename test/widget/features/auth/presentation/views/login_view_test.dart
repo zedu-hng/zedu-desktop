@@ -169,6 +169,63 @@ void main() {
       expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
     });
 
+    testWidgets(
+      'aligns remember me checkbox with the form and keeps it tappable',
+      (tester) async {
+        // The desktop login form and the mobile-width login form.
+        const surfaceSizes = [Size(1440, 1024), Size(800, 600)];
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        for (final size in surfaceSizes) {
+          await tester.binding.setSurfaceSize(size);
+
+          await tester.pumpWidget(buildLoginViewUnderTest());
+          await tester.pump();
+
+          final checkbox = find.byType(Checkbox);
+          final emailField = find.byType(TextFormField).first;
+          final rememberMeText = find.text('Remember me');
+          final forgotPassword = find.text('Forgot Password?');
+
+          // The checkbox paints its 18px visual square centered inside its
+          // tap-target box. Before the fix the box was the default 48x48, so
+          // the square started 15px to the right of the form's left edge.
+          // Assert the square itself (not just the box) aligns with the form.
+          final checkboxBox = tester.getRect(checkbox);
+          final paintedSquareLeft =
+              checkboxBox.left + (checkboxBox.width - Checkbox.width) / 2;
+          expect(
+            paintedSquareLeft - tester.getRect(emailField).left,
+            inInclusiveRange(0.0, 2.0),
+            reason:
+                'checkbox square should align with the form left edge '
+                'at surface size $size',
+          );
+
+          // The label stays vertically centered with the checkbox.
+          expect(
+            tester.getCenter(checkbox).dy,
+            closeTo(tester.getCenter(rememberMeText).dy, 1.0),
+          );
+
+          // "Forgot Password?" remains aligned to the form's right edge.
+          expect(
+            tester.getRect(forgotPassword).right,
+            closeTo(tester.getRect(emailField).right, 1.0),
+          );
+
+          // The checkbox retains its existing functionality: tapping it
+          // toggles its value. (State is preserved between surface sizes,
+          // so compare against whatever the current value is.)
+          final wasChecked = tester.widget<Checkbox>(checkbox).value ?? false;
+          await tester.tap(checkbox);
+          await tester.pump();
+
+          expect(tester.widget<Checkbox>(checkbox).value, !wasChecked);
+        }
+      },
+    );
+
     testWidgets('shows loading spinner when auth status is unknown', (
       tester,
     ) async {
@@ -238,5 +295,47 @@ void main() {
       expect(capturedEmail, 'user@example.com');
       expect(capturedPassword, 'Secret123');
     });
+
+    testWidgets(
+      'horizontally centers login with magic link link beneath login button',
+      (tester) async {
+        const surfaceSizes = [Size(1440, 1024), Size(800, 600)];
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        for (final size in surfaceSizes) {
+          await tester.binding.setSurfaceSize(size);
+
+          await tester.pumpWidget(buildLoginViewUnderTest());
+          await tester.pump();
+
+          final loginButton = find.widgetWithText(ElevatedButton, 'Login');
+          final magicLink = find.text('Login with magic link');
+
+          expect(loginButton, findsOneWidget);
+          expect(magicLink, findsOneWidget);
+
+          final buttonCenter = tester.getCenter(loginButton);
+          final magicLinkCenter = tester.getCenter(magicLink);
+
+          expect(
+            (buttonCenter.dx - magicLinkCenter.dx).abs(),
+            lessThanOrEqualTo(1.0),
+            reason:
+                'Login with magic link should be horizontally centered beneath Login button at $size',
+          );
+
+          final loginAppButton = find.widgetWithText(AppButton, 'Login');
+          final magicLinkInkWell = find.ancestor(
+            of: magicLink,
+            matching: find.byType(InkWell),
+          );
+          expect(
+            tester.getRect(magicLinkInkWell).top,
+            greaterThan(tester.getRect(loginAppButton).bottom),
+            reason: 'magic link should be positioned below the login button',
+          );
+        }
+      },
+    );
   });
 }

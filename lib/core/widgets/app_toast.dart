@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:zedu/core/core.dart';
 
 enum AppToastType { success, error, info }
@@ -64,6 +65,8 @@ class _AppToastWidgetState extends State<_AppToastWidget>
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
 
+  Timer? _dismissTimer;
+
   @override
   void initState() {
     super.initState();
@@ -78,17 +81,19 @@ class _AppToastWidgetState extends State<_AppToastWidget>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
-    Future.delayed(const Duration(seconds: 4), _dismiss);
+    _dismissTimer = Timer(const Duration(seconds: 4), _dismiss);
   }
 
   Future<void> _dismiss() async {
     if (!mounted) return;
     await _controller.reverse();
+    if (!mounted) return;
     widget.onDismiss();
   }
 
   @override
   void dispose() {
+    _dismissTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

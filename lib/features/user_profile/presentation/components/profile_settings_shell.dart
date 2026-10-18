@@ -1,17 +1,23 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
+class _DismissSettingsIntent extends Intent {
+  const _DismissSettingsIntent();
+}
+
 class ProfileSettingsShell extends ConsumerWidget {
   const ProfileSettingsShell({
     super.key,
     required this.selectedSection,
     required this.onSectionSelected,
     required this.child,
+    required this.onDismiss,
   });
 
   final UserProfileSection selectedSection;
   final ValueChanged<UserProfileSection> onSectionSelected;
   final Widget child;
+  final void Function() onDismiss;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,38 +31,53 @@ class ProfileSettingsShell extends ConsumerWidget {
       userName = state.account!.name;
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _ProfileTopBar(userName: userName),
-            Expanded(
-              child: Row(
-                children: [
-                  AppSidebarRail(
-                    activeType: null,
-                    settingsSelected: true,
-                    onTypeSelected: (type) {
-                      ref.read(homeSidebarProvider.notifier).setType(type);
-                      context.go(AppRouter.home);
-                    },
-                  ),
-                  _SettingsNavigation(
-                    userName: userName,
-                    selectedSection: selectedSection,
-                    onSectionSelected: onSectionSelected,
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [Expanded(child: child)],
+    return FocusableActionDetector(
+      autofocus: true,
+      shortcuts: {
+        LogicalKeySet(LogicalKeyboardKey.escape):
+            const _DismissSettingsIntent(),
+      },
+      actions: {
+        _DismissSettingsIntent: CallbackAction<_DismissSettingsIntent>(
+          onInvoke: (_) {
+            onDismiss();
+            return null;
+          },
+        ),
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _ProfileTopBar(userName: userName),
+              Expanded(
+                child: Row(
+                  children: [
+                    AppSidebarRail(
+                      activeType: null,
+                      settingsSelected: true,
+                      onTypeSelected: (type) {
+                        ref.read(homeSidebarProvider.notifier).setType(type);
+                        context.go(AppRouter.home);
+                      },
                     ),
-                  ),
-                ],
+                    _SettingsNavigation(
+                      userName: userName,
+                      selectedSection: selectedSection,
+                      onSectionSelected: onSectionSelected,
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [Expanded(child: child)],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

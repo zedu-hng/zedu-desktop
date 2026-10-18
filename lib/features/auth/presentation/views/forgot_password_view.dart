@@ -122,6 +122,7 @@ class _ForgotPasswordViewState extends ConsumerState<ForgotPasswordView> {
                         hint: 'johndoe@email.com',
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _onSubmitPressed(),
                         validator: (value) =>
                             Validators.validateEmail(context, value),
                       ),

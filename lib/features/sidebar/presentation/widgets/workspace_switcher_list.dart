@@ -40,7 +40,11 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                     child: _ActionButton(
                       icon: Icons.settings_outlined,
                       label: 'Settings',
-                      onPressed: () {},
+                      onPressed: () {
+                        final router = GoRouter.of(context);
+                        Navigator.of(context).pop();
+                        router.go(AppRouter.profile);
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -162,8 +166,9 @@ class WorkspaceSwitcherList extends ConsumerWidget {
 
     return InkWell(
       onTap: () {
-        Navigator.pop(context);
-        context.push(AppRouter.createOrganization);
+        final router = GoRouter.of(context);
+        Navigator.of(context).pop();
+        router.push(AppRouter.createOrganization);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -171,9 +176,12 @@ class WorkspaceSwitcherList extends ConsumerWidget {
           children: [
             Icon(Icons.add, color: colors.textHint, size: 20),
             const SizedBox(width: 8),
-            Text(
-              'Add a new organization',
-              style: TextStyle(color: colors.textPrimary, fontSize: 14),
+            Expanded(
+              child: Text(
+                'Add a new organization',
+                style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),

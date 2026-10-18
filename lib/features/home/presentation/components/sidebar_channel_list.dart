@@ -8,9 +8,11 @@ class SidebarChannelList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channelState = ref.watch(channelProvider);
-    final orgId = ref.watch(
+    final workspaceOrgId = ref.watch(
       workspaceProvider.select((s) => s.selectedWorkspace?.id),
     );
+    final scopeOrgId = ref.watch(channelScopeProvider)?.workspaceId;
+    final orgId = workspaceOrgId ?? scopeOrgId;
     // Right after a workspace switch, and when the new workspace's load
     // failed, the state still holds the previous workspace's channels. Show
     // only channels of the selected workspace, and none after a failed load.
@@ -22,7 +24,9 @@ class SidebarChannelList extends ConsumerWidget {
             .where(
               (c) =>
                   !c.archived &&
-                  (c.organisationId.isEmpty || c.organisationId == orgId),
+                  (orgId == null ||
+                      c.organisationId.isEmpty ||
+                      c.organisationId == orgId),
             )
             .toList();
 

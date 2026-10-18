@@ -5,6 +5,7 @@ class MessageBubble extends StatefulWidget {
   final String text;
   final String timestamp;
   final bool isSystem;
+  final ValueChanged<String>? onReactionAdded;
 
   const MessageBubble({
     super.key,
@@ -12,7 +13,23 @@ class MessageBubble extends StatefulWidget {
     required this.text,
     required this.timestamp,
     this.isSystem = false,
+    this.onReactionAdded,
   });
+
+  /// Computes a [RelativeRect] anchored to [buttonBox] within [overlayBox].
+  static RelativeRect computeMenuPosition(
+    RenderBox buttonBox,
+    RenderBox overlayBox,
+  ) {
+    final target = Rect.fromPoints(
+      buttonBox.localToGlobal(Offset.zero, ancestor: overlayBox),
+      buttonBox.localToGlobal(
+        buttonBox.size.bottomRight(Offset.zero),
+        ancestor: overlayBox,
+      ),
+    );
+    return RelativeRect.fromRect(target, Offset.zero & overlayBox.size);
+  }
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -26,6 +43,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     setState(() {
       _reactions[emoji] = (_reactions[emoji] ?? 0) + 1;
     });
+    widget.onReactionAdded?.call(emoji);
   }
 
   void _toggleReaction(String emoji) {
@@ -140,60 +158,86 @@ class _MessageBubbleState extends State<MessageBubble> {
                             );
                           }),
                           if (_isHovering)
-                            InkWell(
-                              onTap: () async {
-                                final emoji = await showMenu<String>(
-                                  context: context,
-                                  position: const RelativeRect.fromLTRB(
-                                    100,
-                                    100,
-                                    0,
-                                    0,
-                                  ), // Adjust this or use a button's render box
-                                  items: const [
-                                    PopupMenuItem(
-                                      value: '👍',
-                                      child: Text('👍'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: '❤️',
-                                      child: Text('❤️'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: '😂',
-                                      child: Text('😂'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: '🎉',
-                                      child: Text('🎉'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: '👎',
-                                      child: Text('👎'),
-                                    ),
-                                  ],
-                                );
-                                if (emoji != null) {
-                                  _addReaction(emoji);
-                                }
-                              },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: colors.background,
-                                  border: Border.all(color: colors.divider),
+                            Builder(
+                              builder: (buttonContext) {
+                                return InkWell(
+                                  key: const Key('message_add_reaction_button'),
+                                  onTap: () async {
+                                    final buttonBox =
+                                        buttonContext.findRenderObject()
+                                            as RenderBox?;
+                                    final overlayBox =
+                                        Navigator.of(context).overlay?.context
+                                                .findRenderObject()
+                                            as RenderBox? ??
+                                        Overlay.maybeOf(
+                                              context,
+                                            )?.context.findRenderObject()
+                                            as RenderBox?;
+
+                                    final RelativeRect position =
+                                        (buttonBox != null &&
+                                            overlayBox != null)
+                                        ? MessageBubble.computeMenuPosition(
+                                            buttonBox,
+                                            overlayBox,
+                                          )
+                                        : const RelativeRect.fromLTRB(
+                                            100,
+                                            100,
+                                            0,
+                                            0,
+                                          );
+
+                                    final emoji = await showMenu<String>(
+                                      context: context,
+                                      position: position,
+                                      items: const [
+                                        PopupMenuItem(
+                                          value: '👍',
+                                          child: Text('👍'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: '❤️',
+                                          child: Text('❤️'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: '😂',
+                                          child: Text('😂'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: '🎉',
+                                          child: Text('🎉'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: '👎',
+                                          child: Text('👎'),
+                                        ),
+                                      ],
+                                    );
+                                    if (emoji != null) {
+                                      _addReaction(emoji);
+                                    }
+                                  },
                                   borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.add_reaction_outlined,
-                                  size: 14,
-                                  color: colors.textHint,
-                                ),
-                              ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: colors.background,
+                                      border: Border.all(color: colors.divider),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.add_reaction_outlined,
+                                      size: 14,
+                                      color: colors.textHint,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                         ],
                       ),

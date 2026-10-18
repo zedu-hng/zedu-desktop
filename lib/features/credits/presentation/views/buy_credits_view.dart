@@ -60,6 +60,7 @@ class _BuyCreditsViewState extends ConsumerState<BuyCreditsView> {
         ref.read(userProfileNotifierProvider.notifier).selectSection(section);
         context.go(AppRouter.profile);
       },
+      onDismiss: () => context.go(AppRouter.home),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(28, 32, 40, 48),
         child: Align(
@@ -184,7 +185,7 @@ class _BalanceChip extends StatelessWidget {
           Icon(Icons.auto_awesome, size: 18, color: colors.primary),
           const SizedBox(width: 8),
           Text(
-            '$balance AI credits',
+            formatAiCredits(balance),
             style: context.textTheme.labelLarge?.copyWith(
               color: colors.primary,
               fontWeight: FontWeight.w600,
