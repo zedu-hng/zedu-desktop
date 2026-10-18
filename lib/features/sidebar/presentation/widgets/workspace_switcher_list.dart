@@ -40,7 +40,11 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                     child: _ActionButton(
                       icon: Icons.settings_outlined,
                       label: 'Settings',
-                      onPressed: () {},
+                      onPressed: () {
+                        final router = GoRouter.of(context);
+                        Navigator.pop(context);
+                        router.go(AppRouter.profile);
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -159,22 +163,25 @@ class WorkspaceSwitcherList extends ConsumerWidget {
   Widget _buildFooter(BuildContext context) {
     final colors = context.colors;
 
-    return InkWell(
-      onTap: () {
-        Navigator.pop(context);
-        context.push(AppRouter.createOrganization);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Icon(Icons.add, color: colors.textHint, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              'Add a new organization',
-              style: TextStyle(color: colors.textPrimary, fontSize: 14),
-            ),
-          ],
+    return Tooltip(
+      message: 'Add a new organization',
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context);
+          context.push(AppRouter.createOrganization);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.add, color: colors.textHint, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Add a new organization',
+                style: TextStyle(color: colors.textPrimary, fontSize: 14),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -227,81 +234,87 @@ class _WorkspaceListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        color: isActive
-            ? colors.textPrimary.withValues(alpha: 0.05)
-            : Colors.transparent,
-        child: Row(
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: _avatarColor(colors, workspace.name),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Text(
-                      workspace.name.substring(0, 1).toUpperCase(),
-                      style: TextStyle(
-                        color: colors.onPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+    return Tooltip(
+      message: workspace.name,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: isActive
+              ? colors.textPrimary.withValues(alpha: 0.05)
+              : Colors.transparent,
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: _avatarColor(colors, workspace.name),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                  ),
-                ),
-                if (workspace.unreadCount > 0)
-                  Positioned(
-                    top: -6,
-                    right: -6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: colors.error,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: colors.background, width: 2),
-                      ),
+                    child: Center(
                       child: Text(
-                        '${workspace.unreadCount}',
+                        workspace.name.substring(0, 1).toUpperCase(),
                         style: TextStyle(
                           color: colors.onPrimary,
-                          fontSize: 8,
                           fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                workspace.name,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 14,
+                  if (workspace.unreadCount > 0)
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.error,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: colors.background,
+                            width: 2,
+                          ),
+                        ),
+                        child: Text(
+                          '${workspace.unreadCount}',
+                          style: TextStyle(
+                            color: colors.onPrimary,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  workspace.name,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 14,
+                  ),
                 ),
               ),
-            ),
-            Icon(
-              Icons.push_pin,
-              size: 16,
-              color: isActive
-                  ? colors.textHint.withValues(alpha: 0.75)
-                  : Colors.transparent,
-            ),
-          ],
+              Icon(
+                Icons.push_pin,
+                size: 16,
+                color: isActive
+                    ? colors.textHint.withValues(alpha: 0.75)
+                    : Colors.transparent,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -31,20 +31,65 @@ class UserProfileView extends ConsumerWidget {
     });
 
     final state = ref.watch(userProfileNotifierProvider);
+    final authenticatedUser = ref.watch(authNotifierProvider).user;
     final notifier = ref.read(userProfileNotifierProvider.notifier);
+    final account = accountForAuthenticatedUser(
+      state.account ?? ProfileAccount.empty(),
+      authenticatedUser,
+    );
 
     return ProfileSettingsShell(
       selectedSection: state.section,
       onSectionSelected: notifier.selectSection,
-      child: _ProfileContent(state: state, notifier: notifier),
+      child: _ProfileContent(
+        state: state,
+        account: account,
+        notifier: notifier,
+      ),
     );
   }
 }
 
+@visibleForTesting
+ProfileAccount accountForAuthenticatedUser(
+  ProfileAccount account,
+  User? authenticatedUser,
+) {
+  if (authenticatedUser == null) return account;
+
+  final authenticatedName = authenticatedUser.fullname.trim().isNotEmpty
+      ? authenticatedUser.fullname.trim()
+      : authenticatedUser.username;
+  final name = account.name.trim();
+  final email = account.email.trim();
+
+  return account.copyWith(
+    name: name.isEmpty || name.toLowerCase() == 'anonymous user'
+        ? authenticatedName
+        : name,
+    email: email.isEmpty || email.toLowerCase() == 'anonymoususer@email.com'
+        ? authenticatedUser.email
+        : email,
+    username:
+        account.username.trim().isEmpty ||
+            account.username.toLowerCase() == 'anonymoususer'
+        ? authenticatedUser.username
+        : account.username,
+    avatarUrl: account.avatarUrl?.trim().isNotEmpty == true
+        ? account.avatarUrl
+        : authenticatedUser.avatarUrl,
+  );
+}
+
 class _ProfileContent extends StatelessWidget {
-  const _ProfileContent({required this.state, required this.notifier});
+  const _ProfileContent({
+    required this.state,
+    required this.account,
+    required this.notifier,
+  });
 
   final UserProfileState state;
+  final ProfileAccount account;
   final UserProfileNotifier notifier;
 
   @override
@@ -57,7 +102,7 @@ class _ProfileContent extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 1000),
           child: switch (state.section) {
             UserProfileSection.account => AccountSection(
-              account: state.account ?? ProfileAccount.empty(),
+              account: account,
               isSaving: state.isSaving,
               onSave: notifier.updateAccount,
               onDelete: notifier.deleteAccount,
@@ -92,6 +137,7 @@ class _ProfileContent extends StatelessWidget {
               RolesAndPermissionsSection(roles: state.rolesAndPermissions),
             UserProfileSection.billing => BillingSection(
               billing: state.billing ?? BillingInfo.empty(),
+              onInvite: notifier.inviteMember,
             ),
           },
         ),

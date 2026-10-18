@@ -17,6 +17,10 @@ class AccountSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final username = account.username.isNotEmpty
+        ? account.username
+        : account.name.replaceAll(' ', '').toLowerCase();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -55,7 +59,7 @@ class AccountSection extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '@${account.name.replaceAll(' ', '').toLowerCase()}',
+                  '@$username',
                   style: context.textTheme.bodySmall?.copyWith(
                     color: const Color(0xFF6B7280),
                   ),
