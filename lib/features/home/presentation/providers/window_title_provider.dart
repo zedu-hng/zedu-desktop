@@ -3,7 +3,7 @@ import 'package:zedu/features/features.dart';
 
 /// Sum of unread messages across channels and DMs.
 final totalUnreadProvider = Provider<int>((ref) {
-  final channels = ref.watch(channelProvider).channels;
+  final channels = ref.watch(channelProvider).value ?? const <Channel>[];
   final dms = ref.watch(dmListProvider).value ?? const <DmConversation>[];
 
   final channelUnread = channels.fold<int>(0, (sum, c) => sum + c.unreadCount);
