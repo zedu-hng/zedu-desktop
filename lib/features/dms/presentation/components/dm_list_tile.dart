@@ -84,7 +84,7 @@ class DmListTile extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    conversation.previewMessage,
+                    HtmlUtils.toPlainText(conversation.previewMessage),
                     style: TextStyle(
                       color: colors.onPrimary.withValues(alpha: 0.86),
                       fontSize: 11,
