@@ -16,6 +16,17 @@ class AppRouter {
   static const createOrganization = '/create-organization';
   static const buyCredits = '/credits/buy';
 
+  static String homeWithProfilePanel() {
+    return Uri(
+      path: home,
+      queryParameters: const {'profilePanel': 'true'},
+    ).toString();
+  }
+
+  static bool shouldOpenProfilePanel(GoRouterState state) {
+    return state.uri.queryParameters['profilePanel'] == 'true';
+  }
+
   static final router = GoRouter(
     initialLocation: login,
     routes: [
@@ -36,7 +47,11 @@ class AppRouter {
         },
       ),
 
-      GoRoute(path: home, builder: (context, state) => const HomeView()),
+      GoRoute(
+        path: home,
+        builder: (context, state) =>
+            HomeView(openProfilePanel: shouldOpenProfilePanel(state)),
+      ),
       GoRoute(path: signup, builder: (context, state) => const SignUpView()),
       GoRoute(
         path: forgotPassword,

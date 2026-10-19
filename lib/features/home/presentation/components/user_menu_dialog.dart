@@ -226,8 +226,9 @@ class UserMenuDialog extends ConsumerWidget {
                 icon: Icons.person_outline,
                 label: 'Profile…',
                 onTap: () {
+                  final router = GoRouter.of(context);
                   Navigator.pop(context);
-                  ref.read(personalProfilePanelProvider.notifier).state = true;
+                  router.go(AppRouter.homeWithProfilePanel());
                 },
               ),
               _MenuItemButton(

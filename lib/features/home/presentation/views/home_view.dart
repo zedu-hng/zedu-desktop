@@ -2,7 +2,9 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class HomeView extends ConsumerStatefulWidget {
-  const HomeView({super.key});
+  const HomeView({super.key, this.openProfilePanel = false});
+
+  final bool openProfilePanel;
 
   @override
   ConsumerState<HomeView> createState() => _HomeViewState();
@@ -13,11 +15,25 @@ class _HomeViewState extends ConsumerState<HomeView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.openProfilePanel) {
+        ref.read(personalProfilePanelProvider.notifier).state = true;
+      }
       final orgId = ref.read(authNotifierProvider).user?.currentOrg;
       if (orgId != null && orgId.isNotEmpty) {
         ref.read(creditsNotifierProvider.notifier).load(orgId: orgId);
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.openProfilePanel && !oldWidget.openProfilePanel) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(personalProfilePanelProvider.notifier).state = true;
+      });
+    }
   }
 
   @override
