@@ -65,6 +65,7 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
 
   late String selectedTimezone;
   late String selectedCountry;
+  late CountryDialCode phoneCountry;
 
   @override
   void initState() {
@@ -83,6 +84,10 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
         ? widget.account.timezone
         : _kTimezones.first;
     selectedCountry = widget.account.country;
+    phoneCountry = kCountryDialCodes.firstWhere(
+      (c) => widget.account.phoneNumber.trimLeft().startsWith(c.dialCode),
+      orElse: () => kCountryDialCodes.first,
+    );
   }
 
   @override
@@ -199,8 +204,19 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             AppTextField(
                               label: 'Phone Number',
                               controller: phoneCtrl,
-                              hint: '+1 234 567 8900',
+                              hint: '801 234 5678',
                               keyboardType: TextInputType.phone,
+                              prefix: CountryDialCodeSelector(
+                                selected: phoneCountry,
+                                onSelected: (country) {
+                                  setState(() => phoneCountry = country);
+                                  final current = phoneCtrl.text.trim();
+                                  if (current.isEmpty ||
+                                      RegExp(r'^\+\d+$').hasMatch(current)) {
+                                    phoneCtrl.text = '${country.dialCode} ';
+                                  }
+                                },
+                              ),
                             ),
                             const SizedBox(height: 16),
                             AppTextField(
@@ -500,6 +516,128 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                     },
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CountryDialCodeSelector extends StatelessWidget {
+  const CountryDialCodeSelector({
+    super.key,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final CountryDialCode selected;
+  final ValueChanged<CountryDialCode> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return InkWell(
+      onTap: () async {
+        final country = await showDialog<CountryDialCode>(
+          context: context,
+          builder: (context) => const _CountryDialCodePicker(),
+        );
+        if (country != null) {
+          onSelected(country);
+        }
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${selected.iso2} ${selected.dialCode}',
+            style: context.textTheme.bodyLarge?.copyWith(
+              color: colors.textPrimary,
+            ),
+          ),
+          Icon(Icons.arrow_drop_down, size: 18, color: colors.textHint),
+        ],
+      ),
+    );
+  }
+}
+
+class _CountryDialCodePicker extends StatefulWidget {
+  const _CountryDialCodePicker();
+
+  @override
+  State<_CountryDialCodePicker> createState() => _CountryDialCodePickerState();
+}
+
+class _CountryDialCodePickerState extends State<_CountryDialCodePicker> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final query = _query.toLowerCase();
+    final results = query.isEmpty
+        ? kCountryDialCodes
+        : kCountryDialCodes
+              .where(
+                (c) =>
+                    c.name.toLowerCase().contains(query) ||
+                    c.iso2.toLowerCase().contains(query) ||
+                    c.dialCode.contains(_query),
+              )
+              .toList();
+    return AlertDialog(
+      contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      content: SizedBox(
+        width: 300,
+        height: 360,
+        child: Column(
+          children: [
+            TextField(
+              autofocus: true,
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(
+                hintText: 'Search or select a country',
+                prefixIcon: Icon(Icons.search, color: colors.textHint),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: colors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: colors.divider),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: results.length,
+                itemBuilder: (context, index) {
+                  final country = results[index];
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      country.name,
+                      style: context.textTheme.bodyMedium,
+                    ),
+                    trailing: Text(
+                      country.dialCode,
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: colors.textHint,
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(context, country),
+                  );
+                },
               ),
             ),
           ],
