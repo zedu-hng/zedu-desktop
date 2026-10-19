@@ -1,12 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
+import '../../../../../helpers/helpers.dart';
+
+class _FakeUserProfileNotifier extends UserProfileNotifier {
+  @override
+  UserProfileState build() => const UserProfileState();
+}
+
 Widget buildComposerUnderTest({required ActiveChatState activeChat}) {
   return ProviderScope(
-    child: MaterialApp(
-      home: Scaffold(
+    overrides: [
+      userProfileNotifierProvider.overrideWith(_FakeUserProfileNotifier.new),
+    ],
+    child: buildTestMaterialApp(
+      Scaffold(
         body: MessageComposer(
           activeChat: activeChat,
           onSend: (_) {},

@@ -79,6 +79,7 @@ void main() {
 
       expect(find.text('# general'), findsOneWidget);
       expect(find.text('Welcome to #general'), findsOneWidget);
+      expect(find.text('Message #general'), findsOneWidget);
     });
 
     testWidgets('clicking a sidebar channel opens it in the chat area', (
@@ -91,7 +92,9 @@ void main() {
 
       expect(find.text('# random'), findsOneWidget);
       expect(find.text('Welcome to #random'), findsOneWidget);
+      expect(find.text('Message #random'), findsOneWidget);
       expect(find.text('# general'), findsNothing);
+      expect(find.text('Message #general'), findsNothing);
     });
 
     testWidgets('goes back to #general when the workspace changes', (
@@ -101,6 +104,7 @@ void main() {
       await tester.tap(find.text('random'));
       await tester.pumpAndSettle();
       expect(find.text('# random'), findsOneWidget);
+      expect(find.text('Message #random'), findsOneWidget);
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(HomeChatArea)),
@@ -110,7 +114,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('# general'), findsOneWidget);
+      expect(find.text('Message #general'), findsOneWidget);
       expect(find.text('# random'), findsNothing);
+      expect(find.text('Message #random'), findsNothing);
     });
 
     testWidgets('a very long channel name does not overflow', (tester) async {

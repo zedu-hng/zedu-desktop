@@ -4,6 +4,21 @@ import 'package:zedu/features/features.dart';
 class NewGroupChatView extends ConsumerStatefulWidget {
   const NewGroupChatView({super.key});
 
+  static String getComposerPlaceholder(List<TeamMember> selectedMembers) {
+    if (selectedMembers.isEmpty) {
+      return 'Select a recipient above to start messaging...';
+    } else if (selectedMembers.length == 1) {
+      final member = selectedMembers.first;
+      final name = member.name;
+      final displayName = (name != null && name.trim().isNotEmpty)
+          ? name
+          : member.email;
+      return 'Message @$displayName';
+    } else {
+      return 'Message group (${selectedMembers.length} members)...';
+    }
+  }
+
   @override
   ConsumerState<NewGroupChatView> createState() => _NewGroupChatViewState();
 }
@@ -572,20 +587,6 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
     );
   }
 
-  static String getComposerPlaceholder(List<TeamMember> selectedMembers) {
-    if (selectedMembers.isEmpty) {
-      return 'Select a recipient above to start messaging...';
-    } else if (selectedMembers.length == 1) {
-      final member = selectedMembers.first;
-      final name = member.name;
-      final displayName = (name != null && name.trim().isNotEmpty)
-          ? name
-          : member.email;
-      return 'Message @$displayName';
-    } else {
-      return 'Message group (${selectedMembers.length} members)...';
-    }
-  }
 
   Widget _buildBottomMessageEditor(AppPalette colors) {
     return Container(
@@ -616,7 +617,8 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
             TextField(
               enabled: false, // Disabled during creation screen
               decoration: InputDecoration(
-                hintText: getComposerPlaceholder(_selectedMembers),
+                hintText:
+                    NewGroupChatView.getComposerPlaceholder(_selectedMembers),
                 border: InputBorder.none,
                 isDense: true,
               ),

@@ -1,5 +1,6 @@
-import 'package:flutter_test/flutter_test.dart';
 import 'package:zedu/features/features.dart';
+
+import '../../../../../helpers/helpers.dart';
 
 void main() {
   group('NewGroupChatView.getComposerPlaceholder', () {
@@ -33,6 +34,20 @@ void main() {
 
       final placeholder = NewGroupChatView.getComposerPlaceholder([member]);
       expect(placeholder, 'Message @alex@example.com');
+    });
+
+    test('returns single recipient placeholder with email when name is empty', () {
+      const member = TeamMember(
+        id: 'user-3',
+        name: '   ',
+        email: 'empty@example.com',
+        role: 'Tester',
+        dateJoined: '2026-01-01',
+        status: TeamMemberStatus.active,
+      );
+
+      final placeholder = NewGroupChatView.getComposerPlaceholder([member]);
+      expect(placeholder, 'Message @empty@example.com');
     });
 
     test('returns group count placeholder when multiple recipients are selected', () {
