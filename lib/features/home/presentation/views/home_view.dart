@@ -9,6 +9,8 @@ class HomeView extends ConsumerStatefulWidget {
 }
 
 class _HomeViewState extends ConsumerState<HomeView> {
+  final _channelMessageController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -18,6 +20,12 @@ class _HomeViewState extends ConsumerState<HomeView> {
         ref.read(creditsNotifierProvider.notifier).load(orgId: orgId);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _channelMessageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -31,25 +39,68 @@ class _HomeViewState extends ConsumerState<HomeView> {
         children: [
           const _HomeAppBar(),
           Expanded(
-            child: Row(
-              children: [
-                AppSidebarRail(activeType: ref.watch(homeSidebarProvider)),
-                const _MainSidebarSwitcher(),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      const Positioned.fill(child: _ChatAreaSwitcher()),
-                      if (showProfile)
-                        const Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: PersonalProfilePanel(),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, windowConstraints) {
+                // Make room for the profile drawer and keep the message
+                // composer visible on narrow windows.
+                final compactProfileLayout =
+                    showProfile && windowConstraints.maxWidth < 900;
+
+                return Row(
+                  children: [
+                    AppSidebarRail(activeType: ref.watch(homeSidebarProvider)),
+                    if (!compactProfileLayout) const _MainSidebarSwitcher(),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (compactProfileLayout) {
+                            final composerClearance =
+                                (constraints.maxHeight - 48)
+                                    .clamp(0.0, 220.0)
+                                    .toDouble();
+
+                            return Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: _ChatAreaSwitcher(
+                                    messageController:
+                                        _channelMessageController,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: composerClearance,
+                                  child: PersonalProfilePanel(
+                                    width: constraints.maxWidth,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
+                          final profileWidth = (constraints.maxWidth * 0.4)
+                              .clamp(0.0, 360.0)
+                              .toDouble();
+
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _ChatAreaSwitcher(
+                                  messageController: _channelMessageController,
+                                ),
+                              ),
+                              if (showProfile)
+                                PersonalProfilePanel(width: profileWidth),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -134,7 +185,9 @@ class _MainSidebarSwitcher extends ConsumerWidget {
 }
 
 class _ChatAreaSwitcher extends ConsumerWidget {
-  const _ChatAreaSwitcher();
+  const _ChatAreaSwitcher({this.messageController});
+
+  final TextEditingController? messageController;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -156,7 +209,7 @@ class _ChatAreaSwitcher extends ConsumerWidget {
         );
       }
     }
-    return const _ChatArea();
+    return _ChatArea(messageController: messageController);
   }
 }
 
@@ -308,21 +361,23 @@ class _AddChannelButton extends StatelessWidget {
   }
 }
 
-class _ChatArea extends StatelessWidget {
-  const _ChatArea();
+class _ChatArea extends ConsumerWidget {
+  const _ChatArea({this.messageController});
+
+  final TextEditingController? messageController;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
-        _buildChatHeader(context),
+        _buildChatHeader(context, ref),
         Expanded(child: _buildWelcomeScreen(context)),
-        _buildMessageInput(context),
+        _buildMessageInput(context, messageController),
       ],
     );
   }
 
-  Widget _buildChatHeader(BuildContext context) {
+  Widget _buildChatHeader(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
 
     return Container(
@@ -344,10 +399,17 @@ class _ChatArea extends StatelessWidget {
           const Spacer(),
           _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
           const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: colors.accent,
-            child: Icon(Icons.person, size: 18, color: colors.onPrimary),
+          Tooltip(
+            message: 'Open profile',
+            child: InkWell(
+              onTap: () =>
+                  ref.read(personalProfilePanelProvider.notifier).state = true,
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: colors.accent,
+                child: Icon(Icons.person, size: 18, color: colors.onPrimary),
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Icon(Icons.more_vert, color: colors.textHint),
@@ -386,7 +448,10 @@ class _ChatArea extends StatelessWidget {
     );
   }
 
-  Widget _buildMessageInput(BuildContext context) {
+  Widget _buildMessageInput(
+    BuildContext context,
+    TextEditingController? messageController,
+  ) {
     final colors = context.colors;
 
     return Container(
@@ -413,7 +478,8 @@ class _ChatArea extends StatelessWidget {
               ],
             ),
             Divider(height: 24, color: colors.divider),
-            const TextField(
+            TextField(
+              controller: messageController,
               decoration: InputDecoration(
                 hintText: 'Message Ruby - Social Media Handler',
                 border: InputBorder.none,
