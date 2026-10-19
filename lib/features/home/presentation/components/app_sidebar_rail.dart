@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -137,12 +138,8 @@ class _BuzzRailItem extends ConsumerWidget {
 
   String _formatDateTime(DateTime value) {
     final local = value.toLocal();
-    final hour = local.hour > 12
-        ? local.hour - 12
-        : (local.hour == 0 ? 12 : local.hour);
-    final minute = local.minute.toString().padLeft(2, '0');
-    final period = local.hour >= 12 ? 'PM' : 'AM';
-    return '${local.day}/${local.month}/${local.year} $hour:$minute $period';
+    final formatter = DateFormat('dd.MMM.yyyy hh:mm a');
+    return formatter.format(local);
   }
 }
 
