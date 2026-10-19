@@ -4,6 +4,7 @@ class AppConfig {
   const AppConfig({
     required this.apiBaseUrl,
     required this.usesMockData,
+    this.webAppUrl,
     // Web Client ID: '764182056638-bi8bet0rdoabaeq24bqsdnb5iukn7ko4.apps.googleusercontent.com'
     // Desktop Client ID:
     this.googleClientId =
@@ -19,11 +20,13 @@ class AppConfig {
   factory AppConfig.fromEnvironment() {
     const defineApiBaseUrl = String.fromEnvironment('API_BASE_URL');
     const defineUsesMock = String.fromEnvironment('USE_MOCK_DATA');
+    const defineWebAppUrl = String.fromEnvironment('WEB_APP_URL');
     const defineClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
     const defineClientSecret = String.fromEnvironment('GOOGLE_CLIENT_SECRET');
 
     final envApiBaseUrl = dotenv.maybeGet('API_BASE_URL')?.trim();
     final envUsesMock = dotenv.maybeGet('USE_MOCK_DATA')?.trim();
+    final envWebAppUrl = dotenv.maybeGet('WEB_APP_URL')?.trim();
     final envClientId = dotenv.maybeGet('GOOGLE_CLIENT_ID')?.trim();
     final envClientSecret = dotenv.maybeGet('GOOGLE_CLIENT_SECRET')?.trim();
 
@@ -60,9 +63,16 @@ class AppConfig {
         ? envClientSecret!
         : '';
 
+    final configuredWebAppUrl = defineWebAppUrl.trim().isNotEmpty
+        ? defineWebAppUrl.trim()
+        : envWebAppUrl?.isNotEmpty == true
+        ? envWebAppUrl
+        : null;
+
     return AppConfig(
       apiBaseUrl: apiBaseUrl,
       usesMockData: usesMockData,
+      webAppUrl: configuredWebAppUrl,
       googleClientId: googleClientId,
       googleClientSecret: googleClientSecret,
     );
@@ -70,6 +80,7 @@ class AppConfig {
 
   final String apiBaseUrl;
   final bool usesMockData;
+  final String? webAppUrl;
   final String googleClientId;
   final String googleClientSecret;
 }
