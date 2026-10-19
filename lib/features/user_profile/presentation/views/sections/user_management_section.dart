@@ -148,8 +148,8 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                         Container(
                           width: 56,
                           height: 56,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF3F4F6),
+                          decoration: BoxDecoration(
+                            color: context.colors.divider,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -157,7 +157,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                                 ? Icons.search_off_rounded
                                 : Icons.people_outline_rounded,
                             size: 28,
-                            color: const Color(0xFF6B7280),
+                            color: context.colors.textHint,
                           ),
                         ),
                         const SizedBox(height: 16),
