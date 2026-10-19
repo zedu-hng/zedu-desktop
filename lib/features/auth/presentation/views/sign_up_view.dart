@@ -9,6 +9,9 @@ class SignUpView extends ConsumerStatefulWidget {
 }
 
 class _SignUpViewState extends ConsumerState<SignUpView> {
+  static final _termsUrl = Uri.parse('https://zedu.chat/terms-of-service');
+  static final _privacyUrl = Uri.parse('https://zedu.chat/policy');
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
@@ -259,7 +262,8 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                             style: context.textTheme.bodySmall?.copyWith(
                               color: context.colors.primary,
                             ),
-                            recognizer: TapGestureRecognizer()..onTap = () {},
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () => launchUrl(_termsUrl),
                           ),
                           const TextSpan(text: ' and '),
                           TextSpan(
@@ -267,7 +271,8 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                             style: context.textTheme.bodySmall?.copyWith(
                               color: context.colors.primary,
                             ),
-                            recognizer: TapGestureRecognizer()..onTap = () {},
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () => launchUrl(_privacyUrl),
                           ),
                         ],
                       ),
