@@ -22,6 +22,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
   }
 
   Future<void> _onLoginPressed() async {
+    if (ref.read(authNotifierProvider).isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     ref
@@ -79,7 +80,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
               Image.asset('assets/pngs/zedu_logo.png', width: 83, height: 31),
               Text.rich(
                 TextSpan(
-                  text: 'Don\'t have an account? ',
+                  text: "Don't have an account? ",
                   style: context.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w400,
                     color: context.colors.textPrimary,
@@ -124,6 +125,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 SocialAuthButton(
                   icon: 'assets/svgs/google_logo.svg',
                   label: 'Sign in with Google',
+                  loading: authState.isLoading,
                   onPressed: () =>
                       ref.read(authNotifierProvider.notifier).loginWithGoogle(),
                 ),
@@ -193,6 +195,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
                         label: 'Password',
                         hint: 'Password',
                         textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _onLoginPressed(),
                         validator: (value) => Validators.validateRequired(
                           context,
                           value?.trim(),
