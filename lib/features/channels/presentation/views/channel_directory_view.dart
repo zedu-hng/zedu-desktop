@@ -53,6 +53,16 @@ class _ChannelDirectoryViewState extends ConsumerState<ChannelDirectoryView> {
             decoration: InputDecoration(
               hintText: 'Search channels',
               prefixIcon: Icon(Icons.search, color: colors.textHint),
+              suffixIcon: _searchQuery.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: colors.divider),
