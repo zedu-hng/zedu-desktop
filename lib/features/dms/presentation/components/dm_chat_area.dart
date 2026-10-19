@@ -749,6 +749,58 @@ class _MessageBubble extends ConsumerWidget {
     return TextSpan(style: defaultStyle, children: spans);
   }
 
+  /// Splits [text] around Markdown thematic breaks: a line that is exactly
+  /// `---` at the start of the message or after a blank line. A `---` right
+  /// under a line of text is a setext heading in Markdown, so it stays text.
+  static List<String> _splitOnDividers(String text) {
+    final parts = <String>[];
+    final current = <String>[];
+    String joined() => current.join('\n').replaceAll(RegExp(r'^\n+|\n+$'), '');
+
+    for (final line in text.split('\n')) {
+      final afterBlank = current.isEmpty || current.last.trim().isEmpty;
+      if (line.trim() == '---' && afterBlank) {
+        parts.add(joined());
+        current.clear();
+      } else {
+        current.add(line);
+      }
+    }
+    parts.add(joined());
+    return parts;
+  }
+
+  Widget _buildMessageText(String content, TextStyle style) {
+    final parts = _splitOnDividers(content);
+    if (parts.length == 1) {
+      return RichText(text: _parseRichText(content, style));
+    }
+
+    final divider = Divider(
+      height: 16,
+      thickness: 1,
+      color: style.color?.withValues(alpha: 0.4),
+    );
+    // The rule spans the bubble's text width, with a floor so a message that
+    // is only a divider still shows a visible line.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 120),
+      child: IntrinsicWidth(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < parts.length; i++) ...[
+              if (i > 0) divider,
+              if (parts[i].isNotEmpty)
+                RichText(text: _parseRichText(parts[i], style)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
@@ -855,13 +907,11 @@ class _MessageBubble extends ConsumerWidget {
                           : colors.onPrimary.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: RichText(
-                      text: _parseRichText(
-                        content,
-                        TextStyle(
-                          color: isMe ? Colors.white : colors.textPrimary,
-                          fontSize: 14,
-                        ),
+                    child: _buildMessageText(
+                      content,
+                      TextStyle(
+                        color: isMe ? Colors.white : colors.textPrimary,
+                        fontSize: 14,
                       ),
                     ),
                   ),

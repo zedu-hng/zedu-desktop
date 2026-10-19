@@ -221,5 +221,45 @@ void main() {
 
       expect(find.text('hello there', findRichText: true), findsOneWidget);
     });
+
+    Finder bubbleDividers(String text) => find.descendant(
+      of: find
+          .ancestor(
+            of: find.text(text, findRichText: true),
+            matching: find.byType(IntrinsicWidth),
+          )
+          .first,
+      matching: find.byType(Divider),
+    );
+
+    testWidgets('draws a divider line for a --- line after a blank line', (
+      tester,
+    ) async {
+      await pumpChat(tester, [message('m1', 'hello\n\n---\nworld')]);
+
+      expect(find.text('hello', findRichText: true), findsOneWidget);
+      expect(find.text('world', findRichText: true), findsOneWidget);
+      expect(find.textContaining('---', findRichText: true), findsNothing);
+      expect(bubbleDividers('hello'), findsOneWidget);
+    });
+
+    testWidgets('draws the divider the composer inserts into an empty box', (
+      tester,
+    ) async {
+      await pumpChat(tester, [message('m1', '---\nworld')]);
+
+      expect(find.text('world', findRichText: true), findsOneWidget);
+      expect(find.textContaining('---', findRichText: true), findsNothing);
+      expect(bubbleDividers('world'), findsOneWidget);
+    });
+
+    testWidgets('keeps --- straight under text as text, as Markdown does', (
+      tester,
+    ) async {
+      await pumpChat(tester, [message('m1', 'hello\n---')]);
+
+      expect(find.text('hello\n---', findRichText: true), findsOneWidget);
+      expect(find.byType(IntrinsicWidth), findsNothing);
+    });
   });
 }
