@@ -209,7 +209,7 @@ class _ChatAreaSwitcher extends ConsumerWidget {
         );
       }
     }
-    return _ChatArea(messageController: messageController);
+    return HomeChatArea(messageController: messageController);
   }
 }
 
@@ -361,23 +361,35 @@ class _AddChannelButton extends StatelessWidget {
   }
 }
 
-class _ChatArea extends ConsumerWidget {
-  const _ChatArea({this.messageController});
+/// The Home pane for the channel picked in the sidebar.
+class HomeChatArea extends ConsumerWidget {
+  const HomeChatArea({super.key, this.messageController});
 
   final TextEditingController? messageController;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The channel messages are not listed here yet, so the header, welcome
+    // text and input hint carry the selected channel name.
+    final chat = ref.watch(activeChatProvider);
+    final channelName = chat.type == ActiveChatType.channel
+        ? (chat.id ?? 'general')
+        : 'general';
+
     return Column(
       children: [
-        _buildChatHeader(context, ref),
-        Expanded(child: _buildWelcomeScreen(context)),
-        _buildMessageInput(context, messageController),
+        _buildChatHeader(context, channelName, ref),
+        Expanded(child: _buildWelcomeScreen(context, channelName)),
+        _buildMessageInput(context, channelName, messageController),
       ],
     );
   }
 
-  Widget _buildChatHeader(BuildContext context, WidgetRef ref) {
+  Widget _buildChatHeader(
+    BuildContext context,
+    String channelName,
+    WidgetRef ref,
+  ) {
     final colors = context.colors;
 
     return Container(
@@ -388,15 +400,18 @@ class _ChatArea extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          Text(
-            '# general',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: colors.textPrimary,
+          Expanded(
+            child: Text(
+              '# $channelName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: colors.textPrimary,
+              ),
             ),
           ),
-          const Spacer(),
           _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
           const SizedBox(width: 12),
           Tooltip(
@@ -418,7 +433,7 @@ class _ChatArea extends ConsumerWidget {
     );
   }
 
-  Widget _buildWelcomeScreen(BuildContext context) {
+  Widget _buildWelcomeScreen(BuildContext context, String channelName) {
     final colors = context.colors;
 
     return SingleChildScrollView(
@@ -429,7 +444,7 @@ class _ChatArea extends ConsumerWidget {
           Icon(Icons.celebration, size: 60, color: colors.primary),
           const SizedBox(height: 24),
           Text(
-            'Welcome to #general',
+            'Welcome to #$channelName',
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -438,7 +453,7 @@ class _ChatArea extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Share all information relating to general here. All team members await you! 😉',
+            'Share all information relating to $channelName here. All team members await you! 😉',
             style: TextStyle(fontSize: 16, color: colors.textPrimary),
           ),
           const SizedBox(height: 32),
@@ -450,6 +465,7 @@ class _ChatArea extends ConsumerWidget {
 
   Widget _buildMessageInput(
     BuildContext context,
+    String channelName,
     TextEditingController? messageController,
   ) {
     final colors = context.colors;
@@ -481,7 +497,7 @@ class _ChatArea extends ConsumerWidget {
             TextField(
               controller: messageController,
               decoration: InputDecoration(
-                hintText: 'Message Ruby - Social Media Handler',
+                hintText: 'Message #$channelName',
                 border: InputBorder.none,
                 isDense: true,
               ),
