@@ -142,17 +142,20 @@ class _ChatAreaSwitcher extends ConsumerWidget {
     final selectedDm = ref.watch(selectedDmProvider);
     final activeChat = ref.watch(activeChatProvider);
 
-    // Leave the New Group Chat page when the user opens another section
-    // or picks a conversation.
-    void leaveNewGroupChat() {
-      if (ref.read(activeChatProvider).type == ActiveChatType.newGroupChat) {
+    // Leave the full-page views (New Group Chat, the channel directory) when
+    // the user opens another section or picks a conversation. Both are
+    // checked before the sidebar tab below, so they would otherwise cover it.
+    void leaveFullPageView() {
+      final type = ref.read(activeChatProvider).type;
+      if (type == ActiveChatType.newGroupChat ||
+          type == ActiveChatType.channelDirectory) {
         ref.read(activeChatProvider.notifier).selectChannel('general');
       }
     }
 
-    ref.listen(homeSidebarProvider, (previous, next) => leaveNewGroupChat());
+    ref.listen(homeSidebarProvider, (previous, next) => leaveFullPageView());
     ref.listen(selectedDmProvider, (previous, next) {
-      if (next != null) leaveNewGroupChat();
+      if (next != null) leaveFullPageView();
     });
 
     if (activeChat.type == ActiveChatType.newGroupChat) {

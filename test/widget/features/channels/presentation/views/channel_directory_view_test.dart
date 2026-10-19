@@ -2,6 +2,13 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 import '../../../../../helpers/helpers.dart';
 
+class FakeWorkspaceNotifier extends WorkspaceNotifier {
+  @override
+  WorkspaceState build() => const WorkspaceState(
+    selectedWorkspace: Workspace(id: 'org1', name: 'Workspace', avatar: ''),
+  );
+}
+
 class FakeChannelNotifier extends ChannelNotifier {
   FakeChannelNotifier(this.channels);
 
@@ -100,6 +107,7 @@ void main() {
               ]),
             ),
             activeChatProvider.overrideWith(ActiveChatNotifier.new),
+            workspaceProvider.overrideWith(FakeWorkspaceNotifier.new),
           ],
           child: buildTestMaterialApp(
             Builder(
