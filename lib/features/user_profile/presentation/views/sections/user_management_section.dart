@@ -25,6 +25,8 @@ class UserManagementSection extends StatefulWidget {
 class _UserManagementSectionState extends State<UserManagementSection> {
   final _searchController = TextEditingController();
   String _roleFilter = 'All Roles';
+  int _currentPage = 1;
+  static const int _pageSize = 10;
 
   @override
   void dispose() {
@@ -35,13 +37,21 @@ class _UserManagementSectionState extends State<UserManagementSection> {
   @override
   Widget build(BuildContext context) {
     final query = _searchController.text.trim().toLowerCase();
+    final hasActiveFilter = query.isNotEmpty || _roleFilter != 'All Roles';
     final filtered = widget.members.where((member) {
       final matchesQuery =
-          query.isEmpty || member.email.toLowerCase().contains(query);
+          query.isEmpty ||
+          member.email.toLowerCase().contains(query) ||
+          (member.name?.toLowerCase().contains(query) ?? false);
       final matchesRole =
           _roleFilter == 'All Roles' || member.role == _roleFilter;
       return matchesQuery && matchesRole;
     }).toList();
+
+    final totalPages = (filtered.length / _pageSize).ceil();
+    final currentPage = totalPages == 0 ? 1 : _currentPage.clamp(1, totalPages);
+    final startIndex = (currentPage - 1) * _pageSize;
+    final paginatedMembers = filtered.skip(startIndex).take(_pageSize).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +92,9 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                       width: 300,
                       child: TextField(
                         controller: _searchController,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (_) => setState(() {
+                          _currentPage = 1;
+                        }),
                         decoration: InputDecoration(
                           hintText: 'Search by name or email',
                           prefixIcon: const Icon(Icons.search, size: 18),
@@ -117,89 +129,157 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                       ],
                       onChanged: (value) => setState(() {
                         _roleFilter = value ?? 'All Roles';
+                        _currentPage = 1;
                       }),
                     ),
                   ],
                 ),
               ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: 880,
-                  child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(
-                      const Color(0xFFFAFAFA),
-                    ),
-                    columns: const [
-                      DataColumn(label: Text('Email Address')),
-                      DataColumn(label: Text('Role')),
-                      DataColumn(label: Text('Date Joined')),
-                      DataColumn(label: Text('Status')),
-                      DataColumn(label: Text('Actions')),
-                    ],
-                    rows: filtered.map((member) {
-                      return DataRow(
-                        cells: [
-                          DataCell(_MemberIdentity(email: member.email)),
-                          DataCell(Text(member.role)),
-                          DataCell(Text(member.dateJoined)),
-                          DataCell(
-                            ProfileStatusPill(status: member.status.name),
+              if (filtered.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 48,
+                    horizontal: 24,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: context.colors.divider,
+                            shape: BoxShape.circle,
                           ),
-                          DataCell(
-                            Row(
-                              children: [
-                                SquareIconButton(
-                                  icon: Icons.edit_outlined,
-                                  size: 28,
-                                  onTap: () => _showMemberDialog(
-                                    context,
-                                    member,
-                                    widget.onUpdate,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SquareIconButton(
-                                  icon: Icons.delete_outline,
-                                  size: 28,
-                                  onTap: () => _confirmRemove(
-                                    context,
-                                    member.email,
-                                    () async => widget.onRemove(member.id),
-                                  ),
-                                ),
-                              ],
+                          child: Icon(
+                            hasActiveFilter
+                                ? Icons.search_off_rounded
+                                : Icons.people_outline_rounded,
+                            size: 28,
+                            color: context.colors.textHint,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          hasActiveFilter
+                              ? 'No members match your search.'
+                              : 'No members found.',
+                          style: context.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: context.colors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          hasActiveFilter
+                              ? 'Try adjusting your search terms or role filters.'
+                              : 'Invite people to your team to start collaborating.',
+                          textAlign: TextAlign.center,
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colors.textSecondary.withValues(
+                              alpha: 0.7,
                             ),
                           ),
-                        ],
-                      );
-                    }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 880),
+                    child: DataTable(
+                      headingRowColor: WidgetStateProperty.all(
+                        const Color(0xFFFAFAFA),
+                      ),
+                      columns: const [
+                        DataColumn(label: Text('Email Address')),
+                        DataColumn(label: Text('Role')),
+                        DataColumn(label: Text('Date Joined')),
+                        DataColumn(label: Text('Status')),
+                        DataColumn(label: Text('Actions')),
+                      ],
+                      rows: paginatedMembers.map((member) {
+                        return DataRow(
+                          cells: [
+                            DataCell(_MemberIdentity(email: member.email)),
+                            DataCell(Text(member.role)),
+                            DataCell(Text(member.dateJoined)),
+                            DataCell(
+                              ProfileStatusPill(status: member.status.name),
+                            ),
+                            DataCell(
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SquareIconButton(
+                                    icon: Icons.edit_outlined,
+                                    size: 28,
+                                    onTap: () => _showMemberDialog(
+                                      context,
+                                      member,
+                                      widget.onUpdate,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  SquareIconButton(
+                                    icon: Icons.delete_outline,
+                                    size: 28,
+                                    onTap: () => _confirmRemove(
+                                      context,
+                                      member.email,
+                                      () async => widget.onRemove(member.id),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    AppButton.outlined(
-                      label: 'Previous',
-                      expand: false,
-                      height: 36,
-                      disabled: true,
-                    ),
-                    const Spacer(),
-                    Text('1', style: context.textTheme.bodySmall),
-                    const Spacer(),
-                    AppButton.outlined(
-                      label: 'Next',
-                      expand: false,
-                      height: 36,
-                      disabled: true,
-                    ),
-                  ],
+              if (totalPages > 1) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      AppButton.outlined(
+                        label: 'Previous',
+                        expand: false,
+                        height: 36,
+                        disabled: currentPage <= 1,
+                        onPressed: currentPage > 1
+                            ? () =>
+                                  setState(() => _currentPage = currentPage - 1)
+                            : null,
+                      ),
+                      const Spacer(),
+                      Text(
+                        '$currentPage',
+                        key: const Key('user_management_page_number'),
+                        style: context.textTheme.bodySmall,
+                      ),
+                      const Spacer(),
+                      AppButton.outlined(
+                        label: 'Next',
+                        expand: false,
+                        height: 36,
+                        disabled: currentPage >= totalPages,
+                        onPressed: currentPage < totalPages
+                            ? () =>
+                                  setState(() => _currentPage = currentPage + 1)
+                            : null,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -295,6 +375,7 @@ class _MemberIdentity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 32,
@@ -308,7 +389,13 @@ class _MemberIdentity extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Text(email, style: context.textTheme.bodyMedium),
+        Flexible(
+          child: Text(
+            email,
+            style: context.textTheme.bodyMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
