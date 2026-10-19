@@ -12,7 +12,16 @@ class DmMessageBody extends StatelessWidget {
   final TextStyle textStyle;
   final Color accentColor;
 
-  static final RegExp _anyTag = RegExp(r'</?[a-zA-Z][^>]*>');
+  // Only real HTML elements count as tags. A Markdown autolink such as
+  // `<https://example.com>` or `<user@mail.com>` also starts with `<` and a
+  // letter, and must be left alone.
+  static const String _htmlTags =
+      'a|b|blockquote|br|code|del|div|em|h[1-6]|hr|i|img|li|mark|ol|p|pre|s|'
+      'span|strike|strong|sub|sup|u|ul';
+  static final RegExp _anyTag = RegExp(
+    '</?($_htmlTags)(\\s[^>]*)?/?>',
+    caseSensitive: false,
+  );
   static final RegExp _scriptOrStyle = RegExp(
     r'<(script|style)\b[^>]*>[\s\S]*?</\1\s*>',
     caseSensitive: false,
@@ -59,7 +68,10 @@ class DmMessageBody extends StatelessWidget {
     caseSensitive: false,
   );
   static final RegExp _code = RegExp(r'</?code\b[^>]*>', caseSensitive: false);
-  static final RegExp _remainingTag = RegExp(r'</?[a-zA-Z!][^>]*>');
+  static final RegExp _remainingTag = RegExp(
+    '</?($_htmlTags)(\\s[^>]*)?/?>',
+    caseSensitive: false,
+  );
   static final RegExp _entity = RegExp(
     r'&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);',
   );

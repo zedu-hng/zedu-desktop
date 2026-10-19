@@ -67,12 +67,63 @@ void main() {
     expect(textSpans.any((span) => _hasBoldText(span, 'there')), isTrue);
   });
 
+  testWidgets('renders a Markdown autolink instead of an empty bubble', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildTestMaterialApp(
+        Scaffold(
+          body: DmMessageBody(
+            content: '<https://example.com>',
+            textStyle: const TextStyle(fontSize: 14),
+            accentColor: AppPalette.light.primary,
+          ),
+        ),
+      ),
+    );
+
+    final textSpans = tester
+        .widgetList<RichText>(find.byType(RichText))
+        .map((richText) => richText.text);
+
+    expect(
+      textSpans.any(
+        (span) => span.toPlainText().contains('https://example.com'),
+      ),
+      isTrue,
+    );
+  });
+
   group('DmMessageBody.toMarkdown', () {
     test('returns desktop Markdown unchanged', () {
       expect(
         DmMessageBody.toMarkdown('plain **md** text'),
         'plain **md** text',
       );
+      expect(
+        DmMessageBody.toMarkdown('[site](https://x.com) **b**'),
+        '[site](https://x.com) **b**',
+      );
+    });
+
+    test('keeps Markdown autolinks', () {
+      expect(
+        DmMessageBody.toMarkdown('<https://example.com>'),
+        '<https://example.com>',
+      );
+      expect(
+        DmMessageBody.toMarkdown('see <https://example.com> now'),
+        'see <https://example.com> now',
+      );
+      expect(
+        DmMessageBody.toMarkdown('mail <user@mail.com>'),
+        'mail <user@mail.com>',
+      );
+    });
+
+    test('handles self-closing and upper-case tags', () {
+      expect(DmMessageBody.toMarkdown('<p>a<br/>b<br />c</p>'), 'a  \nb  \nc');
+      expect(DmMessageBody.toMarkdown('<P>Up</P>'), 'Up');
     });
 
     test('unwraps a web paragraph', () {
