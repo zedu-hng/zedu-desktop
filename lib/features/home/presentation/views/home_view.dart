@@ -31,25 +31,57 @@ class _HomeViewState extends ConsumerState<HomeView> {
         children: [
           const _HomeAppBar(),
           Expanded(
-            child: Row(
-              children: [
-                AppSidebarRail(activeType: ref.watch(homeSidebarProvider)),
-                const _MainSidebarSwitcher(),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      const Positioned.fill(child: _ChatAreaSwitcher()),
-                      if (showProfile)
-                        const Positioned(
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          child: PersonalProfilePanel(),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, windowConstraints) {
+                // The rail (72px), channel sidebar (320px), and a 560px
+                // chat/profile area need about 952px combined.
+                final compactProfileLayout =
+                    showProfile && windowConstraints.maxWidth < 960;
+
+                final profileWidth = (windowConstraints.maxWidth * 0.4)
+                    .clamp(0.0, 360.0)
+                    .toDouble();
+                final composerClearance = (windowConstraints.maxHeight - 48)
+                    .clamp(0.0, 220.0)
+                    .toDouble();
+
+                return Row(
+                  children: [
+                    AppSidebarRail(activeType: ref.watch(homeSidebarProvider)),
+                    if (!compactProfileLayout) const _MainSidebarSwitcher(),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            right: showProfile && !compactProfileLayout
+                                ? profileWidth
+                                : 0,
+                            child: const _ChatAreaSwitcher(),
+                          ),
+                          if (showProfile && compactProfileLayout)
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: composerClearance,
+                              child: PersonalProfilePanel(
+                                width: windowConstraints.maxWidth - 72,
+                              ),
+                            ),
+                          if (showProfile && !compactProfileLayout)
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              bottom: 0,
+                              width: profileWidth,
+                              child: PersonalProfilePanel(width: profileWidth),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -301,7 +333,7 @@ class HomeChatArea extends ConsumerWidget {
 
     return Column(
       children: [
-        _buildChatHeader(context, channelName),
+        _buildChatHeader(context, channelName, ref),
         Expanded(child: _buildWelcomeScreen(context, channelName)),
         DmMessageComposer(
           key: ValueKey(selected?.id ?? channelName),
@@ -313,7 +345,11 @@ class HomeChatArea extends ConsumerWidget {
     );
   }
 
-  Widget _buildChatHeader(BuildContext context, String channelName) {
+  Widget _buildChatHeader(
+    BuildContext context,
+    String channelName,
+    WidgetRef ref,
+  ) {
     final colors = context.colors;
 
     return Container(
@@ -338,10 +374,18 @@ class HomeChatArea extends ConsumerWidget {
           ),
           _HeaderAction(icon: Icons.headphones_outlined, label: 'Start Buzz'),
           const SizedBox(width: 12),
-          CircleAvatar(
-            radius: 14,
-            backgroundColor: colors.accent,
-            child: Icon(Icons.person, size: 18, color: colors.onPrimary),
+          Tooltip(
+            message: 'Open profile',
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () =>
+                  ref.read(personalProfilePanelProvider.notifier).state = true,
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: colors.accent,
+                child: Icon(Icons.person, size: 18, color: colors.onPrimary),
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Icon(Icons.more_vert, color: colors.textHint),
