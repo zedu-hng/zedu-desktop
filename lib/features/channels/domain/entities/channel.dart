@@ -38,8 +38,12 @@ class Channel {
       topic: json['topic'] as String?,
       unreadCount: json['unread_count'] as int? ?? 0,
       membersCount: json['members_count'] as int? ?? 0,
+      // zedu-be sends membership as `access` in the channel list.
       isJoined:
-          json['is_joined'] as bool? ?? (json['joined'] as bool? ?? false),
+          json['access'] as bool? ??
+          json['is_joined'] as bool? ??
+          json['joined'] as bool? ??
+          false,
     );
   }
 
