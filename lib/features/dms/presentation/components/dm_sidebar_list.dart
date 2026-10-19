@@ -107,14 +107,19 @@ class DmSidebarList extends ConsumerWidget {
                         }
                         return false;
                       },
-                      child: ListView.builder(
-                        padding: EdgeInsets.zero,
-                        itemCount: visibleConversations.length,
-                        itemBuilder: (context, index) {
-                          return DmListTile(
-                            conversation: visibleConversations[index],
-                          );
-                        },
+                      // Transparent Material so each row's hover and
+                      // selected ink paints above the sidebar colour.
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: visibleConversations.length,
+                          itemBuilder: (context, index) {
+                            return DmListTile(
+                              conversation: visibleConversations[index],
+                            );
+                          },
+                        ),
                       ),
                     );
                   },

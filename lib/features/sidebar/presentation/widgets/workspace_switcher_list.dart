@@ -40,7 +40,11 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                     child: _ActionButton(
                       icon: Icons.settings_outlined,
                       label: 'Settings',
-                      onPressed: () {},
+                      onPressed: () {
+                        final router = GoRouter.of(context);
+                        Navigator.pop(context);
+                        router.go(AppRouter.profile);
+                      },
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -71,27 +75,28 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                 ),
               ),
             ),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                itemCount: workspaceState.workspaces.length,
-                itemBuilder: (context, index) {
-                  final workspace = workspaceState.workspaces[index];
-                  final isActive = selectedWorkspace.id == workspace.id;
+            // The whole menu scrolls in WorkspaceSwitcherHeader, so the list
+            // takes its natural height instead of scrolling on its own.
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: workspaceState.workspaces.length,
+              itemBuilder: (context, index) {
+                final workspace = workspaceState.workspaces[index];
+                final isActive = selectedWorkspace.id == workspace.id;
 
-                  return _WorkspaceListItem(
-                    workspace: workspace,
-                    isActive: isActive,
-                    onTap: () {
-                      ref
-                          .read(workspaceProvider.notifier)
-                          .switchWorkspace(workspace);
-                      Navigator.pop(context);
-                    },
-                  );
-                },
-              ),
+                return _WorkspaceListItem(
+                  workspace: workspace,
+                  isActive: isActive,
+                  onTap: () {
+                    ref
+                        .read(workspaceProvider.notifier)
+                        .switchWorkspace(workspace);
+                    Navigator.pop(context);
+                  },
+                );
+              },
             ),
             Divider(height: 1, color: colors.divider),
             _buildFooter(context),
