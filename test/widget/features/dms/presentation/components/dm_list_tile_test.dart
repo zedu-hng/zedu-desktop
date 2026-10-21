@@ -12,7 +12,7 @@ class _FakeAuthNotifier extends AuthNotifier {
 
   @override
   AuthState build() => AuthState(
-        status: _user != null ? AuthStatus.authenticated : AuthStatus.initial,
+        status: AuthStatus.authenticated,
         user: _user ??
             User(
               id: 'me',
