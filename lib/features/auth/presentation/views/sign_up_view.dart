@@ -44,6 +44,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
           type: AppToastType.success,
           message: 'Account created successfully!',
         );
+        context.go(AppRouter.home);
       }
       if (next.error != null && previous?.error != next.error) {
         AppToastService.show(
