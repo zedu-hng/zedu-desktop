@@ -152,8 +152,16 @@ class DmMessageBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final markdownContent = toMarkdown(content);
+    // Ensure inline **bold** markdown renders as bold. flutter_markdown in this
+    // version may not reliably render inline **bold** syntax, so convert it to
+    // HTML <strong> which is always supported.
+    final renderContent = markdownContent.replaceAllMapped(
+      RegExp(r'\*\*(.+?)\*\*', dotAll: true),
+      (match) => '<strong>${match.group(1)}</strong>',
+    );
     return MarkdownBody(
-      data: toMarkdown(content),
+      data: renderContent,
       styleSheet: MarkdownStyleSheet(
         p: textStyle,
         strong: textStyle.copyWith(fontWeight: FontWeight.bold),
