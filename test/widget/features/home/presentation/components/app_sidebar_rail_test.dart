@@ -3,6 +3,16 @@ import 'package:zedu/features/features.dart';
 
 import '../../../../../helpers/helpers.dart';
 
+class _RailWorkspaceNotifier extends WorkspaceNotifier {
+  @override
+  WorkspaceState build() => const WorkspaceState();
+}
+
+class _RailProfileNotifier extends UserProfileNotifier {
+  @override
+  UserProfileState build() => const UserProfileState();
+}
+
 Color _iconBackground(WidgetTester tester, IconData icon) {
   final iconContainer = find
       .ancestor(
@@ -26,9 +36,13 @@ void main() {
     'rail icons highlight on hover without clearing the active icon',
     (tester) async {
       await tester.pumpWidget(
-        buildTestMaterialApp(
-          ProviderScope(
-            child: const Scaffold(
+        ProviderScope(
+          overrides: [
+            workspaceProvider.overrideWith(_RailWorkspaceNotifier.new),
+            userProfileNotifierProvider.overrideWith(_RailProfileNotifier.new),
+          ],
+          child: buildTestMaterialApp(
+            const Scaffold(
               body: Align(
                 alignment: Alignment.topLeft,
                 child: SizedBox(
