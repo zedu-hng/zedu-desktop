@@ -478,7 +478,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                     child: TextField(
                       controller: _controller,
                       focusNode: _focusNode,
-                      maxLines: null,
+                      maxLines: 6,
                       minLines: 1,
                       decoration: InputDecoration(
                         hintText: _isEditMode
