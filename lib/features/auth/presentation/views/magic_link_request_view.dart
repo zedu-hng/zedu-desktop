@@ -88,6 +88,7 @@ class _MagicLinkRequestViewState extends ConsumerState<MagicLinkRequestView> {
                       hint: 'Enter your email',
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _onGeneratePressed(),
                       validator: (value) =>
                           Validators.validateEmail(context, value),
                     ),

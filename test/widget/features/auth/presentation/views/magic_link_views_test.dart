@@ -108,5 +108,32 @@ void main() {
       expect(find.textContaining('anonymoususer@gmail.com'), findsOneWidget);
       expect(find.byType(AuthHeaderStrip), findsOneWidget);
     });
+
+    testWidgets('pressing Enter in the email field submits the form', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? capturedEmail;
+      await tester.pumpWidget(
+        buildMagicLinkRouterUnderTest(
+          magicLinkNotifier: FakeMagicLinkNotifier(
+            sendResult: true,
+            onSend: (email) => capturedEmail = email,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byType(TextFormField),
+        'enter@test.com\n',
+      );
+      await tester.pumpAndSettle();
+
+      expect(capturedEmail, 'enter@test.com');
+      expect(find.text('Awesome! mail sent.'), findsOneWidget);
+    });
   });
 }
