@@ -30,6 +30,12 @@ Widget _buildCard(int credits) {
 
 void main() {
   group('CreditPackageCard credit formatting', () {
+    testWidgets('promotes rounded thousands into millions', (tester) async {
+      await tester.pumpWidget(_buildCard(999999));
+      expect(find.text('1M AI credits included'), findsOneWidget);
+      expect(find.text('1000.0K AI credits included'), findsNothing);
+    });
+
     testWidgets('shows 1M at exactly 1,000,000', (tester) async {
       await tester.pumpWidget(_buildCard(1000000));
       expect(find.text('1M AI credits included'), findsOneWidget);

@@ -213,10 +213,7 @@ class SidebarPopoutCard extends ConsumerWidget {
       if (item is DmConversation) {
         return (
           item.displayName,
-          item.previewMessage
-              .replaceAll(RegExp(r'<[^>]*>'), '')
-              .replaceAll(RegExp(r'\s+'), ' ')
-              .trim(),
+          HtmlUtils.toPlainText(item.previewMessage),
           item.effectiveAvatarUrl,
           null,
           () => onConversationTap(item),

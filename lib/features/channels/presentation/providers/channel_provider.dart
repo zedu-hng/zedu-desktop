@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -19,17 +21,94 @@ class ChannelNotifier extends AsyncNotifier<List<Channel>> {
     );
     if (orgId == null) return const [];
 
+    final timer = Timer.periodic(const Duration(seconds: 10), (_) {
+      refreshUnreadCounts();
+    });
+    ref.onDispose(timer.cancel);
+
     final result = await ref
         .read(channelRepositoryProvider)
         .fetchChannels(orgId);
 
     return switch (result) {
-      Success<List<Channel>>(:final value) => value,
+      Success<List<Channel>>(:final value) => _clearActiveUnread(value),
       Failure<List<Channel>>(:final error) => throw error,
     };
   }
 
   bool _isCreating = false;
+  bool _refreshingUnread = false;
+
+  List<Channel> _clearActiveUnread(List<Channel> channels) {
+    final active = ref.read(activeChatProvider);
+    return [
+      for (final channel in channels)
+        if (ref.read(homeSidebarProvider) != HomeSidebarType.dms &&
+            active.type == ActiveChatType.channel &&
+            (channel.id == active.id || channel.name == active.id))
+          _readActive(channel)
+        else
+          channel,
+    ];
+  }
+
+  Channel _readActive(Channel channel) {
+    if (channel.unreadCount > 0) {
+      unawaited(_syncRead(channel.id));
+    }
+    return channel.copyWith(unreadCount: 0);
+  }
+
+  void markRead(String channelId) {
+    final channels = state.value;
+    if (channels == null) return;
+    state = AsyncData([
+      for (final channel in channels)
+        if (channel.id == channelId || channel.name == channelId)
+          channel.copyWith(unreadCount: 0)
+        else
+          channel,
+    ]);
+    if (ref.exists(channelRepositoryProvider)) {
+      final channel = channels
+          .where((c) => c.id == channelId || c.name == channelId)
+          .firstOrNull;
+      if (channel != null && channel.id.isNotEmpty) {
+        unawaited(_syncRead(channel.id));
+      }
+    }
+  }
+
+  Future<void> _syncRead(String channelId) async {
+    try {
+      await ref.read(channelRepositoryProvider).markRead(channelId);
+    } catch (_) {
+      // Background refresh reconciles unread counts if the read request fails.
+    }
+  }
+
+  Future<void> refreshUnreadCounts() async {
+    if (_refreshingUnread || !state.hasValue) return;
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    if (orgId == null) return;
+    _refreshingUnread = true;
+    try {
+      final result = await ref
+          .read(channelRepositoryProvider)
+          .fetchChannels(orgId);
+      if (!ref.mounted ||
+          ref.read(workspaceProvider).selectedWorkspace?.id != orgId) {
+        return;
+      }
+      if (result case Success<List<Channel>>(:final value)) {
+        state = AsyncData(_clearActiveUnread(value));
+      }
+    } catch (_) {
+      // A background refresh must not replace the visible list with an error.
+    } finally {
+      _refreshingUnread = false;
+    }
+  }
 
   /// Creates a channel and returns the outcome to the caller. The list state
   /// is only touched on success, so a create error never shows up as a load

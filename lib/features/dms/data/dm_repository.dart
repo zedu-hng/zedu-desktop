@@ -16,6 +16,13 @@ class DmRepository {
 
   DmRepository(this._apiClient);
 
+  Future<void> markRead(String channelId) async {
+    await _apiClient.get<Map<String, dynamic>>(
+      path: '/threads/channels/$channelId',
+      queryParameters: {'page': 1, 'limit': 1},
+    );
+  }
+
   Future<List<DmConversation>> getConversations({
     required String orgId,
     int page = 1,

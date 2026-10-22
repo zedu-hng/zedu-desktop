@@ -3,6 +3,7 @@ import 'package:zedu/features/features.dart';
 
 abstract class ChannelRepository {
   Future<Result<List<Channel>>> fetchChannels(String orgId);
+  Future<Result<void>> markRead(String channelId);
   Future<Result<Channel>> createChannel({
     required String name,
     required String description,
