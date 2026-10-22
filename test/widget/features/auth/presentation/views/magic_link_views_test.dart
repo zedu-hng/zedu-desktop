@@ -126,10 +126,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.byType(TextFormField),
-        'enter@test.com\n',
-      );
+      await tester.enterText(find.byType(TextFormField), 'enter@test.com');
+      await tester.pumpAndSettle();
+
+      final appTextField = tester.widget<AppTextField>(find.byType(AppTextField));
+      appTextField.onFieldSubmitted?.call('enter@test.com');
       await tester.pumpAndSettle();
 
       expect(capturedEmail, 'enter@test.com');
