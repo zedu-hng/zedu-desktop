@@ -256,7 +256,7 @@ class AuthNotifier extends Notifier<AuthState> {
 
       // 3. Wait for Google's redirect containing the authorization code
       String? grantCode;
-      await for (final request in server) {
+      await for (final request in server.timeout(const Duration(minutes: 5))) {
         grantCode = request.uri.queryParameters['code'];
 
         // Return a clean success page to the user in their browser
