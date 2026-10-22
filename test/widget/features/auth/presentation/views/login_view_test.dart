@@ -120,5 +120,20 @@ void main() {
       expect(capturedEmail, 'user@example.com');
       expect(capturedPassword, 'Secret123');
     });
+
+    testWidgets('uses login wording on the login screen', (tester) async {
+      await tester.pumpWidget(buildLoginViewUnderTest());
+      await tester.pump();
+
+      // Top-right link should invite sign-up, not say "already have an account".
+      expect(find.text('Don\'t have an account?'), findsOneWidget);
+      expect(find.text('Already have an account?'), findsNothing);
+
+      // Social buttons should say "Sign in" on a login screen.
+      expect(find.text('Sign in with Google'), findsOneWidget);
+      expect(find.text('Sign in with Apple'), findsOneWidget);
+      expect(find.text('Sign up with Google'), findsNothing);
+      expect(find.text('Sign up with Apple'), findsNothing);
+    });
   });
 }
