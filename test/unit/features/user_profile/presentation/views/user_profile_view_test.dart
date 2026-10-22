@@ -159,4 +159,31 @@ void main() {
       });
     });
   });
+
+  group('profileAccountFromAuthUser', () {
+    test('builds account from authenticated user data', () {
+      final account = profileAccountFromAuthUser(buildSessionUser());
+
+      expect(account.name, 'Ada Okafor');
+      expect(account.email, 'ada@zedu.chat');
+      expect(account.username, 'ada');
+      expect(account.avatarUrl, 'https://example.com/session.png');
+    });
+
+    test('falls back to username when fullname is empty', () {
+      final user = buildSessionUser().copyWith(fullName: '');
+      final account = profileAccountFromAuthUser(user);
+
+      expect(account.name, 'ada');
+      expect(account.email, 'ada@zedu.chat');
+    });
+
+    test('does not use placeholder values', () {
+      final account = profileAccountFromAuthUser(buildSessionUser());
+
+      expect(account.name, isNot('Anonymous user'));
+      expect(account.email, isNot('anonymoususer@email.com'));
+      expect(account.username, isNot('anonymoususer'));
+    });
+  });
 }

@@ -33,10 +33,15 @@ class UserProfileView extends ConsumerWidget {
     final state = ref.watch(userProfileNotifierProvider);
     final authenticatedUser = ref.watch(authNotifierProvider).user;
     final notifier = ref.read(userProfileNotifierProvider.notifier);
-    final account = accountForAuthenticatedUser(
-      state.account ?? ProfileAccount.empty(),
-      authenticatedUser,
-    );
+
+    // Never show placeholder "Anonymous user" values as fallbacks. If the
+    // profile account hasn't loaded yet, derive the account from the
+    // authenticated user's data so the real name and email are shown.
+    final account = state.account != null
+        ? accountForAuthenticatedUser(state.account, authenticatedUser)
+        : authenticatedUser != null
+            ? profileAccountFromAuthUser(authenticatedUser)
+            : ProfileAccount.empty();
 
     return ProfileSettingsShell(
       selectedSection: state.section,
@@ -78,6 +83,22 @@ ProfileAccount accountForAuthenticatedUser(
     avatarUrl: account.avatarUrl?.trim().isNotEmpty == true
         ? account.avatarUrl
         : authenticatedUser.avatarUrl,
+  );
+}
+
+/// Builds a [ProfileAccount] from the authenticated user's data, avoiding
+/// placeholder "Anonymous user" values. Used when the profile account hasn't
+/// been loaded from the server yet.
+@visibleForTesting
+ProfileAccount profileAccountFromAuthUser(User authenticatedUser) {
+  return ProfileAccount(
+    name: authenticatedUser.fullname.trim().isNotEmpty
+        ? authenticatedUser.fullname.trim()
+        : authenticatedUser.username,
+    email: authenticatedUser.email,
+    timezone: '',
+    avatarUrl: authenticatedUser.avatarUrl,
+    username: authenticatedUser.username,
   );
 }
 
