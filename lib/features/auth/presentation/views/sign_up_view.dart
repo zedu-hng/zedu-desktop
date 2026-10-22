@@ -112,7 +112,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                context.gapV(80),
+                context.gapV(40),
                 Text.rich(
                   TextSpan(
                     text: 'Stay Focused While ',
@@ -132,7 +132,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                context.gapV(48),
+                context.gapV(24),
                 Form(
                   key: _formKey,
                   child: Column(
@@ -150,7 +150,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                           return null;
                         },
                       ),
-                      context.gapV(16),
+                      context.gapV(12),
                       AppTextField(
                         controller: _emailController,
                         label: 'Email address',
@@ -160,7 +160,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                         validator: (value) =>
                             Validators.validateEmail(context, value),
                       ),
-                      context.gapV(16),
+                      context.gapV(12),
                       AppTextField(
                         isPassword: true,
                         controller: _passwordController,
@@ -177,13 +177,13 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                     ],
                   ),
                 ),
-                context.gapV(24),
+                context.gapV(16),
                 AppButton(
                   label: 'Create Account',
                   loading: authState.isLoading,
                   onPressed: _onCreateAccountPressed,
                 ),
-                context.gapV(32),
+                context.gapV(16),
                 Padding(
                   padding: context.symmetric(horizontal: 100, vertical: 0),
                   child: Row(
@@ -214,7 +214,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                     ],
                   ),
                 ),
-                context.gapV(32),
+                context.gapV(16),
                 SocialAuthButton(
                   icon: 'assets/svgs/google_logo.svg',
                   label: 'Sign up with Google',
@@ -224,7 +224,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                     message: 'Google sign up is not available yet.',
                   ),
                 ),
-                context.gapV(12),
+                context.gapV(8),
                 SocialAuthButton(
                   icon: 'assets/svgs/apple_logo.svg',
                   label: 'Sign up with Apple',
@@ -234,7 +234,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                     message: 'Apple sign up is not available yet.',
                   ),
                 ),
-                context.gapV(32),
+                context.gapV(16),
                 Text.rich(
                   TextSpan(
                     text: 'By Signing up, you agree to our ',
@@ -261,7 +261,7 @@ class _SignUpViewState extends ConsumerState<SignUpView> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                context.gapV(48),
+                context.gapV(24),
               ],
             ),
           ),
