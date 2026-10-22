@@ -16,7 +16,7 @@ class _BuyCreditsViewState extends ConsumerState<BuyCreditsView> {
   }
 
   void _loadCredits() {
-    final orgId = ref.read(authNotifierProvider).user?.currentOrg;
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
     if (orgId != null && orgId.isNotEmpty) {
       ref.read(creditsNotifierProvider.notifier).load(orgId: orgId);
     }
@@ -45,6 +45,11 @@ class _BuyCreditsViewState extends ConsumerState<BuyCreditsView> {
             message: next.error!,
           );
         });
+      }
+    });
+    ref.listen(workspaceProvider, (previous, next) {
+      if (previous?.selectedWorkspace?.id != next.selectedWorkspace?.id) {
+        _loadCredits();
       }
     });
 
