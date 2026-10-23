@@ -8,6 +8,33 @@ class MockUserProfileRepository extends Mock implements UserProfileRepository {}
 
 class MockSecureStorageService extends Mock implements SecureStorageService {}
 
+class FakeWorkspaceNotifier extends WorkspaceNotifier {
+  FakeWorkspaceNotifier(this._initial);
+  final WorkspaceState _initial;
+
+  @override
+  WorkspaceState build() => _initial;
+
+  void select(Workspace workspace) {
+    state = WorkspaceState(
+      workspaces: state.workspaces,
+      selectedWorkspace: workspace,
+    );
+  }
+}
+
+// Real UUIDs: the datasource treats short ids as demo workspaces.
+const _workspaceA = Workspace(
+  id: '019700db-4e22-7f90-a20e-f9116291ef24',
+  name: 'Workspace A',
+  avatar: '',
+);
+const _workspaceB = Workspace(
+  id: '019a1c3e-7b10-7d2c-9f4e-2b8d6c5a1e90',
+  name: 'Workspace B',
+  avatar: '',
+);
+
 const _members = [
   TeamMember(
     id: 'member-1',
@@ -75,6 +102,14 @@ void main() {
       container = ProviderContainer(
         overrides: [
           userProfileRepositoryProvider.overrideWithValue(repository),
+          workspaceProvider.overrideWith(
+            () => FakeWorkspaceNotifier(
+              const WorkspaceState(
+                workspaces: [_workspaceA, _workspaceB],
+                selectedWorkspace: _workspaceA,
+              ),
+            ),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -417,6 +452,113 @@ void main() {
             preferences: edited,
           ),
         ).called(1);
+      });
+
+      group('after a workspace switch', () {
+        final settingsA = NotificationPreferences.empty().copyWith(
+          mode: NotificationMode.none,
+          emailNotifications: true,
+        );
+        final settingsB = NotificationPreferences.empty().copyWith(
+          mode: NotificationMode.allMessages,
+        );
+
+        void stubLoad(
+          String orgId,
+          Future<Result<NotificationPreferences>> Function() answer,
+        ) {
+          when(
+            () => repository.getNotificationPreferences(orgId: orgId),
+          ).thenAnswer((_) => answer());
+        }
+
+        Future<UserProfileState> switchTo(Workspace workspace) async {
+          final settled = Completer<UserProfileState>();
+          final subscription = container.listen<UserProfileState>(
+            userProfileNotifierProvider,
+            (previous, next) {
+              if (previous?.isLoading == true &&
+                  !next.isLoading &&
+                  !settled.isCompleted) {
+                settled.complete(next);
+              }
+            },
+          );
+          addTearDown(subscription.close);
+          (container.read(workspaceProvider.notifier) as FakeWorkspaceNotifier)
+              .select(workspace);
+          return settled.future.timeout(const Duration(seconds: 5));
+        }
+
+        test('loads the new workspace and saves to it', () async {
+          stubLoad(_workspaceA.id, () async => Success(settingsA));
+          stubLoad(_workspaceB.id, () async => Success(settingsB));
+          stubSave(() async => Success(edited));
+          expect((await loaded()).notifications, settingsA);
+
+          final state = await switchTo(_workspaceB);
+          expect(state.notifications, settingsB);
+
+          await container
+              .read(userProfileNotifierProvider.notifier)
+              .updateNotificationPreferences(edited);
+
+          verify(
+            () => repository.updateNotificationPreferences(
+              orgId: _workspaceB.id,
+              preferences: edited,
+            ),
+          ).called(1);
+          verifyNever(
+            () => repository.updateNotificationPreferences(
+              orgId: _workspaceA.id,
+              preferences: any(named: 'preferences'),
+            ),
+          );
+        });
+
+        test('keeps a slow load of the old workspace off the screen', () async {
+          final slowA = Completer<Result<NotificationPreferences>>();
+          stubLoad(_workspaceA.id, () => slowA.future);
+          stubLoad(_workspaceB.id, () async => Success(settingsB));
+          container.read(userProfileNotifierProvider);
+          await pumpEventQueue();
+
+          final state = await switchTo(_workspaceB);
+          slowA.complete(Success(settingsA));
+          await pumpEventQueue();
+
+          expect(state.notifications, settingsB);
+          expect(
+            container.read(userProfileNotifierProvider).notifications,
+            settingsB,
+          );
+        });
+
+        test('drops the old settings when the new ones fail to load', () async {
+          stubLoad(_workspaceA.id, () async => Success(settingsA));
+          stubLoad(
+            _workspaceB.id,
+            () async => const Failure(
+              ApiFailure(message: 'Nope', kind: ApiFailureKind.server),
+            ),
+          );
+          stubSave(() async => Success(edited));
+          await loaded();
+
+          final state = await switchTo(_workspaceB);
+          expect(state.notifications, isNull);
+
+          await container
+              .read(userProfileNotifierProvider.notifier)
+              .updateNotificationPreferences(edited);
+          verifyNever(
+            () => repository.updateNotificationPreferences(
+              orgId: any(named: 'orgId'),
+              preferences: any(named: 'preferences'),
+            ),
+          );
+        });
       });
     });
   });

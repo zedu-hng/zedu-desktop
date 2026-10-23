@@ -67,13 +67,16 @@ class UserProfileState {
     bool? isSaving,
     String? error,
     String? successMessage,
+    bool clearNotifications = false,
     bool clearError = false,
     bool clearSuccess = false,
   }) {
     return UserProfileState(
       section: section ?? this.section,
       account: account ?? this.account,
-      notifications: notifications ?? this.notifications,
+      notifications: clearNotifications
+          ? null
+          : (notifications ?? this.notifications),
       organization: organization ?? this.organization,
       securitySessions: securitySessions ?? this.securitySessions,
       teamMembers: teamMembers ?? this.teamMembers,

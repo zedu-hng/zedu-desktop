@@ -6,12 +6,32 @@ import 'package:zedu/features/features.dart';
 class UserProfileNotifier extends Notifier<UserProfileState> {
   late final UserProfileRepository _repository;
   int _invitesRequest = 0;
+  int _loadRequest = 0;
+  bool _hasStartedLoad = false;
+  // The workspace the last load was for, and the one the loaded notification
+  // preferences belong to. Saves go to the latter, not to whichever workspace
+  // happens to be selected when Save is pressed.
+  String? _loadOrgId;
+  String? _notificationsOrgId;
 
   @override
   UserProfileState build() {
     _repository = ref.read(userProfileRepositoryProvider);
-    Future.microtask(load);
+    // Notifications, members and invites belong to a workspace, so load again
+    // whenever the selected workspace changes.
+    ref.listen(workspaceProvider, (_, next) => _loadForWorkspace(next));
+    Future.microtask(() {
+      if (ref.mounted) _loadForWorkspace(ref.read(workspaceProvider));
+    });
     return const UserProfileState(isLoading: true);
+  }
+
+  void _loadForWorkspace(WorkspaceState workspace) {
+    final orgId = workspace.selectedWorkspace?.id;
+    // The workspace list loads asynchronously; wait for it to pick one.
+    if (orgId == null && workspace.isLoading) return;
+    if (_hasStartedLoad && orgId == _loadOrgId) return;
+    load();
   }
 
   void selectSection(UserProfileSection section) {
@@ -70,14 +90,17 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   Future<void> updateNotificationPreferences(
     NotificationPreferences preferences,
   ) async {
-    if (state.isSaving) return;
+    // While a load runs, the screen may still show another workspace's values.
+    if (state.isSaving || state.isLoading || state.notifications == null) {
+      return;
+    }
     state = state.copyWith(
       isSaving: true,
       clearError: true,
       clearSuccess: true,
     );
     final result = await _repository.updateNotificationPreferences(
-      orgId: ref.read(workspaceProvider).selectedWorkspace?.id,
+      orgId: _notificationsOrgId,
       preferences: preferences,
     );
     switch (result) {
@@ -465,8 +488,19 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   }
 
   Future<void> load() async {
-    state = state.copyWith(isLoading: true, clearError: true);
     final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    final request = ++_loadRequest;
+    final switchedWorkspace = _hasStartedLoad && orgId != _loadOrgId;
+    _hasStartedLoad = true;
+    _loadOrgId = orgId;
+    // Don't keep showing the previous workspace's data while this one loads.
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearNotifications: switchedWorkspace,
+      teamMembers: switchedWorkspace ? const [] : null,
+      invites: switchedWorkspace ? const [] : null,
+    );
     final results = await Future.wait([
       _repository.getAccount(),
       _repository.getNotificationPreferences(orgId: orgId),
@@ -516,9 +550,16 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       }
     }
 
+    // A newer load (for example after a workspace switch) has started.
+    if (!ref.mounted || request != _loadRequest) return;
+
+    final notifications = _valueOrNull(notificationResult);
+    _notificationsOrgId = notifications == null ? null : orgId;
     state = state.copyWith(
       account: _valueOrNull(accountResult),
-      notifications: _valueOrNull(notificationResult),
+      notifications: notifications,
+      // A failed load must not leave another workspace's preferences behind.
+      clearNotifications: notifications == null,
       securitySessions: _valueOrNull(securityResult) ?? const [],
       organization: _valueOrNull(organizationResult),
       teamMembers: loadedTeamMembers,
