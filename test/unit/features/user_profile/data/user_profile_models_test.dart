@@ -42,9 +42,7 @@ void main() {
     });
 
     test('treats an all-day delivery window as quiet hours off', () {
-      final preferences = NotificationPreferencesModel.fromDeviceJson(
-        device(),
-      );
+      final preferences = NotificationPreferencesModel.fromDeviceJson(device());
 
       expect(preferences.quietHoursEnabled, isFalse);
       expect(preferences.timezone, isNull);

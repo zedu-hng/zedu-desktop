@@ -225,7 +225,9 @@ void main() {
   group('quietHoursSummary', () {
     test('describes a same-day period', () {
       expect(
-        quietHoursSummary(_saved.copyWith(pauseFrom: 13 * 60, resumeAt: 14 * 60)),
+        quietHoursSummary(
+          _saved.copyWith(pauseFrom: 13 * 60, resumeAt: 14 * 60),
+        ),
         'Notifications paused from 1:00 PM to 2:00 PM.',
       );
     });

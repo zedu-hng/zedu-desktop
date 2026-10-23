@@ -128,10 +128,7 @@ class _NotificationsSectionState extends State<NotificationsSection> {
         ),
         const SizedBox(height: 28),
         const _GroupLabel('When'),
-        _QuietHoursPanel(
-          preferences: _draft,
-          onChanged: _update,
-        ),
+        _QuietHoursPanel(preferences: _draft, onChanged: _update),
         const SizedBox(height: 28),
         const _GroupLabel('Where'),
         _Panel(
