@@ -5,12 +5,33 @@ import 'package:zedu/features/features.dart';
 
 class UserProfileNotifier extends Notifier<UserProfileState> {
   late final UserProfileRepository _repository;
+  int _invitesRequest = 0;
+  int _loadRequest = 0;
+  bool _hasStartedLoad = false;
+  // The workspace the last load was for, and the one the loaded notification
+  // preferences belong to. Saves go to the latter, not to whichever workspace
+  // happens to be selected when Save is pressed.
+  String? _loadOrgId;
+  String? _notificationsOrgId;
 
   @override
   UserProfileState build() {
     _repository = ref.read(userProfileRepositoryProvider);
-    load();
+    // Notifications, members and invites belong to a workspace, so load again
+    // whenever the selected workspace changes.
+    ref.listen(workspaceProvider, (_, next) => _loadForWorkspace(next));
+    Future.microtask(() {
+      if (ref.mounted) _loadForWorkspace(ref.read(workspaceProvider));
+    });
     return const UserProfileState(isLoading: true);
+  }
+
+  void _loadForWorkspace(WorkspaceState workspace) {
+    final orgId = workspace.selectedWorkspace?.id;
+    // The workspace list loads asynchronously; wait for it to pick one.
+    if (orgId == null && workspace.isLoading) return;
+    if (_hasStartedLoad && orgId == _loadOrgId) return;
+    load();
   }
 
   void selectSection(UserProfileSection section) {
@@ -64,45 +85,30 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
+  /// Saves [preferences] and makes them the new saved baseline on success.
+  /// A failed save leaves the baseline alone, so the screen keeps the edits.
   Future<void> updateNotificationPreferences(
     NotificationPreferences preferences,
   ) async {
+    // While a load runs, the screen may still show another workspace's values.
+    if (state.isSaving || state.isLoading || state.notifications == null) {
+      return;
+    }
     state = state.copyWith(
       isSaving: true,
       clearError: true,
       clearSuccess: true,
     );
-    final result = await _repository.updateNotificationPreferences(preferences);
+    final result = await _repository.updateNotificationPreferences(
+      orgId: _notificationsOrgId,
+      preferences: preferences,
+    );
     switch (result) {
       case Success<NotificationPreferences>():
         state = state.copyWith(
           notifications: result.value,
           isSaving: false,
           successMessage: 'Notification preferences saved successfully.',
-        );
-      case Failure<NotificationPreferences>():
-        state = state.copyWith(
-          isSaving: false,
-          error: result.error.friendlyMessage,
-        );
-    }
-  }
-
-  Future<void> revertNotificationPreferences(
-    NotificationPreferences preferences,
-  ) async {
-    state = state.copyWith(
-      isSaving: true,
-      clearError: true,
-      clearSuccess: true,
-    );
-    final result = await _repository.updateNotificationPreferences(preferences);
-    switch (result) {
-      case Success<NotificationPreferences>():
-        state = state.copyWith(
-          notifications: result.value,
-          isSaving: false,
-          successMessage: 'Changes reverted successfully.',
         );
       case Failure<NotificationPreferences>():
         state = state.copyWith(
@@ -342,9 +348,8 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     );
     switch (result) {
       case Success<TeamMember>():
-        final newTeamMembers = [...state.teamMembers, result.value];
+        // The invite is not a member yet; it shows up in the Invites tab.
         state = state.copyWith(
-          teamMembers: newTeamMembers,
           isSaving: false,
           successMessage: 'Invite sent successfully.',
         );
@@ -353,7 +358,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
         final config = locator<AppConfig>();
         if (config.usesMockData) {
           final storage = locator<SecureStorageService>();
-          final jsonList = newTeamMembers
+          final jsonList = state.teamMembers
               .map(
                 (m) => {
                   'id': m.id,
@@ -371,12 +376,64 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
             jsonEncode(jsonList),
           );
         }
+        await loadInvites(search: state.invitesSearch);
 
       case Failure<TeamMember>():
         state = state.copyWith(
           isSaving: false,
           error: result.error.friendlyMessage,
         );
+    }
+  }
+
+  Future<void> loadInvites({int page = 1, String search = ''}) async {
+    final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    if (orgId == null || orgId.isEmpty) return;
+    final request = ++_invitesRequest;
+    state = state.copyWith(
+      isInvitesLoading: true,
+      invitesPage: page,
+      invitesSearch: search,
+      clearError: true,
+      clearSuccess: true,
+    );
+    final result = await _repository.getInvites(
+      orgId: orgId,
+      page: page,
+      search: search,
+    );
+    // A newer request has started, so this response is stale.
+    if (!ref.mounted || request != _invitesRequest) return;
+    switch (result) {
+      case Success<List<TeamMember>>():
+        state = state.copyWith(
+          invites: result.value,
+          invitesLoadFailed: false,
+          isInvitesLoading: false,
+        );
+      case Failure<List<TeamMember>>():
+        state = state.copyWith(
+          invitesLoadFailed: true,
+          isInvitesLoading: false,
+          error: result.error.friendlyMessage,
+        );
+    }
+  }
+
+  Future<void> deleteInvite(String inviteId) async {
+    state = state.copyWith(clearError: true, clearSuccess: true);
+    final result = await _repository.deleteInvite(inviteId);
+    switch (result) {
+      case Success<void>():
+        state = state.copyWith(
+          invites: [
+            for (final invite in state.invites)
+              if (invite.id != inviteId) invite,
+          ],
+          successMessage: 'Invite deleted.',
+        );
+      case Failure<void>():
+        state = state.copyWith(error: result.error.friendlyMessage);
     }
   }
 
@@ -431,11 +488,22 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
   }
 
   Future<void> load() async {
-    state = state.copyWith(isLoading: true, clearError: true);
     final orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
+    final request = ++_loadRequest;
+    final switchedWorkspace = _hasStartedLoad && orgId != _loadOrgId;
+    _hasStartedLoad = true;
+    _loadOrgId = orgId;
+    // Don't keep showing the previous workspace's data while this one loads.
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearNotifications: switchedWorkspace,
+      teamMembers: switchedWorkspace ? const [] : null,
+      invites: switchedWorkspace ? const [] : null,
+    );
     final results = await Future.wait([
       _repository.getAccount(),
-      _repository.getNotificationPreferences(),
+      _repository.getNotificationPreferences(orgId: orgId),
       _repository.getSecuritySessions(),
       _repository.getOrganization(),
       _repository.getTeamMembers(orgId: orgId),
@@ -482,9 +550,16 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       }
     }
 
+    // A newer load (for example after a workspace switch) has started.
+    if (!ref.mounted || request != _loadRequest) return;
+
+    final notifications = _valueOrNull(notificationResult);
+    _notificationsOrgId = notifications == null ? null : orgId;
     state = state.copyWith(
       account: _valueOrNull(accountResult),
-      notifications: _valueOrNull(notificationResult),
+      notifications: notifications,
+      // A failed load must not leave another workspace's preferences behind.
+      clearNotifications: notifications == null,
       securitySessions: _valueOrNull(securityResult) ?? const [],
       organization: _valueOrNull(organizationResult),
       teamMembers: loadedTeamMembers,
@@ -493,6 +568,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
       isLoading: false,
       error: error,
     );
+    await loadInvites();
   }
 
   String? _getError(List<dynamic> results) {

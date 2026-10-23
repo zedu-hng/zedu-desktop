@@ -53,11 +53,27 @@ class ProfileStatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = status.toLowerCase() == 'active';
+    final (background, dot, foreground) = switch (status.toLowerCase()) {
+      'active' => (
+        const Color(0xFFECFDF5),
+        const Color(0xFF10B981),
+        const Color(0xFF065F46),
+      ),
+      'invited' => (
+        const Color(0xFFEFF6FF),
+        const Color(0xFF0074FF),
+        const Color(0xFF1D4ED8),
+      ),
+      _ => (
+        const Color(0xFFFEF2F2),
+        const Color(0xFFEF4444),
+        const Color(0xFF991B1B),
+      ),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+        color: background,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -66,20 +82,13 @@ class ProfileStatusPill extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: isActive
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFFEF4444),
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Text(
             status[0].toUpperCase() + status.substring(1),
             style: context.textTheme.labelSmall?.copyWith(
-              color: isActive
-                  ? const Color(0xFF065F46)
-                  : const Color(0xFF991B1B),
+              color: foreground,
               fontWeight: FontWeight.w500,
             ),
           ),

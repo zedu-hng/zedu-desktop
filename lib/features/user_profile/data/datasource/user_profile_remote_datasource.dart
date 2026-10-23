@@ -7,10 +7,13 @@ abstract interface class UserProfileRemoteDataSource {
   Future<ProfileAccountModel> getAccount();
   Future<ProfileAccountModel> updateAccount(ProfileAccount account);
   Future<void> deleteAccount();
-  Future<NotificationPreferencesModel> getNotificationPreferences();
-  Future<NotificationPreferencesModel> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  );
+  Future<NotificationPreferencesModel> getNotificationPreferences({
+    required String? orgId,
+  });
+  Future<NotificationPreferencesModel> updateNotificationPreferences({
+    required String? orgId,
+    required NotificationPreferences preferences,
+  });
   Future<List<SecuritySessionModel>> getSecuritySessions();
   Future<void> changePassword({
     required String currentPassword,
@@ -32,6 +35,12 @@ abstract interface class UserProfileRemoteDataSource {
     required String role,
     required String orgId,
   });
+  Future<List<TeamMemberModel>> getInvites({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  });
+  Future<void> deleteInvite(String inviteId);
   Future<TeamMemberModel> updateMember(TeamMember member);
   Future<void> removeMember(String memberId);
   Future<List<RolePermissionModel>> getRolesAndPermissions();
@@ -95,44 +104,147 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   }
 
   @override
-  Future<NotificationPreferencesModel> getNotificationPreferences() async {
+  Future<NotificationPreferencesModel> getNotificationPreferences({
+    required String? orgId,
+  }) async {
     if (_config.usesMockData) {
-      return NotificationPreferencesModel.fromJson(_notifications);
+      return NotificationPreferencesModel.fromDeviceJson(
+        _notifications,
+        mobile: _notifications,
+        timezone: _account['timezone'],
+      );
     }
-    final response = await _apiBaseService.get<Map<String, dynamic>>(
-      path: '/profile/notifications',
+    final org = _requireOrg(orgId);
+    final results = await Future.wait([
+      _getDevicePreferences(org, 'desktop'),
+      // Mobile and timezone only add detail, so the screen still loads
+      // without them.
+      _orNull(_getDevicePreferences(org, 'mobile')),
+      _orNull(_getProfileTimezone()),
+      _readMobileOverride(org),
+    ]);
+    final model = NotificationPreferencesModel.fromDeviceJson(
+      results[0] as Map<String, dynamic>,
+      mobile: results[1] as Map<String, dynamic>?,
+      timezone: results[2] as String?,
     );
-    return NotificationPreferencesModel.fromJson(
-      response.data['data'] as Map<String, dynamic>,
-    );
+    if (results[3] != true || model.differentMobileSettings) return model;
+    return model.copyWithModel(differentMobileSettings: true);
   }
 
   @override
-  Future<NotificationPreferencesModel> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  ) async {
+  Future<NotificationPreferencesModel> updateNotificationPreferences({
+    required String? orgId,
+    required NotificationPreferences preferences,
+  }) async {
     if (_config.usesMockData) {
-      return NotificationPreferencesModel(
-        mode: preferences.mode,
-        fromTime: preferences.fromTime,
-        toTime: preferences.toTime,
-        useDesktopSettings: preferences.useDesktopSettings,
-        emailNotifications: preferences.emailNotifications,
+      return NotificationPreferencesModel.fromDeviceJson(
+        NotificationPreferencesModel.toDeviceJson(
+          preferences,
+          deviceType: 'desktop',
+        ),
+        timezone: preferences.timezone,
+      ).copyWithModel(
+        differentMobileSettings: preferences.differentMobileSettings,
       );
     }
-    final response = await _apiBaseService.patch<Map<String, dynamic>>(
-      path: '/profile/notifications',
-      data: NotificationPreferencesModel(
-        mode: preferences.mode,
-        fromTime: preferences.fromTime,
-        toTime: preferences.toTime,
-        useDesktopSettings: preferences.useDesktopSettings,
-        emailNotifications: preferences.emailNotifications,
-      ).toJson(),
+    final org = _requireOrg(orgId);
+    final desktop = await _saveDevicePreferences(org, 'desktop', preferences);
+    // With one shared setting, the phone follows whatever is saved here.
+    if (!preferences.differentMobileSettings) {
+      await _saveDevicePreferences(org, 'mobile', preferences);
+    }
+    await _writeMobileOverride(org, preferences.differentMobileSettings);
+    return NotificationPreferencesModel.fromDeviceJson(
+      desktop,
+      timezone: preferences.timezone,
+    ).copyWithModel(
+      differentMobileSettings: preferences.differentMobileSettings,
     );
-    return NotificationPreferencesModel.fromJson(
-      response.data['data'] as Map<String, dynamic>,
+  }
+
+  Future<T?> _orNull<T>(Future<T> request) async {
+    try {
+      return await request;
+    } catch (error) {
+      AppLogger.w('Optional notification request failed - $error', tag: _tag);
+      return null;
+    }
+  }
+
+  String _requireOrg(String? orgId) {
+    if (orgId == null || orgId.isEmpty) {
+      throw const ApiFailure(
+        message: 'Select a workspace to manage its notifications.',
+        kind: ApiFailureKind.client,
+      );
+    }
+    return orgId;
+  }
+
+  Future<Map<String, dynamic>> _getDevicePreferences(
+    String orgId,
+    String deviceType,
+  ) async {
+    final response = await _apiBaseService.get<Map<String, dynamic>>(
+      path: '/organisations/$orgId/notification-preference',
+      queryParameters: {'device_type': deviceType},
     );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> _saveDevicePreferences(
+    String orgId,
+    String deviceType,
+    NotificationPreferences preferences,
+  ) async {
+    final response = await _apiBaseService.post<Map<String, dynamic>>(
+      path: '/organisations/$orgId/notification-preference',
+      queryParameters: {'device_type': deviceType},
+      data: NotificationPreferencesModel.toDeviceJson(
+        preferences,
+        deviceType: deviceType,
+      ),
+    );
+    return response.data['data'] as Map<String, dynamic>;
+  }
+
+  /// The backend evaluates the schedule in the profile timezone.
+  Future<String?> _getProfileTimezone() async {
+    final response = await _apiBaseService.get<Map<String, dynamic>>(
+      path: '/profile',
+    );
+    final data = response.data['data'];
+    return data is Map<String, dynamic> ? data['timezone'] as String? : null;
+  }
+
+  // The backend has no field for "mobile has its own settings", so the choice
+  // is remembered on this device. Mobile settings that differ also count.
+  static String _mobileOverrideKey(String orgId) =>
+      'notification_mobile_override_$orgId';
+
+  Future<bool> _readMobileOverride(String orgId) async {
+    if (!locator.isRegistered<SecureStorageService>()) return false;
+    try {
+      final value = await locator<SecureStorageService>().readData(
+        _mobileOverrideKey(orgId),
+      );
+      return value == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _writeMobileOverride(String orgId, bool value) async {
+    if (!locator.isRegistered<SecureStorageService>()) return;
+    try {
+      await locator<SecureStorageService>().writeData(
+        _mobileOverrideKey(orgId),
+        '$value',
+      );
+    } catch (error) {
+      AppLogger.w('Could not remember mobile override - $error', tag: _tag);
+    }
   }
 
   @override
@@ -370,6 +482,54 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   }
 
   @override
+  Future<List<TeamMemberModel>> getInvites({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  }) async {
+    if (_config.usesMockData) return const [];
+    final response = await _apiBaseService.get<Map<String, dynamic>>(
+      path: '/organisations/$orgId/invites',
+      queryParameters: {
+        'page': page,
+        'limit': invitesPageSize,
+        'invite_status': 'invited',
+        if (search.isNotEmpty) 'search': search,
+      },
+    );
+    final data = response.data['data'] as List<dynamic>? ?? const [];
+    // Only pending invites, and the backend ignores `search`, so match the
+    // email on the loaded page here.
+    final query = search.toLowerCase();
+    return data
+        .cast<Map<String, dynamic>>()
+        .where((invite) => invite['status'] == 'invited')
+        .where(
+          (invite) => ((invite['email'] as String?) ?? '')
+              .toLowerCase()
+              .contains(query),
+        )
+        .map(
+          (invite) => TeamMemberModel(
+            id: invite['id'] as String? ?? '',
+            email: invite['email'] as String? ?? '',
+            role: invite['role'] as String? ?? 'User',
+            dateJoined: invite['created_at'] as String? ?? '',
+            status: TeamMemberStatus.pending,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> deleteInvite(String inviteId) async {
+    if (_config.usesMockData) return;
+    await _apiBaseService.delete<Map<String, dynamic>>(
+      path: '/invite/$inviteId',
+    );
+  }
+
+  @override
   Future<TeamMemberModel> updateMember(TeamMember member) async {
     if (_config.usesMockData) {
       return TeamMemberModel(
@@ -434,12 +594,10 @@ const _account = {
   'timezone': 'Africa/Lagos',
 };
 
-const _notifications = {
-  'mode': 'allMessages',
-  'from_time': '12:00 AM',
-  'to_time': '11:00 PM',
-  'use_desktop_settings': true,
-  'email_notifications': false,
+const _notifications = <String, dynamic>{
+  'notify_about': 'all_new_messages',
+  'send_mail': false,
+  'time_range': NotificationPreferencesModel.allDay,
 };
 
 const _organization = {

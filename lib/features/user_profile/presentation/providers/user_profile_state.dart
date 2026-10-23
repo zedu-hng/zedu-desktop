@@ -18,6 +18,11 @@ class UserProfileState {
     this.organization,
     this.securitySessions = const [],
     this.teamMembers = const [],
+    this.invites = const [],
+    this.invitesPage = 1,
+    this.invitesSearch = '',
+    this.invitesLoadFailed = false,
+    this.isInvitesLoading = false,
     this.rolesAndPermissions = const [],
     this.billing,
     this.isLoading = false,
@@ -32,6 +37,11 @@ class UserProfileState {
   final OrganizationProfile? organization;
   final List<SecuritySession> securitySessions;
   final List<TeamMember> teamMembers;
+  final List<TeamMember> invites;
+  final int invitesPage;
+  final String invitesSearch;
+  final bool invitesLoadFailed;
+  final bool isInvitesLoading;
   final List<RolePermission> rolesAndPermissions;
   final BillingInfo? billing;
   final bool isLoading;
@@ -46,22 +56,35 @@ class UserProfileState {
     OrganizationProfile? organization,
     List<SecuritySession>? securitySessions,
     List<TeamMember>? teamMembers,
+    List<TeamMember>? invites,
+    int? invitesPage,
+    String? invitesSearch,
+    bool? invitesLoadFailed,
+    bool? isInvitesLoading,
     List<RolePermission>? rolesAndPermissions,
     BillingInfo? billing,
     bool? isLoading,
     bool? isSaving,
     String? error,
     String? successMessage,
+    bool clearNotifications = false,
     bool clearError = false,
     bool clearSuccess = false,
   }) {
     return UserProfileState(
       section: section ?? this.section,
       account: account ?? this.account,
-      notifications: notifications ?? this.notifications,
+      notifications: clearNotifications
+          ? null
+          : (notifications ?? this.notifications),
       organization: organization ?? this.organization,
       securitySessions: securitySessions ?? this.securitySessions,
       teamMembers: teamMembers ?? this.teamMembers,
+      invites: invites ?? this.invites,
+      invitesPage: invitesPage ?? this.invitesPage,
+      invitesSearch: invitesSearch ?? this.invitesSearch,
+      invitesLoadFailed: invitesLoadFailed ?? this.invitesLoadFailed,
+      isInvitesLoading: isInvitesLoading ?? this.isInvitesLoading,
       rolesAndPermissions: rolesAndPermissions ?? this.rolesAndPermissions,
       billing: billing ?? this.billing,
       isLoading: isLoading ?? this.isLoading,

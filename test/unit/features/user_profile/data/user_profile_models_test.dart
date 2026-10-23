@@ -20,20 +20,127 @@ void main() {
   });
 
   group('NotificationPreferencesModel', () {
-    test('maps notification mode and desktop/email preferences', () {
-      final preferences = NotificationPreferencesModel.fromJson(const {
-        'mode': 'mentions_only',
-        'from_time': '9:00 AM',
-        'to_time': '5:00 PM',
-        'use_desktop_settings': true,
-        'email_notifications': true,
-      });
+    Map<String, dynamic> device({
+      String notifyAbout = 'all_new_messages',
+      bool sendMail = false,
+      String timeRange = '12:00 AM - 11:59 PM',
+    }) => {
+      'notify_about': notifyAbout,
+      'send_mail': sendMail,
+      'time_range': timeRange,
+    };
+
+    test('maps mode and email from the device preferences', () {
+      final preferences = NotificationPreferencesModel.fromDeviceJson(
+        device(notifyAbout: 'mentions', sendMail: true),
+        timezone: 'Africa/Lagos',
+      );
 
       expect(preferences.mode, NotificationMode.mentionsOnly);
-      expect(preferences.fromTime, '9:00 AM');
-      expect(preferences.toTime, '5:00 PM');
-      expect(preferences.useDesktopSettings, isTrue);
       expect(preferences.emailNotifications, isTrue);
+      expect(preferences.timezone, 'Africa/Lagos');
+    });
+
+    test('treats an all-day delivery window as quiet hours off', () {
+      final preferences = NotificationPreferencesModel.fromDeviceJson(device());
+
+      expect(preferences.quietHoursEnabled, isFalse);
+      expect(preferences.timezone, isNull);
+    });
+
+    test('reads the delivery window as quiet hours across midnight', () {
+      final preferences = NotificationPreferencesModel.fromDeviceJson(
+        device(timeRange: '07:00 AM - 09:59 PM'),
+      );
+
+      expect(preferences.quietHoursEnabled, isTrue);
+      expect(preferences.pauseFrom, 22 * 60);
+      expect(preferences.resumeAt, 7 * 60);
+      expect(preferences.quietHoursCrossMidnight, isTrue);
+    });
+
+    test('writes quiet hours back as the delivery window', () {
+      final json = NotificationPreferencesModel.toDeviceJson(
+        NotificationPreferences.empty().copyWith(
+          mode: NotificationMode.none,
+          quietHoursEnabled: true,
+          pauseFrom: 22 * 60,
+          resumeAt: 7 * 60,
+        ),
+        deviceType: 'desktop',
+      );
+
+      expect(json, {
+        'notify_about': 'nothing',
+        'send_mail': false,
+        'time_range': '7:00 AM - 9:59 PM',
+        'device_type': 'desktop',
+      });
+    });
+
+    test('round-trips quiet hours that start at midnight', () {
+      final saved = NotificationPreferences.empty().copyWith(
+        quietHoursEnabled: true,
+        pauseFrom: 0,
+        resumeAt: 6 * 60,
+      );
+      final json = NotificationPreferencesModel.toDeviceJson(
+        saved,
+        deviceType: 'desktop',
+      );
+
+      expect(json['time_range'], '6:00 AM - 11:59 PM');
+      expect(NotificationPreferencesModel.fromDeviceJson(json), saved);
+    });
+
+    test('sends the all-day window when quiet hours are off', () {
+      final json = NotificationPreferencesModel.toDeviceJson(
+        NotificationPreferences.empty(),
+        deviceType: 'mobile',
+      );
+
+      expect(json['time_range'], NotificationPreferencesModel.allDay);
+      expect(json['device_type'], 'mobile');
+    });
+
+    test('mobile shares the settings when they match', () {
+      final preferences = NotificationPreferencesModel.fromDeviceJson(
+        device(timeRange: '7:00 AM - 9:59 PM'),
+        mobile: device(timeRange: '07:00 AM - 09:59 PM'),
+      );
+
+      expect(preferences.differentMobileSettings, isFalse);
+    });
+
+    test('mobile has its own settings when they differ', () {
+      final preferences = NotificationPreferencesModel.fromDeviceJson(
+        device(),
+        mobile: device(notifyAbout: 'nothing'),
+      );
+
+      expect(preferences.differentMobileSettings, isTrue);
+    });
+  });
+
+  group('NotificationPreferences', () {
+    test('ignores the times while quiet hours are off', () {
+      final saved = NotificationPreferences.empty();
+      final edited = saved.copyWith(pauseFrom: 60, resumeAt: 120);
+
+      expect(edited, saved);
+      expect(edited.hashCode, saved.hashCode);
+      expect(edited.copyWith(quietHoursEnabled: true), isNot(saved));
+    });
+
+    test('formats and parses times of day', () {
+      expect(formatMinutesOfDay(0), '12:00 AM');
+      expect(formatMinutesOfDay(12 * 60 + 5), '12:05 PM');
+      expect(formatMinutesOfDay(-1), '11:59 PM');
+      expect(parseMinutesOfDay('12:00 AM'), 0);
+      expect(parseMinutesOfDay('09:30 PM'), 21 * 60 + 30);
+      expect(parseMinutesOfDay('18:15'), 18 * 60 + 15);
+      expect(parseMinutesOfDay('13:00 PM'), isNull);
+      expect(parseMinutesOfDay('noon'), isNull);
     });
   });
 

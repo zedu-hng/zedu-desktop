@@ -21,15 +21,23 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
   Future<Result<void>> deleteAccount() => _guard(_remote.deleteAccount);
 
   @override
-  Future<Result<NotificationPreferences>> getNotificationPreferences() {
-    return _guard(_remote.getNotificationPreferences);
+  Future<Result<NotificationPreferences>> getNotificationPreferences({
+    required String? orgId,
+  }) {
+    return _guard(() => _remote.getNotificationPreferences(orgId: orgId));
   }
 
   @override
-  Future<Result<NotificationPreferences>> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  ) {
-    return _guard(() => _remote.updateNotificationPreferences(preferences));
+  Future<Result<NotificationPreferences>> updateNotificationPreferences({
+    required String? orgId,
+    required NotificationPreferences preferences,
+  }) {
+    return _guard(
+      () => _remote.updateNotificationPreferences(
+        orgId: orgId,
+        preferences: preferences,
+      ),
+    );
   }
 
   @override
@@ -93,6 +101,22 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
     return _guard(
       () => _remote.inviteMember(email: email, role: role, orgId: orgId),
     );
+  }
+
+  @override
+  Future<Result<List<TeamMember>>> getInvites({
+    required String orgId,
+    int page = 1,
+    String search = '',
+  }) {
+    return _guard(
+      () => _remote.getInvites(orgId: orgId, page: page, search: search),
+    );
+  }
+
+  @override
+  Future<Result<void>> deleteInvite(String inviteId) {
+    return _guard(() => _remote.deleteInvite(inviteId));
   }
 
   @override
