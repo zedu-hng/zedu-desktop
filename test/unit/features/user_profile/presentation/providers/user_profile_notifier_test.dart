@@ -512,7 +512,7 @@ void main() {
           verifyNever(
             () => repository.updateNotificationPreferences(
               orgId: _workspaceA.id,
-              preferences: any(named: 'preferences'),
+              preferences: edited,
             ),
           );
         });
@@ -555,7 +555,7 @@ void main() {
           verifyNever(
             () => repository.updateNotificationPreferences(
               orgId: any(named: 'orgId'),
-              preferences: any(named: 'preferences'),
+              preferences: edited,
             ),
           );
         });
