@@ -11,6 +11,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
   bool isLoading = true;
   bool hasMore = true;
   int page = 1;
+  bool _isHistoryClearedLocally = false;
 
   String? editingMessageId;
   final Map<String, Future<void>> _saveEditChains = {};
@@ -101,6 +102,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
   }
 
   Future<void> _pollForNewMessages() async {
+    if (_isHistoryClearedLocally) return;
     try {
       final repository = ref.read(dmRepositoryProvider);
       final fresh = await repository.getMessages(channelId, page: 1);
@@ -195,6 +197,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
     List<dynamic>? mentions,
     bool isChannel = false,
   }) async {
+    _isHistoryClearedLocally = false;
     final tempId = DateTime.now().millisecondsSinceEpoch.toString();
     final optimisticMessage = {
       "id": tempId,
@@ -293,6 +296,14 @@ class ChatHistoryNotifier extends ChangeNotifier {
     } finally {
       notifyListeners();
     }
+  }
+
+  void clearLocalHistory() {
+    _isHistoryClearedLocally = true;
+    messages = [];
+    hasMore = false;
+    page = 1;
+    notifyListeners();
   }
 
   void startEditing(String messageId) {
