@@ -4,6 +4,20 @@ import '../../../../../helpers/helpers.dart';
 
 const _palette = AppPalette.light;
 
+class FakeSecureStorageService extends Fake implements SecureStorageService {
+  final _values = <String, String>{};
+
+  @override
+  Future<String?> readData(String key) async => _values[key];
+
+  @override
+  Future<void> writeData(String key, String value) async =>
+      _values[key] = value;
+
+  @override
+  Future<void> deleteValue(String key) async => _values.remove(key);
+}
+
 class FakeSelectedDmNotifier extends SelectedDmNotifier {
   FakeSelectedDmNotifier(this._initial);
 
@@ -49,6 +63,13 @@ Widget buildTileUnderTest(
   return ProviderScope(
     overrides: [
       selectedDmProvider.overrideWith(() => FakeSelectedDmNotifier(selected)),
+      dmDraftStoreProvider.overrideWith(
+        (ref) => DmDraftStore(
+          FakeSecureStorageService(),
+          userId: 'user-1',
+          orgId: 'org-1',
+        ),
+      ),
     ],
     child: buildTestMaterialApp(
       Scaffold(
@@ -132,6 +153,13 @@ void main() {
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith(FakeWorkspaceNotifier.new),
+          dmDraftStoreProvider.overrideWith(
+            (ref) => DmDraftStore(
+              FakeSecureStorageService(),
+              userId: 'user-1',
+              orgId: 'org-1',
+            ),
+          ),
           dmListProvider.overrideWith(
             () => FakeDmListNotifier([buildConversation()]),
           ),
