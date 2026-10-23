@@ -145,7 +145,7 @@ class _EditChannelModalState extends ConsumerState<EditChannelModal> {
                           ),
                         )
                       : Text(
-                          'Save Changes',
+                          'Save changes',
                           style: textTheme.bodyMedium?.copyWith(
                             color: Colors.white,
                           ),
