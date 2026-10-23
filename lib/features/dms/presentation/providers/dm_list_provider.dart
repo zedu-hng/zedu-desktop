@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -17,6 +19,9 @@ class SelectedDmNotifier extends Notifier<DmConversation?> {
 
   void select(DmConversation? conversation) {
     state = conversation;
+    if (conversation != null && ref.exists(dmListProvider)) {
+      ref.read(dmListProvider.notifier).markRead(conversation.channelId);
+    }
   }
 }
 
@@ -28,6 +33,7 @@ final selectedDmProvider =
 class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
   int _currentPage = 1;
   bool _hasMore = true;
+  bool _refreshingUnread = false;
 
   bool get hasMore => _hasMore;
 
@@ -38,7 +44,81 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
 
     _currentPage = 1;
     _hasMore = true;
-    return _fetchPage(orgId, 1);
+    final timer = Timer.periodic(const Duration(seconds: 10), (_) {
+      refreshUnreadCounts();
+    });
+    ref.onDispose(timer.cancel);
+    return _clearActiveUnread(await _fetchPage(orgId, 1));
+  }
+
+  List<DmConversation> _clearActiveUnread(List<DmConversation> conversations) {
+    final selected = ref.read(homeSidebarProvider) == HomeSidebarType.dms
+        ? ref.read(selectedDmProvider)?.channelId
+        : null;
+    return [
+      for (final conversation in conversations)
+        if (conversation.channelId == selected)
+          _readActive(conversation)
+        else
+          conversation,
+    ];
+  }
+
+  DmConversation _readActive(DmConversation conversation) {
+    if (conversation.unreadCount > 0) {
+      unawaited(_syncRead(conversation.channelId));
+    }
+    return conversation.copyWith(unreadCount: 0);
+  }
+
+  void markRead(String channelId) {
+    final conversations = state.value;
+    if (conversations == null) return;
+    state = AsyncData([
+      for (final conversation in conversations)
+        if (conversation.channelId == channelId)
+          conversation.copyWith(unreadCount: 0)
+        else
+          conversation,
+    ]);
+    if (ref.exists(dmRepositoryProvider)) {
+      unawaited(_syncRead(channelId));
+    }
+  }
+
+  Future<void> _syncRead(String channelId) async {
+    try {
+      await ref.read(dmRepositoryProvider).markRead(channelId);
+    } catch (_) {
+      // Background refresh reconciles unread counts if the read request fails.
+    }
+  }
+
+  Future<void> refreshUnreadCounts() async {
+    if (_refreshingUnread || !state.hasValue) return;
+    final orgId = ref.read(currentOrgIdProvider);
+    if (orgId.isEmpty) return;
+    _refreshingUnread = true;
+    final pages = _currentPage;
+    try {
+      final repository = ref.read(dmRepositoryProvider);
+      final conversations = <DmConversation>[];
+      for (var page = 1; page <= pages; page++) {
+        conversations.addAll(
+          await repository.getConversations(orgId: orgId, page: page),
+        );
+      }
+      if (!ref.mounted ||
+          ref.read(currentOrgIdProvider) != orgId ||
+          pages != _currentPage) {
+        return;
+      }
+      state = AsyncData(_clearActiveUnread(conversations));
+    } catch (_) {
+      // Keep the visible list when a background request fails.
+    } finally {
+      _refreshingUnread = false;
+    }
   }
 
   Future<List<DmConversation>> _fetchPage(String orgId, int page) async {
@@ -72,7 +152,7 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
     final current = state.value ?? [];
     _currentPage++;
     final next = await _fetchPage(orgId, _currentPage);
-    state = AsyncValue.data([...current, ...next]);
+    state = AsyncValue.data(_clearActiveUnread([...current, ...next]));
   }
 
   Future<void> refresh() async {
@@ -82,6 +162,8 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
     _currentPage = 1;
     _hasMore = true;
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _fetchPage(orgId, 1));
+    state = await AsyncValue.guard(
+      () async => _clearActiveUnread(await _fetchPage(orgId, 1)),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'package:zedu/features/features.dart';
 
 abstract class ChannelRemoteDataSource {
   Future<List<Channel>> fetchChannels(String orgId);
+  Future<void> markRead(String channelId);
   Future<Channel> createChannel({
     required String name,
     required String description,
@@ -35,6 +36,15 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
   static const maxMemberPages = 50;
 
   ChannelRemoteDataSourceImpl({required this.apiBaseService});
+
+  @override
+  Future<void> markRead(String channelId) async {
+    // Reading the latest threads advances the backend's last-read marker.
+    await apiBaseService.get<Map<String, dynamic>>(
+      path: '/threads/channels/$channelId',
+      queryParameters: {'page': 1, 'limit': 1},
+    );
+  }
 
   @override
   Future<List<Channel>> fetchChannels(String orgId) async {

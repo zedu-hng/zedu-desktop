@@ -49,6 +49,9 @@ class ActiveChatNotifier extends Notifier<ActiveChatState> {
 
   void selectChannel(String channelId) {
     state = ActiveChatState(type: ActiveChatType.channel, id: channelId);
+    if (ref.exists(channelProvider)) {
+      ref.read(channelProvider.notifier).markRead(channelId);
+    }
   }
 
   void selectGroupDm(String groupDmId) {

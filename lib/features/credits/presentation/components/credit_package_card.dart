@@ -237,6 +237,12 @@ class CreditPackageCard extends StatelessWidget {
   }
 
   static String _formatCredits(int credits) {
+    if (credits >= 999950) {
+      final value = (credits / 100000).round() / 10;
+      return value == value.roundToDouble()
+          ? '${value.toInt()}M'
+          : '${value.toStringAsFixed(1)}M';
+    }
     if (credits >= 1000) {
       final value = credits / 1000;
       return value == value.roundToDouble()

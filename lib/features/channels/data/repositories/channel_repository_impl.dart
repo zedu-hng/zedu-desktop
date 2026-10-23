@@ -7,6 +7,18 @@ class ChannelRepositoryImpl implements ChannelRepository {
   ChannelRepositoryImpl({required this.remoteDataSource});
 
   @override
+  Future<Result<void>> markRead(String channelId) async {
+    try {
+      await remoteDataSource.markRead(channelId);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Result<List<Channel>>> fetchChannels(String orgId) async {
     try {
       final channels = await remoteDataSource.fetchChannels(orgId);
