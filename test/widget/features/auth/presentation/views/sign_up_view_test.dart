@@ -48,10 +48,8 @@ Widget buildSignUpViewUnderTest({required FakeAuthNotifier notifier}) {
       GoRoute(path: AppRouter.signup, builder: (_, _) => const SignUpView()),
       GoRoute(
         path: AppRouter.home,
-        builder:
-            (_, _) => const Scaffold(
-              body: Center(child: Text('HOME-STUB')),
-            ),
+        builder: (_, _) =>
+            const Scaffold(body: Center(child: Text('HOME-STUB'))),
       ),
     ],
   );
