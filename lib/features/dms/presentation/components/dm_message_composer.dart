@@ -1,4 +1,4 @@
-import 'dart:async' show Timer;
+import 'dart:async';
 import 'dart:io' show Directory, File, Platform;
 
 import 'package:audioplayers/audioplayers.dart'
@@ -59,15 +59,86 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   List<DmParticipant> _mentionSuggestions = [];
   String _mentionQuery = '';
 
+  /// channelId whose draft this composer instance is currently bound to.
+  String? _draftChannelId;
+
+  Timer? _draftSaveDebounce;
+
+  /// Draft store for the current user and org. Held in a field because `ref`
+  /// can't be used in [dispose], and a flush must go to the store the draft
+  /// was typed against.
+  late DmDraftStore _drafts;
+
+  /// Set when this conversation is deleted, so closing the composer doesn't
+  /// save its text back as a draft.
+  bool _channelDeleted = false;
+
   @override
   void initState() {
     super.initState();
+    _drafts = ref.read(dmDraftStoreProvider);
     _controller = RichTextController();
     _controller.addListener(_onTextChanged);
+    _draftChannelId = widget.channelId;
+    _restoreDraft();
+  }
+
+  @override
+  void didUpdateWidget(covariant DmMessageComposer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The same composer widget is re-bound when the user switches chats while
+    // the chat area stays mounted. Flush the debounced save for the previous
+    // conversation (the listener may have saved already; this is a no-op then),
+    // then swap to the new conversation and restore its draft if any.
+    if (oldWidget.channelId != widget.channelId) {
+      _draftSaveDebounce?.cancel();
+      final previousChannel = _draftChannelId ?? oldWidget.channelId;
+      final previousDrafts = _drafts;
+      final wasEditing = _isEditMode;
+
+      // Edit-mode text is an already-sent message, never a draft. Otherwise
+      // flush the previous conversation's text. Store and chat-history writes
+      // notify providers, so they're deferred until the build has finished.
+      if (wasEditing) {
+        final previousHistory = ref.read(
+          chatHistoryProvider(oldWidget.channelId),
+        );
+        Future.microtask(previousHistory.cancelEditing);
+      } else {
+        final previousText = _controller.text;
+        Future.microtask(
+          () => previousDrafts.save(previousChannel, previousText),
+        );
+      }
+      _drafts = ref.read(dmDraftStoreProvider);
+      _draftChannelId = widget.channelId;
+      _channelDeleted = false;
+
+      setState(() {
+        _pendingFiles = [];
+        _showEmojiPicker = false;
+        _isEditMode = false;
+        _editingMessageId = null;
+      });
+      _controller.clear();
+      _restoreDraft();
+    }
   }
 
   @override
   void dispose() {
+    // Flush any un-debounced text. The debounced save normally covers this;
+    // the write is deferred because the store notifies providers, which isn't
+    // allowed while the tree is unmounting.
+    _draftSaveDebounce?.cancel();
+    if (!_isEditMode &&
+        !_channelDeleted &&
+        _controller.text.trim().isNotEmpty) {
+      final drafts = _drafts;
+      final channelId = _draftChannelId ?? widget.channelId;
+      final text = _controller.text;
+      Future.microtask(() => drafts.save(channelId, text));
+    }
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -91,10 +162,30 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     super.dispose();
   }
 
+  Future<void> _restoreDraft() async {
+    final entry = await _drafts.load(widget.channelId);
+    if (!mounted) return;
+    if (entry == null || _controller.text.isNotEmpty) return;
+
+    _controller.value = TextEditingValue(
+      text: entry.text,
+      selection: TextSelection.collapsed(offset: entry.text.length),
+    );
+  }
+
   void _onTextChanged() {
     _updateFormattingState();
     _updateMentionSuggestions();
     if (mounted) setState(() {});
+
+    if (_isEditMode) return;
+
+    final text = _controller.text;
+    _draftSaveDebounce?.cancel();
+    _draftSaveDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      _drafts.save(widget.channelId, text);
+    });
   }
 
   void _updateFormattingState() {
@@ -187,6 +278,10 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
           );
       widget.onSend?.call(text);
     }
+
+    // The message is out, so the draft no longer exists.
+    _draftSaveDebounce?.cancel();
+    _drafts.clear(widget.channelId);
 
     _controller.clear();
     // Saving an edit sends nothing, so a waiting voice note or file is kept.
@@ -328,6 +423,33 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     _controller.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: sel.start + insert.length),
+    );
+    _focusNode.requestFocus();
+  }
+
+  /// Inserts a Markdown horizontal rule (`---`) on its own line at the cursor.
+  ///
+  /// The rule needs a blank line above it: `text\n---` is a setext heading,
+  /// not a divider.
+  void _insertDivider() {
+    final text = _controller.text;
+    final sel = _controller.selection;
+    final pos = sel.isValid ? sel.end : text.length;
+    final before = text.substring(0, pos);
+
+    final String leading;
+    if (before.isEmpty || before.endsWith('\n\n')) {
+      leading = '';
+    } else if (before.endsWith('\n')) {
+      leading = '\n';
+    } else {
+      leading = '\n\n';
+    }
+
+    final insert = '$leading---\n';
+    _controller.value = TextEditingValue(
+      text: before + insert + text.substring(pos),
+      selection: TextSelection.collapsed(offset: pos + insert.length),
     );
     _focusNode.requestFocus();
   }
@@ -652,6 +774,18 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // A user or org change replaces the store; follow it.
+    ref.listen(dmDraftStoreProvider, (_, next) => _drafts = next);
+    ref.listen(
+      dmConversationActionsProvider.select(
+        (actions) => actions.deletedIds.contains(widget.channelId),
+      ),
+      (_, deleted) {
+        if (!deleted) return;
+        _channelDeleted = true;
+        _draftSaveDebounce?.cancel();
+      },
+    );
 
     final mainColumn = Column(
       mainAxisSize: MainAxisSize.min,
@@ -863,7 +997,7 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                       ToolbarButton(
                         icon: Icons.horizontal_rule_rounded,
                         tooltip: 'Divider',
-                        onTap: () => _wrapSelection('/'),
+                        onTap: _insertDivider,
                         colors: colors,
                       ),
                       const SizedBox(width: 4),
