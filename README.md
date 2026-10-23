@@ -200,6 +200,21 @@ Tests mirror the app layout:
 
 Mock dependencies at the layer boundary being tested.
 
+### Billing credit balance
+
+Open **Billing & Plans** to see the organization's AI credit balance. Billing
+and the user menu use the same balance provider: a loaded balance of `0` is
+displayed as zero rather than replaced with the cached account balance. The
+existing cached-account fallback remains in use during initial loading and in
+the error state.
+
+The regression tests keep a cached balance of `100`, then load `0` or `25`
+through the credits notifier and check that Billing and the user menu agree:
+
+```sh
+flutter test test/widget/features/credits/presentation/views/buy_credits_view_test.dart
+```
+
 ## Windows installer (MSIX)
 
 `windows/packaging/` builds Zedu Desktop as an MSIX package and tests it on a clean VM. Run the scripts from the repo root in PowerShell (Windows PowerShell 5.1 or PowerShell 7). A `Get-Item : Could not find item ...\AppData` line during the build comes from a plugin's symlink resolver (`super_native_extensions`) and is harmless.
