@@ -11,6 +11,20 @@ Channel _channel(String name) => Channel(
   ownerId: 'user-1',
 );
 
+class FakeSecureStorageService extends Fake implements SecureStorageService {
+  final _values = <String, String>{};
+
+  @override
+  Future<String?> readData(String key) async => _values[key];
+
+  @override
+  Future<void> writeData(String key, String value) async =>
+      _values[key] = value;
+
+  @override
+  Future<void> deleteValue(String key) async => _values.remove(key);
+}
+
 class _FakeChannelNotifier extends ChannelNotifier {
   @override
   Future<List<Channel>> build() async => [
@@ -56,6 +70,13 @@ void main() {
           overrides: [
             channelProvider.overrideWith(channels),
             workspaceProvider.overrideWith(_FakeWorkspaceNotifier.new),
+            dmDraftStoreProvider.overrideWith(
+              (ref) => DmDraftStore(
+                FakeSecureStorageService(),
+                userId: 'user-1',
+                orgId: 'org-1',
+              ),
+            ),
           ],
           child: buildTestMaterialApp(
             const Scaffold(
