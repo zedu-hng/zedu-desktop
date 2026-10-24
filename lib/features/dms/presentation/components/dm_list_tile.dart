@@ -86,12 +86,7 @@ class DmListTile extends ConsumerWidget {
                 ),
               Padding(
                 padding: const EdgeInsets.all(12),
-                child: _buildContent(
-                  colors,
-                  hasUnread,
-                  draftEntry,
-                  isOwnSpace,
-                ),
+                child: _buildContent(colors, hasUnread, draftEntry, isOwnSpace),
               ),
             ],
           ),
