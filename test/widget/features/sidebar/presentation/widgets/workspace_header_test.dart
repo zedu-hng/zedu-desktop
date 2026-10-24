@@ -1,5 +1,6 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
+
 import '../../../../../helpers/helpers.dart';
 
 class FakeWorkspaceNotifier extends WorkspaceNotifier {
@@ -53,6 +54,27 @@ Future<void> useTestWindow(WidgetTester tester) async {
 
 void main() {
   group('WorkspaceSwitcherHeader', () {
+    testWidgets('plus button selects the New Group Chat page', (tester) async {
+      await tester.pumpWidget(buildHeaderUnderTest());
+      await tester.pump();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(WorkspaceSwitcherHeader)),
+      );
+      expect(
+        container.read(activeChatProvider).type,
+        isNot(ActiveChatType.newGroupChat),
+      );
+
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pump();
+
+      expect(
+        container.read(activeChatProvider).type,
+        ActiveChatType.newGroupChat,
+      );
+    });
+
     testWidgets('opens the menu under the name and flips the arrow', (
       tester,
     ) async {

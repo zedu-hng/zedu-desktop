@@ -140,6 +140,31 @@ class _ChatAreaSwitcher extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(homeSidebarProvider);
     final selectedDm = ref.watch(selectedDmProvider);
+    final activeChat = ref.watch(activeChatProvider);
+
+    // Leave the full-page views (New Group Chat, the channel directory) when
+    // the user opens another section or picks a conversation. Both are
+    // checked before the sidebar tab below, so they would otherwise cover it.
+    void leaveFullPageView() {
+      final type = ref.read(activeChatProvider).type;
+      if (type == ActiveChatType.newGroupChat ||
+          type == ActiveChatType.channelDirectory) {
+        ref.read(activeChatProvider.notifier).selectChannel('general');
+      }
+    }
+
+    ref.listen(homeSidebarProvider, (previous, next) => leaveFullPageView());
+    ref.listen(selectedDmProvider, (previous, next) {
+      if (next != null) leaveFullPageView();
+    });
+
+    if (activeChat.type == ActiveChatType.newGroupChat) {
+      return const NewGroupChatView();
+    }
+
+    if (activeChat.type == ActiveChatType.channelDirectory) {
+      return const ChannelDirectoryView();
+    }
 
     if (state == HomeSidebarType.dms) {
       if (selectedDm != null) {
@@ -152,11 +177,18 @@ class _ChatAreaSwitcher extends ConsumerWidget {
   }
 }
 
-class _MainSidebar extends ConsumerWidget {
+class _MainSidebar extends StatefulWidget {
   const _MainSidebar();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  State<_MainSidebar> createState() => _MainSidebarState();
+}
+
+class _MainSidebarState extends State<_MainSidebar> {
+  bool _isChannelsExpanded = true;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.colors;
 
     return Container(
@@ -168,53 +200,40 @@ class _MainSidebar extends ConsumerWidget {
           const WorkspaceSwitcherHeader(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-            child: Row(
-              children: [
-                Icon(Icons.arrow_drop_down, color: colors.onPrimary, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Channels',
-                  style: TextStyle(
-                    color: colors.onPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SidebarChannelList(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: colors.onPrimary.withValues(alpha: 0.24),
-                ),
-                borderRadius: BorderRadius.circular(6),
-                color: colors.onPrimary.withValues(alpha: 0.05),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'View all channels',
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() {
+                    _isChannelsExpanded = !_isChannelsExpanded;
+                  });
+                },
+                child: Row(
+                  children: [
+                    Icon(
+                      _isChannelsExpanded
+                          ? Icons.arrow_drop_down
+                          : Icons.arrow_right,
+                      color: colors.onPrimary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Channels',
                       style: TextStyle(
-                        color: colors.onPrimary.withValues(alpha: 0.7),
-                        fontSize: 13,
+                        color: colors.onPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
                     ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: colors.onPrimary.withValues(alpha: 0.7),
-                    size: 16,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
+          if (_isChannelsExpanded) const SidebarChannelList(),
+          const _ViewAllChannelsButton(),
           const _AddChannelButton(),
           const SizedBox(height: 20),
           Padding(
@@ -235,6 +254,70 @@ class _MainSidebar extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ViewAllChannelsButton extends ConsumerWidget {
+  const _ViewAllChannelsButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+    final activeChat = ref.watch(activeChatProvider);
+    final isSelected = activeChat.type == ActiveChatType.channelDirectory;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: isSelected
+            ? colors.onPrimary.withValues(alpha: 0.16)
+            : colors.onPrimary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: () {
+            ref.read(activeChatProvider.notifier).selectChannelDirectory();
+          },
+          hoverColor: colors.onPrimary.withValues(alpha: 0.12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isSelected
+                    ? colors.onPrimary.withValues(alpha: 0.6)
+                    : colors.onPrimary.withValues(alpha: 0.24),
+              ),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'View all channels',
+                    style: TextStyle(
+                      color: isSelected
+                          ? colors.onPrimary
+                          : colors.onPrimary.withValues(alpha: 0.7),
+                      fontSize: 13,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: isSelected
+                      ? colors.onPrimary
+                      : colors.onPrimary.withValues(alpha: 0.7),
+                  size: 16,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
