@@ -30,8 +30,8 @@ class NotificationSettingsNotifier extends Notifier<NotificationSettings> {
     return const NotificationSettings();
   }
 
-  void setDndMode(Duration duration) {
-    state = state.copyWith(dndUntil: DateTime.now().add(duration));
+  void setDndMode() {
+    state = state.copyWith(dndUntil: DateTime(2099, 1, 1));
   }
 
   void clearDndMode() {

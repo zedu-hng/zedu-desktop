@@ -601,7 +601,7 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
             const TextField(
               enabled: false, // Disabled during creation screen
               decoration: InputDecoration(
-                hintText: 'Message Ruby - Social Media Handler',
+                hintText: 'Write a message...',
                 border: InputBorder.none,
                 isDense: true,
               ),

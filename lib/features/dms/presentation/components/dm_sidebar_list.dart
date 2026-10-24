@@ -7,6 +7,7 @@ class DmSidebarList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
+    final userId = ref.watch(authNotifierProvider.select((s) => s.user?.id));
 
     return Container(
       width: 320,
@@ -67,7 +68,7 @@ class DmSidebarList extends ConsumerWidget {
                   ),
                   data: (conversations) {
                     final actions = ref.watch(dmConversationActionsProvider);
-                    final visibleConversations =
+                    final sorted =
                         conversations
                             .where(
                               (conversation) => !actions.deletedIds.contains(
@@ -85,6 +86,8 @@ class DmSidebarList extends ConsumerWidget {
                             if (aPinned != bPinned) return aPinned ? -1 : 1;
                             return b.lastActivityAt.compareTo(a.lastActivityAt);
                           });
+                    // Your own space stays first, above pinned DMs.
+                    final visibleConversations = ownSpaceFirst(sorted, userId);
                     if (visibleConversations.isEmpty) {
                       return Center(
                         child: Text(

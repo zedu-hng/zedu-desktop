@@ -208,15 +208,32 @@ class UserMenuDialog extends ConsumerWidget {
                 },
               ),
 
-              // ── Pause notifications ────────────────────────────────────────
-              _MenuItemButton(
-                icon: Icons.notifications_off_outlined,
-                label: 'Pause notifications',
-                onTap: () {
-                  Navigator.pop(context);
-                  ref
-                      .read(notificationSettingsProvider.notifier)
-                      .setDndMode(const Duration(hours: 1));
+              // ── Pause / Resume notifications ───────────────────────────────
+              Builder(
+                builder: (context) {
+                  final isDndActive = ref
+                      .watch(notificationSettingsProvider)
+                      .isDndActive;
+                  return _MenuItemButton(
+                    icon: isDndActive
+                        ? Icons.notifications
+                        : Icons.notifications_off_outlined,
+                    label: isDndActive
+                        ? 'Resume notifications'
+                        : 'Pause notifications',
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (isDndActive) {
+                        ref
+                            .read(notificationSettingsProvider.notifier)
+                            .clearDndMode();
+                      } else {
+                        ref
+                            .read(notificationSettingsProvider.notifier)
+                            .setDndMode();
+                      }
+                    },
+                  );
                 },
               ),
               const SizedBox(height: 8),
@@ -247,6 +264,14 @@ class UserMenuDialog extends ConsumerWidget {
                 onTap: () {
                   Navigator.pop(context);
                   if (context.mounted) context.go(AppRouter.buyCredits);
+                },
+              ),
+              _MenuItemButton(
+                icon: Icons.card_giftcard_outlined,
+                label: 'Referrals & Rewards',
+                onTap: () {
+                  Navigator.pop(context);
+                  if (context.mounted) context.go(AppRouter.referral);
                 },
               ),
               const SizedBox(height: 8),

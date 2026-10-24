@@ -34,6 +34,8 @@ class DmListTile extends ConsumerWidget {
     final selected = ref.watch(selectedDmProvider);
     final isSelected = selected?.channelId == conversation.channelId;
     final hasUnread = conversation.unreadCount > 0;
+    final userId = ref.watch(authNotifierProvider.select((s) => s.user?.id));
+    final isOwnSpace = conversation.isOwnSpaceOf(userId);
     final borderRadius = BorderRadius.circular(6);
 
     // Draft indicator: watch the store so the tile rebuilds when a draft is
@@ -84,7 +86,7 @@ class DmListTile extends ConsumerWidget {
                 ),
               Padding(
                 padding: const EdgeInsets.all(12),
-                child: _buildContent(colors, hasUnread, draftEntry),
+                child: _buildContent(colors, hasUnread, draftEntry, isOwnSpace),
               ),
             ],
           ),
@@ -97,6 +99,7 @@ class DmListTile extends ConsumerWidget {
     AppPalette colors,
     bool hasUnread,
     DraftEntry? draftEntry,
+    bool isOwnSpace,
   ) {
     final emphasis = hasUnread ? FontWeight.w700 : FontWeight.w400;
 
@@ -124,8 +127,20 @@ class DmListTile extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                conversation.displayName,
+              Text.rich(
+                TextSpan(
+                  text: conversation.displayName,
+                  children: [
+                    if (isOwnSpace)
+                      TextSpan(
+                        text: ' (you)',
+                        style: TextStyle(
+                          color: colors.onPrimary.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                  ],
+                ),
                 style: TextStyle(
                   color: colors.onPrimary,
                   fontSize: 13,
@@ -175,7 +190,9 @@ class DmListTile extends ConsumerWidget {
                 )
               else
                 Text(
-                  conversation.previewMessage,
+                  isOwnSpace
+                      ? 'Your notes and drafts'
+                      : conversation.previewMessage,
                   style: TextStyle(
                     color: hasUnread
                         ? colors.onPrimary

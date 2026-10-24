@@ -9,4 +9,6 @@ export 'presentation/widgets/thread_panel.dart';
 export 'presentation/widgets/search_panel.dart';
 export 'presentation/widgets/group_details_panel.dart';
 export 'presentation/widgets/invite_teammates_modal.dart';
+export 'data/models/search_result_item.dart';
+export 'domain/repositories/search_repository.dart';
 export 'presentation/presentation.dart';

@@ -8,3 +8,4 @@ export 'sidebar_popouts.dart';
 export 'top_user_menu.dart';
 export 'dm_empty_state.dart';
 export 'sidebar_channel_list.dart';
+export 'sidebar_dm_list.dart';

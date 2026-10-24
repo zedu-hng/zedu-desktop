@@ -7,6 +7,15 @@ class TopUserMenu extends ConsumerWidget {
 
   const TopUserMenu({super.key, required this.userName, this.backgroundColor});
 
+  /// Initials shown in the chip: first + last initial of [name], or the first
+  /// letter for a single word. Falls back to "ZU" when there is no name.
+  static String initialsFor(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return 'ZU';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
@@ -123,10 +132,10 @@ class TopUserMenu extends ConsumerWidget {
                 color: colors.accent,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'ZU',
-                  style: TextStyle(
+                  initialsFor(userName),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 8,
                     fontWeight: FontWeight.bold,
