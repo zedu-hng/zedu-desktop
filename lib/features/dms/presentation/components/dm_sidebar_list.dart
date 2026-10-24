@@ -66,10 +66,29 @@ class DmSidebarList extends ConsumerWidget {
                       style: TextStyle(color: colors.error),
                     ),
                   ),
-                  data: (loaded) {
-                    // Your own space is pinned to the top of the list.
-                    final conversations = ownSpaceFirst(loaded, userId);
-                    if (conversations.isEmpty) {
+                  data: (conversations) {
+                    final actions = ref.watch(dmConversationActionsProvider);
+                    final sorted =
+                        conversations
+                            .where(
+                              (conversation) => !actions.deletedIds.contains(
+                                conversation.channelId,
+                              ),
+                            )
+                            .toList()
+                          ..sort((a, b) {
+                            final aPinned = actions.pinnedIds.contains(
+                              a.channelId,
+                            );
+                            final bPinned = actions.pinnedIds.contains(
+                              b.channelId,
+                            );
+                            if (aPinned != bPinned) return aPinned ? -1 : 1;
+                            return b.lastActivityAt.compareTo(a.lastActivityAt);
+                          });
+                    // Your own space stays first, above pinned DMs.
+                    final visibleConversations = ownSpaceFirst(sorted, userId);
+                    if (visibleConversations.isEmpty) {
                       return Center(
                         child: Text(
                           'No recent chats',
@@ -97,10 +116,10 @@ class DmSidebarList extends ConsumerWidget {
                         type: MaterialType.transparency,
                         child: ListView.builder(
                           padding: EdgeInsets.zero,
-                          itemCount: conversations.length,
+                          itemCount: visibleConversations.length,
                           itemBuilder: (context, index) {
                             return DmListTile(
-                              conversation: conversations[index],
+                              conversation: visibleConversations[index],
                             );
                           },
                         ),
