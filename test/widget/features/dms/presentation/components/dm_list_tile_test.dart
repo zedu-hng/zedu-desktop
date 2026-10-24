@@ -177,4 +177,62 @@ void main() {
     );
     expect(find.descendant(of: sidebar, matching: material), findsOneWidget);
   });
+
+  group('DmListTile time', () {
+    DmConversation conversation({
+      List<DmPreviewThread> previewThreads = const [],
+      DateTime? lastReadAt,
+    }) {
+      return DmConversation(
+        channelId: 'channel-1',
+        username: 'Ada',
+        participantId: 'user-1',
+        previewMessage: '',
+        previewThreads: previewThreads,
+        lastReadAt: lastReadAt,
+        unreadCount: 0,
+      );
+    }
+
+    Future<void> pumpTile(WidgetTester tester, DmConversation dm) async {
+      await tester.pumpWidget(buildTileUnderTest(dm));
+    }
+
+    testWidgets('shows no time for a conversation with no activity', (
+      tester,
+    ) async {
+      await pumpTile(tester, conversation());
+
+      expect(find.text('1/1/1970'), findsNothing);
+      expect(find.textContaining('1970'), findsNothing);
+      expect(find.text('Ada'), findsOneWidget);
+    });
+
+    testWidgets('shows the date of the last message', (tester) async {
+      await pumpTile(
+        tester,
+        conversation(
+          previewThreads: [
+            DmPreviewThread(
+              threadId: 'thread-1',
+              message: 'Hello',
+              userId: 'user-1',
+              username: 'Ada',
+              createdAt: DateTime(2026, 3, 5, 9, 30),
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('5/3/2026'), findsOneWidget);
+    });
+
+    testWidgets('shows the last read date when there are no messages', (
+      tester,
+    ) async {
+      await pumpTile(tester, conversation(lastReadAt: DateTime(2026, 4, 2)));
+
+      expect(find.text('2/4/2026'), findsOneWidget);
+    });
+  });
 }

@@ -148,7 +148,7 @@ class WorkspaceSwitcherList extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  '${workspace.membersCount} members',
+                  workspace.channelsLabel,
                   style: TextStyle(color: colors.textHint, fontSize: 13),
                 ),
               ],
