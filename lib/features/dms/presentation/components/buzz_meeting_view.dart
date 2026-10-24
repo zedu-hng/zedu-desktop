@@ -256,7 +256,11 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                 _buildControlButton(
                   icon: Icons.screen_share_outlined,
                   color: colors.primary.withValues(alpha: 0.2),
-                  onTap: () {},
+                  onTap: () => AppToastService.show(
+                    context,
+                    type: AppToastType.info,
+                    message: 'Screen sharing is not available yet.',
+                  ),
                   small: false,
                 ),
                 const SizedBox(width: 16),
