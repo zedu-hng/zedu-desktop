@@ -82,24 +82,51 @@ void main() {
     });
 
     test(
-      'returns Success<List<SearchResultItem>> when API returns search results',
+      'calls zedu-be search route and maps each message to a result',
       () async {
+        // Shaped like zedu-be's GET /search/organisation/:orgId response.
         final mockData = {
           'status': 'success',
           'data': [
             {
-              'id': 'msg_001',
-              'content': 'Found discussion about flutter desktop',
-              'author': {'name': 'Faith Dombe'},
-              'channel_name': 'desktop-dev',
-              'conversation_id': 'chan_1',
+              'user': {
+                'user_id': 'u-faith',
+                'user_name': 'Faith Dombe',
+                'avatar_url': 'https://example.com/faith.png',
+              },
+              'channel': {
+                'channel_id': 'chan_1',
+                'channel_name': 'desktop-dev',
+              },
+              'messages': [
+                {
+                  'message_id': 'msg_001',
+                  'message': 'Found discussion about flutter desktop',
+                  'timestamp': '2026-10-20T10:00:00Z',
+                },
+                {
+                  'message_id': 'msg_002',
+                  'message': 'More on the desktop search panel',
+                  'timestamp': '2026-10-20T11:00:00Z',
+                },
+              ],
+              'thread': null,
             },
             {
-              'id': 'msg_002',
-              'content': 'Bug report for search panel',
-              'author': {'name': 'Mark Essien'},
-              'channel_name': 'general',
-              'conversation_id': 'chan_2',
+              'user': {
+                'user_id': 'u-mark',
+                'user_name': 'Mark Essien',
+                'avatar_url': '',
+              },
+              'channel': {'channel_id': 'chan_2', 'channel_name': 'general'},
+              'messages': [
+                {
+                  'message_id': 'msg_003',
+                  'message': 'Bug report for desktop search',
+                  'timestamp': '2026-10-21T09:30:00Z',
+                },
+              ],
+              'thread': null,
             },
           ],
         };
@@ -116,16 +143,54 @@ void main() {
         final result = await repository.search(
           query: 'desktop',
           orgId: 'org_123',
+          category: 'message',
         );
+
+        final captured = verify(
+          () => mockApiService.get<Map<String, dynamic>>(
+            path: captureAny(named: 'path'),
+            queryParameters: captureAny(named: 'queryParameters'),
+          ),
+        ).captured;
+        expect(captured[0], '/search/organisation/org_123');
+        expect(captured[1], {'query': 'desktop'});
 
         expect(result, isA<Success<List<SearchResultItem>>>());
         final list = (result as Success<List<SearchResultItem>>).value;
-        expect(list.length, 2);
-        expect(list[0].id, 'msg_001');
-        expect(list[0].authorName, 'Faith Dombe');
-        expect(list[1].authorName, 'Mark Essien');
+        expect(list.map((item) => item.id), ['msg_001', 'msg_002', 'msg_003']);
+
+        final first = list[0];
+        expect(first.content, 'Found discussion about flutter desktop');
+        expect(first.authorName, 'Faith Dombe');
+        expect(first.authorAvatar, 'https://example.com/faith.png');
+        expect(first.timestamp, '2026-10-20T10:00:00Z');
+        expect(first.conversationId, 'chan_1');
+        expect(first.conversationTitle, 'desktop-dev');
+
+        expect(list[2].authorName, 'Mark Essien');
+        expect(list[2].authorAvatar, isNull);
+        expect(list[2].conversationTitle, 'general');
       },
     );
+
+    test('returns an empty list when nothing matches', () async {
+      when(
+        () => mockApiService.get<Map<String, dynamic>>(
+          path: any(named: 'path'),
+          queryParameters: any(named: 'queryParameters'),
+        ),
+      ).thenAnswer(
+        (_) async => ApiResponseModel(
+          data: {'status': 'success', 'data': <dynamic>[]},
+          statusCode: 200,
+        ),
+      );
+
+      final result = await repository.search(query: 'nothing', orgId: 'org_123');
+
+      expect(result, isA<Success<List<SearchResultItem>>>());
+      expect((result as Success<List<SearchResultItem>>).value, isEmpty);
+    });
 
     test('returns Failure when API request throws ApiFailure', () async {
       when(
