@@ -186,7 +186,10 @@ void main() {
         ),
       );
 
-      final result = await repository.search(query: 'nothing', orgId: 'org_123');
+      final result = await repository.search(
+        query: 'nothing',
+        orgId: 'org_123',
+      );
 
       expect(result, isA<Success<List<SearchResultItem>>>());
       expect((result as Success<List<SearchResultItem>>).value, isEmpty);
