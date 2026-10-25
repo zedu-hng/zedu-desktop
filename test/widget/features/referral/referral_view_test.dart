@@ -25,7 +25,7 @@ Widget buildReferralViewUnderTest({FakeAuthNotifier? notifier}) {
 
 void main() {
   group('ReferralView', () {
-    testWidgets('renders title, hero banner, stats, and how it works', (
+    testWidgets('shows a coming soon state with the title and balance', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(1440, 1024));
@@ -34,45 +34,35 @@ void main() {
       await tester.pumpWidget(buildReferralViewUnderTest());
       await tester.pump();
 
-      // Top bar title
       expect(find.text('Referrals & Rewards'), findsOneWidget);
-
-      // Hero banner
-      expect(find.text('Invite Friends, Earn 50 Credits'), findsOneWidget);
-      expect(find.text('Copy Link'), findsOneWidget);
-
-      // Stats
-      expect(find.text('Total Invited'), findsOneWidget);
-      expect(find.text('Successful Signups'), findsOneWidget);
-      expect(find.text('Credits Earned'), findsOneWidget);
-
-      // How it works
-      expect(find.text('How Referrals Work'), findsOneWidget);
-      expect(find.text('Share your link'), findsOneWidget);
-      expect(find.text('They join Zedu'), findsOneWidget);
-      expect(find.text('Get rewarded'), findsOneWidget);
-
-      // Empty state
-      expect(find.text('No Referrals Yet'), findsOneWidget);
+      expect(find.text('0 Credits'), findsOneWidget);
+      expect(find.text('Referrals are coming soon'), findsOneWidget);
+      expect(find.textContaining('invite teammates to Zedu'), findsOneWidget);
     });
 
-    testWidgets('tapping copy link triggers toast notification', (
-      tester,
-    ) async {
+    testWidgets('offers no referral link or credit promise', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 1024));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       await tester.pumpWidget(buildReferralViewUnderTest());
       await tester.pump();
 
-      final copyButton = find.text('Copy Link');
-      expect(copyButton, findsOneWidget);
+      expect(find.text('Copy Link'), findsNothing);
+      expect(find.textContaining('zedu.chat/join'), findsNothing);
+      expect(find.textContaining('50 Credits'), findsNothing);
+      expect(find.textContaining('earn'), findsNothing);
+      expect(find.text('Total Invited'), findsNothing);
+    });
 
-      await tester.tap(copyButton);
+    testWidgets('fits a small window without overflowing', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(640, 480));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(buildReferralViewUnderTest());
       await tester.pump();
 
-      expect(find.text('Referral link copied to clipboard!'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 5));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Referrals are coming soon'), findsOneWidget);
     });
   });
 }
