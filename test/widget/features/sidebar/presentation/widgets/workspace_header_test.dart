@@ -1,5 +1,6 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
+
 import '../../../../../helpers/helpers.dart';
 
 class FakeWorkspaceNotifier extends WorkspaceNotifier {
@@ -7,7 +8,7 @@ class FakeWorkspaceNotifier extends WorkspaceNotifier {
     id: '1',
     name: 'commabuster',
     avatar: '',
-    membersCount: 12,
+    channelsCount: 12,
   );
 
   @override

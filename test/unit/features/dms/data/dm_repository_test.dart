@@ -87,6 +87,72 @@ void main() {
     });
   });
 
+  group('DmRepository thread id', () {
+    void stubSend(Map<String, dynamic> data) {
+      when(
+        () => api.post<Map<String, dynamic>>(
+          path: '/dms/channels/ch-1/threads',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            ApiResponseModel<Map<String, dynamic>>(statusCode: 201, data: data),
+      );
+    }
+
+    test(
+      'returns the thread id the server created, not the one sent',
+      () async {
+        stubSend({
+          'data': {'thread_id': 'server-thread'},
+        });
+
+        final threadId = await repository.sendMessage('ch-1', 'hello');
+
+        expect(threadId, 'server-thread');
+      },
+    );
+
+    test('falls back to the id it sent when the reply has none', () async {
+      stubSend({});
+
+      final threadId = await repository.sendMessage('ch-1', 'hello');
+
+      final captured =
+          verify(
+                () => api.post<Map<String, dynamic>>(
+                  path: '/dms/channels/ch-1/threads',
+                  data: captureAny(named: 'data'),
+                ),
+              ).captured.single
+              as Map<String, dynamic>;
+      expect(threadId, captured['thread_id']);
+    });
+  });
+
+  group('DmRepository.deleteMessage', () {
+    test('deletes through the DM route', () async {
+      when(
+        () => api.delete<Map<String, dynamic>>(
+          path: '/dms/thread/thread-1/channels/ch-1',
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {},
+        ),
+      );
+
+      await repository.deleteMessage(threadId: 'thread-1', channelId: 'ch-1');
+
+      verify(
+        () => api.delete<Map<String, dynamic>>(
+          path: '/dms/thread/thread-1/channels/ch-1',
+        ),
+      ).called(1);
+    });
+  });
+
   group('DmRepository.openConversation', () {
     test('returns the channel and participant ids', () async {
       when(
