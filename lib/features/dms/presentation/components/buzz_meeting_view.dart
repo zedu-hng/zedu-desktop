@@ -70,7 +70,7 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                             ),
                           ),
                           Text(
-                            '2 participant',
+                            '2 participants',
                             style: TextStyle(
                               fontSize: 11,
                               color: colors.textHint,
@@ -193,7 +193,7 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                 Icon(Icons.people_outline, size: 16, color: colors.textHint),
                 const SizedBox(width: 4),
                 Text(
-                  '2 participant',
+                  '2 participants',
                   style: TextStyle(fontSize: 13, color: colors.textHint),
                 ),
                 const Spacer(),
