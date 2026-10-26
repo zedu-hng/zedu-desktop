@@ -30,7 +30,9 @@ class ProfileSettingsShell extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            _ProfileTopBar(userName: userName),
+            _ProfileTopBar(
+              userName: topBarChipName(authState.user, fallback: userName),
+            ),
             Expanded(
               child: Row(
                 children: [
@@ -292,4 +294,12 @@ class _NavigationTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The name the top bar chip shows: the signed-in user's full name, as on
+/// Home and Buy credits, so every screen shows the same initials. Falls back
+/// to [fallback] when the full name is empty.
+String topBarChipName(User? user, {required String fallback}) {
+  final fullname = user?.fullname.trim() ?? '';
+  return fullname.isNotEmpty ? fullname : fallback;
 }

@@ -18,6 +18,28 @@ class FakeSecureStorageService extends Fake implements SecureStorageService {
   Future<void> deleteValue(String key) async => _values.remove(key);
 }
 
+final _me = User(
+  id: 'me',
+  firstName: 'Jennifer',
+  lastName: 'Amanze',
+  email: 'jenie@z.com',
+  phone: '',
+  username: 'Jenie',
+  isVerified: true,
+  isOnboarded: true,
+  createdAt: DateTime(2026, 1, 1),
+  currentOrg: 'org-1',
+  currentOrganisationSlug: 'hng',
+  avatarUrl: '',
+  defaultAvatarUrl: '',
+);
+
+/// Signs in [_me], so widgets that check for your own space can render.
+class _FakeAuthNotifier extends AuthNotifier {
+  @override
+  AuthState build() => AuthState(status: AuthStatus.authenticated, user: _me);
+}
+
 class FakeSelectedDmNotifier extends SelectedDmNotifier {
   FakeSelectedDmNotifier(this._initial);
 
@@ -44,13 +66,14 @@ class FakeDmListNotifier extends DmListNotifier {
 DmConversation buildConversation({
   String channelId = 'channel-1',
   String username = 'Ada Okafor',
+  String? participantId,
   String previewMessage = 'See you at standup',
   int unreadCount = 0,
 }) {
   return DmConversation(
     channelId: channelId,
     username: username,
-    participantId: 'user-$channelId',
+    participantId: participantId ?? 'user-$channelId',
     previewMessage: previewMessage,
     unreadCount: unreadCount,
   );
@@ -63,6 +86,7 @@ Widget buildTileUnderTest(
   return ProviderScope(
     overrides: [
       selectedDmProvider.overrideWith(() => FakeSelectedDmNotifier(selected)),
+      authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
       dmDraftStoreProvider.overrideWith(
         (ref) => DmDraftStore(
           FakeSecureStorageService(),
@@ -153,6 +177,7 @@ void main() {
       ProviderScope(
         overrides: [
           workspaceProvider.overrideWith(FakeWorkspaceNotifier.new),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
           dmDraftStoreProvider.overrideWith(
             (ref) => DmDraftStore(
               FakeSecureStorageService(),
@@ -176,5 +201,35 @@ void main() {
       (w) => w is Container && w.color == _palette.sidebar,
     );
     expect(find.descendant(of: sidebar, matching: material), findsOneWidget);
+  });
+
+  group('DmListTile own space', () {
+    testWidgets('labels your own space "(you)" with "Your notes and drafts"', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTileUnderTest(
+          buildConversation(username: 'Jenie', participantId: 'me'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Jenie (you)'), findsOneWidget);
+      expect(find.text('Your notes and drafts'), findsOneWidget);
+      expect(find.text('See you at standup'), findsNothing);
+    });
+
+    testWidgets('shows other DMs as before', (tester) async {
+      await tester.pumpWidget(
+        buildTileUnderTest(
+          buildConversation(username: 'Song Martins', participantId: 'u-song'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Song Martins'), findsOneWidget);
+      expect(find.text('See you at standup'), findsOneWidget);
+      expect(find.textContaining('(you)'), findsNothing);
+    });
   });
 }

@@ -24,6 +24,7 @@ class _HomeViewState extends ConsumerState<HomeView> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final showProfile = ref.watch(personalProfilePanelProvider);
+    final showSearch = ref.watch(searchPanelProvider);
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -45,6 +46,17 @@ class _HomeViewState extends ConsumerState<HomeView> {
                           top: 0,
                           bottom: 0,
                           child: PersonalProfilePanel(),
+                        ),
+                      if (showSearch)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: SearchPanel(
+                            onClose: () =>
+                                ref.read(searchPanelProvider.notifier).state =
+                                    false,
+                          ),
                         ),
                     ],
                   ),
@@ -86,30 +98,36 @@ class _HomeAppBar extends ConsumerWidget {
           TopUserMenu(userName: userName),
           const Spacer(),
           Flexible(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
-              height: 28,
-              decoration: BoxDecoration(
-                color: colors.onPrimary.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.search,
-                    color: colors.onPrimary.withValues(alpha: 0.7),
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Search messages...',
-                    style: TextStyle(
+            child: InkWell(
+              onTap: () {
+                ref.read(searchPanelProvider.notifier).state = true;
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 400),
+                height: 28,
+                decoration: BoxDecoration(
+                  color: colors.onPrimary.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.search,
                       color: colors.onPrimary.withValues(alpha: 0.7),
-                      fontSize: 13,
+                      size: 18,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Text(
+                      'Search messages, channels, files...',
+                      style: TextStyle(
+                        color: colors.onPrimary.withValues(alpha: 0.7),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -140,6 +158,7 @@ class _ChatAreaSwitcher extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(homeSidebarProvider);
     final selectedDm = ref.watch(selectedDmProvider);
+    final activeChat = ref.watch(activeChatProvider);
 
     if (state == HomeSidebarType.dms) {
       if (selectedDm != null) {
@@ -147,6 +166,12 @@ class _ChatAreaSwitcher extends ConsumerWidget {
       } else {
         return const DmEmptyState();
       }
+    }
+    // A DM picked in the Home sidebar opens here, and Home stays selected.
+    if (activeChat.type == ActiveChatType.directMessage &&
+        selectedDm != null &&
+        selectedDm.channelId == activeChat.id) {
+      return DmChatArea(conversation: selectedDm);
     }
     return const HomeChatArea();
   }
@@ -221,10 +246,10 @@ class _MainSidebar extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Icon(Icons.arrow_right, color: colors.onPrimary, size: 20),
+                Icon(Icons.arrow_drop_down, color: colors.onPrimary, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'People',
+                  'Direct messages',
                   style: TextStyle(
                     color: colors.onPrimary,
                     fontWeight: FontWeight.bold,
@@ -234,6 +259,8 @@ class _MainSidebar extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 8),
+          const Flexible(child: SidebarDmList()),
         ],
       ),
     );
