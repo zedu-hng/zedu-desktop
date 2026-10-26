@@ -7,6 +7,7 @@ import 'package:zedu/features/features.dart';
 class MockDmRepository extends Mock implements DmRepository {}
 
 void main() {
+  _deleteTests();
   group('ChatHistoryNotifier.saveEdit', () {
     late MockDmRepository mockRepository;
     late ProviderContainer container;
@@ -184,6 +185,76 @@ void main() {
       await second;
 
       expect(notifier.messages.single['content'], 'hello');
+    });
+  });
+}
+
+void _deleteTests() {
+  group('ChatHistoryNotifier.deleteMessage', () {
+    late MockDmRepository mockRepository;
+    late ProviderContainer container;
+    late ChatHistoryNotifier notifier;
+
+    setUp(() async {
+      mockRepository = MockDmRepository();
+      when(
+        () => mockRepository.getMessages(any(), page: any(named: 'page')),
+      ).thenAnswer(
+        (_) async => [
+          {'id': 'm1', 'content': 'hello', 'user_id': 'u1'},
+          {'id': 'm2', 'content': 'again', 'user_id': 'u1'},
+        ],
+      );
+      container = ProviderContainer(
+        overrides: [dmRepositoryProvider.overrideWithValue(mockRepository)],
+      );
+      notifier = container.read(chatHistoryProvider('ch-1'));
+      await pumpEventQueue();
+    });
+
+    tearDown(() => container.dispose());
+
+    test('removes the message and calls the delete endpoint', () async {
+      when(
+        () => mockRepository.deleteMessage(
+          threadId: any(named: 'threadId'),
+          channelId: any(named: 'channelId'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await notifier.deleteMessage('m1');
+
+      expect(notifier.messages.map((m) => m['id']), ['m2']);
+      verify(
+        () => mockRepository.deleteMessage(threadId: 'm1', channelId: 'ch-1'),
+      ).called(1);
+    });
+
+    test('does not bring a deleted message back when polling', () async {
+      when(
+        () => mockRepository.deleteMessage(
+          threadId: any(named: 'threadId'),
+          channelId: any(named: 'channelId'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await notifier.deleteMessage('m1');
+      await notifier.loadMore();
+
+      expect(notifier.messages.map((m) => m['id']), isNot(contains('m1')));
+    });
+
+    test('puts the message back when the request fails', () async {
+      when(
+        () => mockRepository.deleteMessage(
+          threadId: any(named: 'threadId'),
+          channelId: any(named: 'channelId'),
+        ),
+      ).thenThrow(Exception('network error'));
+
+      await notifier.deleteMessage('m1');
+
+      expect(notifier.messages.map((m) => m['id']), ['m1', 'm2']);
     });
   });
 }

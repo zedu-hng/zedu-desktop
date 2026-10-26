@@ -96,7 +96,9 @@ class DmRepository {
     return (channelId: channelId, participantId: openedParticipantId);
   }
 
-  Future<void> sendMessage(
+  /// Sends a message and returns the thread id it was created with, which the
+  /// delete endpoint needs.
+  Future<String> sendMessage(
     String channelId,
     String content, {
     List<XFile>? media,
@@ -109,7 +111,10 @@ class DmRepository {
         ? await _uploadFiles(media)
         : const <Map<String, dynamic>>[];
 
-    await _apiClient.post<Map<String, dynamic>>(
+    // The server requires a thread_id; like the web app, a new message
+    // starts its own thread with a fresh UUID v7.
+    final threadId = _newUuidV7();
+    final sendResponse = await _apiClient.post<Map<String, dynamic>>(
       // A direct message is not an ordinary channel on the server: like the
       // web app, it is posted to the DM route, not /channels/:id/messages.
       path: isChannel
@@ -119,13 +124,18 @@ class DmRepository {
         // The server rejects an empty content, so a voice note or file sent
         // without text carries an empty paragraph, like the web composer.
         "content": content.isEmpty && uploaded.isNotEmpty ? '<p></p>' : content,
-        // The server requires a thread_id; like the web app, a new message
-        // starts its own thread with a fresh UUID v7.
-        "thread_id": _newUuidV7(),
+        "thread_id": threadId,
         if (uploaded.isNotEmpty) "media": uploaded,
         ...?(mentions != null ? {'mentions': mentions} : null),
       },
     );
+    // The server keeps its own id for the thread it creates, not the one sent,
+    // and the delete and edit routes need that one.
+    final created = sendResponse.data['data'];
+    final createdThreadId = created is Map ? created['thread_id'] : null;
+    return createdThreadId is String && createdThreadId.isNotEmpty
+        ? createdThreadId
+        : threadId;
   }
 
   String _newUuidV7() {
@@ -185,6 +195,18 @@ class DmRepository {
         .whereType<Map<dynamic, dynamic>>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList();
+  }
+
+  /// Deletes a message for everyone. A direct message is not an ordinary
+  /// channel on the server: like the web app, it is deleted through the DM
+  /// route, not /threads/:id/channels/:id.
+  Future<void> deleteMessage({
+    required String threadId,
+    required String channelId,
+  }) async {
+    await _apiClient.delete<Map<String, dynamic>>(
+      path: '/dms/thread/$threadId/channels/$channelId',
+    );
   }
 
   Future<void> editMessage(
