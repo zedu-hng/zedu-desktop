@@ -267,6 +267,9 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
                                     message: msg,
                                     conversation: widget.conversation,
                                     channelId: widget.conversation.channelId,
+                                    onEdit: (id, text) => _composerKey
+                                        .currentState
+                                        ?.enterEditMode(id, text),
                                   );
                                 }, childCount: messages.length),
                               ),
@@ -662,11 +665,13 @@ class _MessageBubble extends ConsumerWidget {
   final Map<String, dynamic> message;
   final DmConversation conversation;
   final String channelId;
+  final void Function(String messageId, String content) onEdit;
 
   const _MessageBubble({
     required this.message,
     required this.conversation,
     required this.channelId,
+    required this.onEdit,
   });
 
   TextSpan _parseRichText(String text, TextStyle defaultStyle) {
@@ -801,6 +806,35 @@ class _MessageBubble extends ConsumerWidget {
     );
   }
 
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    String messageId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete message?'),
+        content: const Text(
+          'This deletes the message for everyone and cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(chatHistoryProvider(channelId)).deleteMessage(messageId);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
@@ -896,29 +930,47 @@ class _MessageBubble extends ConsumerWidget {
                   ),
                 ),
                 if (content.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isMe
-                          ? colors.primary
-                          : colors.onPrimary.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: _buildMessageText(
-                      content,
-                      TextStyle(
-                        color: isMe ? Colors.white : colors.textPrimary,
-                        fontSize: 14,
+                  _OwnMessageMenu(
+                    enabled: isMe && status == null,
+                    onEdit: () => onEdit(messageId, rawContent),
+                    onDelete: () => _confirmDelete(context, ref, messageId),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isMe
+                            ? colors.primary
+                            : colors.onPrimary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: _buildMessageText(
+                        content,
+                        TextStyle(
+                          color: isMe ? Colors.white : colors.textPrimary,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
                 if (media.isNotEmpty)
                   Padding(
                     padding: EdgeInsets.only(top: content.isNotEmpty ? 8 : 0),
-                    child: _AttachmentBubbleList(media: media, isMe: isMe),
+                    child: content.isNotEmpty
+                        ? _AttachmentBubbleList(media: media, isMe: isMe)
+                        // No text to hang the menu on, so it goes on the
+                        // attachments (Delete only: there is nothing to edit).
+                        : _OwnMessageMenu(
+                            enabled: isMe && status == null,
+                            onEdit: null,
+                            onDelete: () =>
+                                _confirmDelete(context, ref, messageId),
+                            child: _AttachmentBubbleList(
+                              media: media,
+                              isMe: isMe,
+                            ),
+                          ),
                   ),
                 if (isMe && status != null)
                   Padding(
@@ -1091,6 +1143,72 @@ class _AttachmentBubbleList extends StatelessWidget {
 
         return _buildGenericFile(fileName, fileLink, isImage, context);
       }).toList(),
+    );
+  }
+}
+
+/// Shows a "more" button on hover, and a right-click or long-press menu, for
+/// your own messages, with Edit and Delete. The long press is for touch input,
+/// where there is no hover or right click.
+class _OwnMessageMenu extends StatefulWidget {
+  const _OwnMessageMenu({
+    required this.enabled,
+    required this.onEdit,
+    required this.onDelete,
+    required this.child,
+  });
+
+  final bool enabled;
+  final VoidCallback? onEdit;
+  final VoidCallback onDelete;
+  final Widget child;
+
+  @override
+  State<_OwnMessageMenu> createState() => _OwnMessageMenuState();
+}
+
+class _OwnMessageMenuState extends State<_OwnMessageMenu> {
+  final _menuKey = GlobalKey<PopupMenuButtonState<String>>();
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onSecondaryTap: () => _menuKey.currentState?.showButtonMenu(),
+        onLongPress: () => _menuKey.currentState?.showButtonMenu(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Opacity(
+              opacity: _hovered ? 1 : 0,
+              child: PopupMenuButton<String>(
+                key: _menuKey,
+                tooltip: 'Message actions',
+                icon: const Icon(Icons.more_horiz, size: 18),
+                onSelected: (value) =>
+                    value == 'edit' ? widget.onEdit?.call() : widget.onDelete(),
+                itemBuilder: (_) => [
+                  if (widget.onEdit != null)
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit message'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete message'),
+                  ),
+                ],
+              ),
+            ),
+            Flexible(child: widget.child),
+          ],
+        ),
+      ),
     );
   }
 }
