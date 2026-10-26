@@ -296,6 +296,11 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
     _focusNode.requestFocus();
   }
 
+  /// Puts the given message in the composer for editing, the same way the
+  /// Up-arrow shortcut does. Called from the message menu's "Edit message".
+  void enterEditMode(String messageId, String content) =>
+      _enterEditMode(messageId, content);
+
   void _enterEditMode(String messageId, String content) {
     setState(() {
       _isEditMode = true;
