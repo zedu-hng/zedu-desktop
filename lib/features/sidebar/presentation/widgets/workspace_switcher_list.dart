@@ -134,12 +134,17 @@ class WorkspaceSwitcherList extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  workspace.name,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Tooltip(
+                  message: workspace.name,
+                  child: Text(
+                    workspace.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 Text(
@@ -290,12 +295,17 @@ class _WorkspaceListItem extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                workspace.name,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                  fontSize: 14,
+              child: Tooltip(
+                message: workspace.name,
+                child: Text(
+                  workspace.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
