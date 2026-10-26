@@ -180,7 +180,7 @@ class _BuzzRailItem extends ConsumerWidget {
   }
 }
 
-class _RailNavItem extends StatelessWidget {
+class _RailNavItem extends StatefulWidget {
   const _RailNavItem({
     required this.icon,
     required this.label,
@@ -198,34 +198,47 @@ class _RailNavItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<_RailNavItem> createState() => _RailNavItemState();
+}
+
+class _RailNavItemState extends State<_RailNavItem> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final popouts = popoutType == null ? null : SidebarPopoutHost.of(context);
+    final popouts = widget.popoutType == null
+        ? null
+        : SidebarPopoutHost.of(context);
 
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       onHover: popouts == null
           ? null
-          : (hovered) => popouts.onRailHover(popoutType!, hovered),
+          : (hovered) => popouts.onRailHover(widget.popoutType!, hovered),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
         child: Column(
           children: [
-            Container(
-              key: positionKey,
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isActive
-                    ? colors.primary.withValues(alpha: 0.95)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(7),
+            MouseRegion(
+              onEnter: (_) => setState(() => _hovered = true),
+              onExit: (_) => setState(() => _hovered = false),
+              child: Container(
+                key: widget.positionKey,
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: (widget.isActive || _hovered)
+                      ? colors.primary.withValues(alpha: 0.95)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(widget.icon, color: colors.onPrimary, size: 18),
               ),
-              child: Icon(icon, color: colors.onPrimary, size: 18),
             ),
             const SizedBox(height: 4),
             Text(
-              label,
+              widget.label,
               style: TextStyle(
                 color: colors.onPrimary.withValues(alpha: 0.92),
                 fontSize: 9,
