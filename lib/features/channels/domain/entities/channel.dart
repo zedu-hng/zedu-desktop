@@ -9,6 +9,7 @@ class Channel {
   final int unreadCount;
   final int membersCount;
   final String? topic;
+  final bool isJoined;
 
   Channel({
     required this.id,
@@ -21,6 +22,7 @@ class Channel {
     this.unreadCount = 0,
     this.membersCount = 0,
     this.topic,
+    this.isJoined = false,
   });
 
   factory Channel.fromJson(Map<String, dynamic> json) {
@@ -36,6 +38,12 @@ class Channel {
       topic: json['topic'] as String?,
       unreadCount: json['unread_count'] as int? ?? 0,
       membersCount: json['members_count'] as int? ?? 0,
+      // zedu-be sends membership as `access` in the channel list.
+      isJoined:
+          json['access'] as bool? ??
+          json['is_joined'] as bool? ??
+          json['joined'] as bool? ??
+          false,
     );
   }
 
@@ -51,6 +59,7 @@ class Channel {
       'topic': topic,
       'unread_count': unreadCount,
       'members_count': membersCount,
+      'is_joined': isJoined,
     };
   }
 
@@ -65,6 +74,7 @@ class Channel {
     int? unreadCount,
     int? membersCount,
     String? topic,
+    bool? isJoined,
   }) {
     return Channel(
       id: id ?? this.id,
@@ -77,6 +87,7 @@ class Channel {
       unreadCount: unreadCount ?? this.unreadCount,
       membersCount: membersCount ?? this.membersCount,
       topic: topic ?? this.topic,
+      isJoined: isJoined ?? this.isJoined,
     );
   }
 }
