@@ -236,7 +236,7 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
                 name: result.value.name,
                 avatar: '',
                 unreadCount: 0,
-                membersCount: 1,
+                channelsCount: 0,
               ),
             );
       case Failure<OrganizationProfile>():
