@@ -11,6 +11,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
   bool isLoading = true;
   bool hasMore = true;
   int page = 1;
+  bool _isHistoryClearedLocally = false;
 
   String? editingMessageId;
   final Map<String, Future<void>> _saveEditChains = {};
@@ -101,6 +102,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
   }
 
   Future<void> _pollForNewMessages() async {
+    if (_isHistoryClearedLocally) return;
     try {
       final repository = ref.read(dmRepositoryProvider);
       final fresh = await repository.getMessages(channelId, page: 1);
@@ -127,7 +129,10 @@ class ChatHistoryNotifier extends ChangeNotifier {
         // Prepend only the genuinely new messages at the top.
         final existingIds = messages.map((m) => m['id']?.toString()).toSet();
         final newOnly = fresh
-            .where((m) => !existingIds.contains(m['id']?.toString()))
+            .where(
+              (m) =>
+                  !existingIds.contains(m['id']?.toString()) && !_isDeleted(m),
+            )
             .toList();
         if (newOnly.isNotEmpty) {
           messages = [...newOnly, ...messages];
@@ -164,7 +169,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         page: nextPage,
       );
 
-      messages = [...messages, ...newMessages];
+      messages = [...messages, ...newMessages.where((m) => !_isDeleted(m))];
       hasMore = newMessages.length >= DmRepository.pageSize;
       page = nextPage;
     } catch (_) {
@@ -195,6 +200,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
     List<dynamic>? mentions,
     bool isChannel = false,
   }) async {
+    _isHistoryClearedLocally = false;
     final tempId = DateTime.now().millisecondsSinceEpoch.toString();
     final optimisticMessage = {
       "id": tempId,
@@ -217,7 +223,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
     try {
       final repository = ref.read(dmRepositoryProvider);
-      await repository.sendMessage(
+      final threadId = await repository.sendMessage(
         channelId,
         content,
         media: media,
@@ -231,6 +237,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         if (m['id'] == tempId) {
           final newMsg = Map<String, dynamic>.from(m);
           newMsg.remove('status');
+          newMsg['thread_id'] = threadId;
           return newMsg;
         }
         return m;
@@ -264,7 +271,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
     try {
       final repository = ref.read(dmRepositoryProvider);
       final options = _sendOptions[messageId];
-      await repository.sendMessage(
+      final threadId = await repository.sendMessage(
         channelId,
         content,
         media: options?.media,
@@ -277,6 +284,7 @@ class ChatHistoryNotifier extends ChangeNotifier {
         if (m['id'] == messageId) {
           final newMsg = Map<String, dynamic>.from(m);
           newMsg.remove('status');
+          newMsg['thread_id'] = threadId;
           return newMsg;
         }
         return m;
@@ -295,6 +303,14 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
+  void clearLocalHistory() {
+    _isHistoryClearedLocally = true;
+    messages = [];
+    hasMore = false;
+    page = 1;
+    notifyListeners();
+  }
+
   void startEditing(String messageId) {
     final msg = messages.firstWhere(
       (m) => m['id'] == messageId,
@@ -309,6 +325,36 @@ class ChatHistoryNotifier extends ChangeNotifier {
   void cancelEditing() {
     editingMessageId = null;
     notifyListeners();
+  }
+
+  /// Ids of messages being deleted or already deleted, so polling and paging
+  /// do not bring them back.
+  final Set<String> _deletedIds = {};
+
+  bool _isDeleted(Map<String, dynamic> message) =>
+      _deletedIds.contains(message['id']?.toString());
+
+  /// Removes the message right away and puts it back if the request fails.
+  Future<void> deleteMessage(String messageId) async {
+    final index = messages.indexWhere((m) => m['id'] == messageId);
+    if (index == -1) return;
+
+    final removed = messages[index];
+    final threadId = (removed['thread_id'] ?? removed['id']).toString();
+    if (editingMessageId == messageId) editingMessageId = null;
+    _deletedIds.add(messageId);
+    messages = [...messages]..removeAt(index);
+    notifyListeners();
+
+    try {
+      final repository = ref.read(dmRepositoryProvider);
+      await repository.deleteMessage(threadId: threadId, channelId: channelId);
+    } catch (_) {
+      _deletedIds.remove(messageId);
+      messages = [...messages]
+        ..insert(index.clamp(0, messages.length), removed);
+      notifyListeners();
+    }
   }
 
   Future<void> saveEdit(String messageId, String newContent) {

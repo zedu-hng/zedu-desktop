@@ -134,16 +134,21 @@ class WorkspaceSwitcherList extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  workspace.name,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Tooltip(
+                  message: workspace.name,
+                  child: Text(
+                    workspace.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 Text(
-                  '${workspace.membersCount} members',
+                  workspace.channelsLabel,
                   style: TextStyle(color: colors.textHint, fontSize: 13),
                 ),
               ],
@@ -235,71 +240,70 @@ class _WorkspaceListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Tooltip(
-      message: workspace.name,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          color: isActive
-              ? colors.textPrimary.withValues(alpha: 0.05)
-              : Colors.transparent,
-          child: Row(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: _avatarColor(colors, workspace.name),
-                      borderRadius: BorderRadius.circular(6),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: isActive
+            ? colors.textPrimary.withValues(alpha: 0.05)
+            : Colors.transparent,
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _avatarColor(colors, workspace.name),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Center(
+                    child: Text(
+                      workspace.name.substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        color: colors.onPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
-                    child: Center(
+                  ),
+                ),
+                if (workspace.unreadCount > 0)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.error,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: colors.background, width: 2),
+                      ),
                       child: Text(
-                        workspace.name.substring(0, 1).toUpperCase(),
+                        '${workspace.unreadCount}',
                         style: TextStyle(
                           color: colors.onPrimary,
+                          fontSize: 8,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
                         ),
                       ),
                     ),
                   ),
-                  if (workspace.unreadCount > 0)
-                    Positioned(
-                      top: -6,
-                      right: -6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colors.error,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: colors.background,
-                            width: 2,
-                          ),
-                        ),
-                        child: Text(
-                          '${workspace.unreadCount}',
-                          style: TextStyle(
-                            color: colors.onPrimary,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Tooltip(
+                message: workspace.name,
                 child: Text(
                   workspace.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
@@ -307,15 +311,15 @@ class _WorkspaceListItem extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(
-                Icons.push_pin,
-                size: 16,
-                color: isActive
-                    ? colors.textHint.withValues(alpha: 0.75)
-                    : Colors.transparent,
-              ),
-            ],
-          ),
+            ),
+            Icon(
+              Icons.push_pin,
+              size: 16,
+              color: isActive
+                  ? colors.textHint.withValues(alpha: 0.75)
+                  : Colors.transparent,
+            ),
+          ],
         ),
       ),
     );

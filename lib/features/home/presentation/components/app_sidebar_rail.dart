@@ -202,7 +202,7 @@ class _RailNavItem extends StatefulWidget {
 }
 
 class _RailNavItemState extends State<_RailNavItem> {
-  bool _isHovered = false;
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -222,14 +222,14 @@ class _RailNavItemState extends State<_RailNavItem> {
           children: [
             MouseRegion(
               cursor: SystemMouseCursors.click,
-              onEnter: (_) => setState(() => _isHovered = true),
-              onExit: (_) => setState(() => _isHovered = false),
+              onEnter: (_) => setState(() => _hovered = true),
+              onExit: (_) => setState(() => _hovered = false),
               child: Container(
                 key: widget.positionKey,
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: widget.isActive || _isHovered
+                  color: (widget.isActive || _hovered)
                       ? colors.primary.withValues(alpha: 0.95)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(7),

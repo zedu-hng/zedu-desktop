@@ -105,11 +105,11 @@ Rules:
 
 ## Configuration
 
-Env keys are read from **dotenv** after `loadAppEnv()` in `main.dart`. The repo bundles **`.env.example`** as a Flutter asset so `flutter analyze` and first runs work on a clean clone without a local `.env`.
+Env keys are read from **dotenv** after `loadAppEnv()` in `main.dart`. The repo bundles **`.env.example`** and a local **`.env`** as Flutter assets. `.env` is gitignored, so create it from the template before you run or build.
 
-`loadAppEnv()` tries `.env` first, then `.env.example`. Only `.env.example` is listed under `flutter.assets` by default (avoids missing-asset warnings when `.env` is gitignored). If you want to package a root `.env` for a build, add `- .env` under `flutter.assets` and ensure that file exists on the machine that runs `flutter build`.
+`loadAppEnv()` tries `.env` first, then `.env.example`. Both `.env` and `.env.example` are listed under `flutter.assets` in `pubspec.yaml`, so a build fails with `No file or variants found for asset: .env` when `.env` is missing. Create `.env` from `.env.example` before `flutter run` or `flutter build`.
 
-1. Copy `.env.example` to `.env` for local overrides, or edit values in `.env.example` for experiments (avoid committing secrets).
+1. Copy `.env.example` to `.env`, then edit values in `.env` for local overrides (avoid committing secrets).
 2. Prefer CI variables or `--dart-define` for production secrets.
 
 ```txt
@@ -147,12 +147,7 @@ cd zedu-desktop
 
 ## Quick start
 
-```sh
-flutter pub get
-flutter run
-```
-
-Optional: create a local `.env` from the template.
+Create `.env` from the template first. The build needs this file.
 
 ```sh
 cp .env.example .env
@@ -163,6 +158,27 @@ Windows (PowerShell):
 ```powershell
 Copy-Item .env.example .env
 ```
+
+Then get the packages and run the app:
+
+```sh
+flutter pub get
+flutter run
+```
+
+## Running on Windows(locally)
+
+Windows needs a few extra steps on a fresh clone to run locally, including a manual fix for the Agora plugin in your Pub cache. The full guide is in [`windows-setup-locally.md`](windows-setup-locally.md).
+
+Tested with Flutter 3.47.7 and Visual Studio 2026 Community (Desktop development with C++). Run every command in PowerShell, do not run Flutter as administrator, and never commit or share your `.env` file.
+
+The guide walks from a fresh clone to a running app and covers these build errors:
+
+- `Cannot extract through symlink` from the Agora plugin
+- `No file or variants found for asset: .env`
+- `error STL1011` in `audioplayers_windows`
+- `file cannot create directory: C:/Program Files/zedu` during install
+
 
 ## Common commands
 
@@ -183,6 +199,21 @@ Tests mirror the app layout:
 - `test/widget`: views and important UI flows
 
 Mock dependencies at the layer boundary being tested.
+
+### Billing credit balance
+
+Open **Billing & Plans** to see the organization's AI credit balance. Billing
+and the user menu use the same balance provider: a loaded balance of `0` is
+displayed as zero rather than replaced with the cached account balance. The
+existing cached-account fallback remains in use during initial loading and in
+the error state.
+
+The regression tests keep a cached balance of `100`, then load `0` or `25`
+through the credits notifier and check that Billing and the user menu agree:
+
+```sh
+flutter test test/widget/features/credits/presentation/views/buy_credits_view_test.dart
+```
 
 ## Windows installer (MSIX)
 
