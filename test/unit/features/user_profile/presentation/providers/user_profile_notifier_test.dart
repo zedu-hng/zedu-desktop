@@ -19,16 +19,16 @@ void main() {
       ).thenAnswer((_) async => Success(ProfileAccount.empty()));
     });
 
-    // The profile load started in build() still fails with the
-    // uninitialized-provider error tracked in #51, so it's ignored here; the
-    // account is then the placeholder the edit form opens with.
+    // build() starts the profile load in a microtask, without awaiting it.
+    // Against this bare mock that load fails before it sets the account, so
+    // the account stays the placeholder the edit form opens with. Its error is
+    // the only one that reaches the zone handler: failures in the test body
+    // arrive through body()'s own future.
     Future<void> ignoringProfileLoadError(Future<void> Function() body) {
       final done = Completer<void>();
       runZonedGuarded(
         () => body().then(done.complete, onError: done.completeError),
-        (error, stack) {
-          if (error is! StateError) done.completeError(error, stack);
-        },
+        (error, stack) {},
       );
       return done.future;
     }

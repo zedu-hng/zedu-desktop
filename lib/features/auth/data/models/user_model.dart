@@ -109,6 +109,7 @@ class UserModel {
     id: id,
     firstName: firstName,
     lastName: lastName,
+    fullName: fullname,
     email: email,
     phone: phone,
     username: username,

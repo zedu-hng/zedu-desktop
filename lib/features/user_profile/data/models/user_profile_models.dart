@@ -35,6 +35,7 @@ class ProfileAccountModel extends ProfileAccount {
       email: json['email'] as String? ?? 'anonymoususer@email.com',
       timezone: json['timezone'] as String? ?? 'Africa/Lagos',
       avatarUrl: json['avatar_url'] as String?,
+      username: json['username'] as String? ?? '',
     );
   }
 

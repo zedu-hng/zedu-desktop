@@ -17,6 +17,27 @@ void main() {
       expect(account.initials, 'AU');
       expect(account.avatarUrl, 'https://example.com/avatar.png');
     });
+
+    test('maps username from account json', () {
+      final account = ProfileAccountModel.fromJson(const {
+        'name': 'Ada Okafor',
+        'email': 'ada@zedu.chat',
+        'timezone': 'Africa/Lagos',
+        'username': 'ada',
+      });
+
+      expect(account.username, 'ada');
+    });
+
+    test('defaults username to an empty string when absent', () {
+      final account = ProfileAccountModel.fromJson(const {
+        'name': 'Ada Okafor',
+        'email': 'ada@zedu.chat',
+        'timezone': 'Africa/Lagos',
+      });
+
+      expect(account.username, '');
+    });
   });
 
   group('NotificationPreferencesModel', () {

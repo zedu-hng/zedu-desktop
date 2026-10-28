@@ -674,86 +674,6 @@ class _MessageBubble extends ConsumerWidget {
     required this.onEdit,
   });
 
-  TextSpan _parseRichText(String text, TextStyle defaultStyle) {
-    if (text.isEmpty) return TextSpan(style: defaultStyle, text: '');
-
-    final boldRegex = RegExp(r'\*\*(.*?)\*\*', dotAll: true);
-    final italicRegex = RegExp(r'(?<!\*)\*(.*?)\*(?!\*)', dotAll: true);
-    final strikeRegex = RegExp(r'~~(.*?)~~', dotAll: true);
-    final codeRegex = RegExp(r'`(.*?)`', dotAll: true);
-
-    final allPatterns = [boldRegex, italicRegex, strikeRegex, codeRegex];
-    final combined = RegExp(
-      allPatterns.map((r) => r.pattern).join('|'),
-      dotAll: true,
-    );
-
-    final spans = <TextSpan>[];
-    int lastEnd = 0;
-
-    for (final match in combined.allMatches(text)) {
-      if (match.start > lastEnd) {
-        spans.add(
-          TextSpan(
-            text: text.substring(lastEnd, match.start),
-            style: defaultStyle,
-          ),
-        );
-      }
-
-      final raw = match.group(0)!;
-      if (boldRegex.hasMatch(raw)) {
-        final inner =
-            match.group(1) ?? boldRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(fontWeight: FontWeight.bold),
-          ),
-        );
-      } else if (strikeRegex.hasMatch(raw)) {
-        final inner = strikeRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(
-              decoration: TextDecoration.lineThrough,
-            ),
-          ),
-        );
-      } else if (codeRegex.hasMatch(raw)) {
-        final inner = codeRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(
-              fontFamily: 'monospace',
-              backgroundColor: const Color(0x1A6458F5),
-              color: const Color(0xFF6458F5),
-            ),
-          ),
-        );
-      } else if (italicRegex.hasMatch(raw)) {
-        final inner = italicRegex.firstMatch(raw)?.group(1) ?? raw;
-        spans.add(
-          TextSpan(
-            text: inner,
-            style: defaultStyle.copyWith(fontStyle: FontStyle.italic),
-          ),
-        );
-      } else {
-        spans.add(TextSpan(text: raw, style: defaultStyle));
-      }
-      lastEnd = match.end;
-    }
-
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(text: text.substring(lastEnd), style: defaultStyle));
-    }
-
-    return TextSpan(style: defaultStyle, children: spans);
-  }
-
   /// Splits [text] around Markdown thematic breaks: a line that is exactly
   /// `---` at the start of the message or after a blank line. A `---` right
   /// under a line of text is a setext heading in Markdown, so it stays text.
@@ -775,10 +695,18 @@ class _MessageBubble extends ConsumerWidget {
     return parts;
   }
 
-  Widget _buildMessageText(String content, TextStyle style) {
+  Widget _buildMessageText(
+    String content,
+    TextStyle style, {
+    required Color accentColor,
+  }) {
     final parts = _splitOnDividers(content);
     if (parts.length == 1) {
-      return RichText(text: _parseRichText(content, style));
+      return DmMessageBody(
+        content: content,
+        textStyle: style,
+        accentColor: accentColor,
+      );
     }
 
     final divider = Divider(
@@ -798,7 +726,11 @@ class _MessageBubble extends ConsumerWidget {
             for (var i = 0; i < parts.length; i++) ...[
               if (i > 0) divider,
               if (parts[i].isNotEmpty)
-                RichText(text: _parseRichText(parts[i], style)),
+                DmMessageBody(
+                  content: parts[i],
+                  textStyle: style,
+                  accentColor: accentColor,
+                ),
             ],
           ],
         ),
@@ -951,6 +883,7 @@ class _MessageBubble extends ConsumerWidget {
                           color: isMe ? Colors.white : colors.textPrimary,
                           fontSize: 14,
                         ),
+                        accentColor: colors.primary,
                       ),
                     ),
                   ),

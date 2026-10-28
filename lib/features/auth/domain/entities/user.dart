@@ -5,6 +5,7 @@ class User {
     required this.id,
     required this.firstName,
     required this.lastName,
+    this.fullName = '',
     required this.email,
     required this.phone,
     required this.username,
@@ -24,6 +25,7 @@ class User {
   final String id;
   final String firstName;
   final String lastName;
+  final String fullName;
   final String email;
   final String phone;
   final String username;
@@ -41,5 +43,6 @@ class User {
   /// Live presence and custom status for this user.
   final UserStatus status;
 
-  String get fullname => '$firstName $lastName';
+  String get fullname =>
+      fullName.trim().isNotEmpty ? fullName : '$firstName $lastName';
 }
