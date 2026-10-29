@@ -3,6 +3,60 @@ import 'package:zedu/features/features.dart';
 
 void main() {
   group('ProfileAccountModel', () {
+    test('retains saved fields from a backend profile summary', () {
+      final account = ProfileAccountModel.fromJson(const {
+        'full_name': 'Test Learner',
+        'email': 'learner@example.com',
+        'timezone': 'Africa/Lagos',
+        'display_name': 'Learner',
+        'username': 'test-learner',
+        'phone': '+2348000000000',
+        'title': 'Student',
+        'name_pronounciation': 'lear-ner',
+      });
+
+      expect(account.name, 'Test Learner');
+      expect(account.displayName, 'Learner');
+      expect(account.username, 'test-learner');
+      expect(account.phoneNumber, '+2348000000000');
+      expect(account.title, 'Student');
+      expect(account.namePronunciation, 'lear-ner');
+      expect(account.country, isEmpty);
+    });
+
+    test('preserves legacy account fields through serialization', () {
+      const json = {
+        'name': 'Test Learner',
+        'email': 'learner@example.com',
+        'timezone': 'Africa/Lagos',
+        'avatar_url': 'https://example.com/avatar.png',
+        'display_name': 'Learner',
+        'username': 'test-learner',
+        'phone_number': '+2348000000000',
+        'title': 'Student',
+        'name_pronunciation': 'lear-ner',
+        'country': 'Nigeria',
+      };
+
+      expect(ProfileAccountModel.fromJson(json).toJson(), json);
+    });
+
+    test('uses defaults when optional profile values are absent or null', () {
+      final account = ProfileAccountModel.fromJson(const {
+        'full_name': null,
+        'phone': null,
+        'name_pronounciation': null,
+      });
+
+      expect(account.name, 'Anonymous user');
+      expect(account.displayName, isEmpty);
+      expect(account.username, isEmpty);
+      expect(account.phoneNumber, isEmpty);
+      expect(account.title, isEmpty);
+      expect(account.namePronunciation, isEmpty);
+      expect(account.country, isEmpty);
+    });
+
     test('maps account json to entity fields', () {
       final account = ProfileAccountModel.fromJson(const {
         'name': 'Anonymous user',
