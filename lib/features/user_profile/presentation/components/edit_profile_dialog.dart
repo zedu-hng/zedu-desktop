@@ -193,15 +193,8 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                               controller: emailCtrl,
                               hint: 'Enter your email',
                               keyboardType: TextInputType.emailAddress,
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Email is required';
-                                }
-                                if (!v.contains('@')) {
-                                  return 'Enter a valid email';
-                                }
-                                return null;
-                              },
+                              validator: (v) =>
+                                  Validators.validateEmail(context, v),
                             ),
                             const SizedBox(height: 16),
                             AppTextField(
