@@ -55,7 +55,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
   Future<ProfileAccountModel> getAccount() async {
     if (_config.usesMockData) return ProfileAccountModel.fromJson(_account);
     final response = await _apiBaseService.get<Map<String, dynamic>>(
-      path: '/profile/account',
+      path: '/profile',
     );
     return ProfileAccountModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
