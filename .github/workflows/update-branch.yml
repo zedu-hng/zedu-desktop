@@ -3,7 +3,6 @@ name: Update branch
 # Caller: the logic lives in zedu-hng/zedu-ci (update-branch.yml), pinned by commit. This file sets the
 # triggers, concurrency and token permissions. Keep the file name: other workflows look it up.
 # Updates behind PR branches; nudges the author and leads when the token can't push to the fork.
-# Passes the zedu-ci-bot App key (org secret) so the merge commit it pushes starts workflows.
 
 on:
   schedule:
@@ -25,6 +24,4 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    uses: zedu-hng/zedu-ci/.github/workflows/update-branch.yml@18b4bea85994379bbeaa1b47810ea62ae95398bd
-    secrets:
-      ZEDU_CI_BOT_PRIVATE_KEY: ${{ secrets.ZEDU_CI_BOT_PRIVATE_KEY }}
+    uses: zedu-hng/zedu-ci/.github/workflows/update-branch.yml@4e68db81f7dc1ecfbb656308c1a9e9b718eaae0c
