@@ -418,47 +418,97 @@ class _InviteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.divider),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: colors.primaryBg,
-              borderRadius: BorderRadius.circular(8),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inviteButton = AppButton(
+          label: 'Invite teammates',
+          trailing: const Icon(Icons.arrow_forward, size: 16),
+          expand: constraints.maxWidth < 640,
+          height: 48,
+          style: ButtonStyle(
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 16),
             ),
-            child: Icon(Icons.person_add_outlined, color: colors.primary),
+            minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+            side: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.focused)) {
+                return BorderSide(color: colors.borderOutline, width: 2);
+              }
+              return null;
+            }),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Invite teammates',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+          onPressed: () {
+            showDialog<void>(
+              context: context,
+              builder: (context) => const InviteTeammatesModal(),
+            );
+          },
+        );
+
+        final invitationDetails = Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: colors.primaryBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.person_add_outlined, color: colors.primary),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bring your team into Zedu',
+                    style: context.textTheme.titleSmall?.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Add more team members to collaborate',
-                  style: TextStyle(color: colors.textHint, fontSize: 12),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Invite teammates to join #general and start collaborating.',
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ],
+        );
+
+        return Card(
+          color: colors.onPrimary,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: colors.divider),
+            borderRadius: BorderRadius.circular(12),
           ),
-          Icon(Icons.chevron_right, color: colors.textHint),
-        ],
-      ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: constraints.maxWidth < 640
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      invitationDetails,
+                      const SizedBox(height: 16),
+                      inviteButton,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: invitationDetails),
+                      const SizedBox(width: 16),
+                      inviteButton,
+                    ],
+                  ),
+          ),
+        );
+      },
     );
   }
 }
