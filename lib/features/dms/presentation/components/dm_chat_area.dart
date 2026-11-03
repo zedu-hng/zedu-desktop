@@ -464,11 +464,16 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final query = _controller.text.toLowerCase();
-    final results = widget.messages.where(
-      (message) =>
-          (message['content']?.toString() ?? '').toLowerCase().contains(query),
-    );
+    final query = _controller.text.trim().toLowerCase();
+    // Messages arrive as HTML. Search the words a person typed, not the tags:
+    // otherwise `p`, `br` or `strong` match nearly every message.
+    final plainBodies = [
+      for (final message in widget.messages)
+        MessageText.stripHtml(message['content']?.toString()),
+    ];
+    final results = <int>[
+      for (var i = 0; i < widget.messages.length; i++) i,
+    ].where((i) => plainBodies[i].toLowerCase().contains(query));
     return AlertDialog(
       title: Text('Search ${widget.displayName}'),
       content: SizedBox(
@@ -491,9 +496,9 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
                     ? const [Text('Enter a search term')]
                     : results
                           .map(
-                            (message) => ListTile(
+                            (index) => ListTile(
                               dense: true,
-                              title: Text(message['content']?.toString() ?? ''),
+                              title: Text(plainBodies[index]),
                             ),
                           )
                           .toList(),
