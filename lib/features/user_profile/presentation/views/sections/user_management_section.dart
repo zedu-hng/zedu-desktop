@@ -37,7 +37,9 @@ class _UserManagementSectionState extends State<UserManagementSection> {
     final query = _searchController.text.trim().toLowerCase();
     final filtered = widget.members.where((member) {
       final matchesQuery =
-          query.isEmpty || member.email.toLowerCase().contains(query);
+          query.isEmpty ||
+          (member.name?.toLowerCase().contains(query) ?? false) ||
+          member.email.toLowerCase().contains(query);
       final matchesRole =
           _roleFilter == 'All Roles' || member.role == _roleFilter;
       return matchesQuery && matchesRole;
