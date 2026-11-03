@@ -293,5 +293,36 @@ void main() {
       expect(find.text('hello\n---', findRichText: true), findsOneWidget);
       expect(find.byType(IntrinsicWidth), findsNothing);
     });
+
+    testWidgets('search shows plain text and ignores HTML tag names', (
+      tester,
+    ) async {
+      await pumpChat(tester, [
+        message('m1', '<p>Hello <strong>there</strong></p>'),
+        message('m2', '<p>Lunch at noon</p>'),
+      ]);
+
+      await tester.tap(find.byTooltip('More options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Search in conversation'));
+      await tester.pumpAndSettle();
+
+      final searchField = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      );
+
+      // A tag name is not a word anyone typed.
+      await tester.enterText(searchField, 'strong');
+      await tester.pump();
+      expect(find.byType(ListTile), findsNothing);
+      expect(find.text('No messages match'), findsOneWidget);
+
+      // Results show the words, not the markup around them.
+      await tester.enterText(searchField, 'hello');
+      await tester.pump();
+      expect(find.text('Hello there'), findsOneWidget);
+      expect(find.textContaining('<p>'), findsNothing);
+    });
   });
 }

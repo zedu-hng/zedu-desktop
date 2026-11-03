@@ -456,6 +456,33 @@ class _ConversationSearchDialog extends StatefulWidget {
 class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
   final _controller = TextEditingController();
 
+  /// The plain text of each message, in [widget.messages] order.
+  ///
+  /// Built once rather than in `build`: that runs on every keystroke, and
+  /// flattening the whole history per character is wasted work.
+  late List<String> _plainBodies;
+
+  /// Messages arrive as HTML. Search the words a person typed, not the tags:
+  /// otherwise `p`, `br` or `strong` match nearly every message.
+  static List<String> _stripBodies(List<Map<String, dynamic>> messages) => [
+    for (final message in messages)
+      MessageText.stripHtml(message['content']?.toString()),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _plainBodies = _stripBodies(widget.messages);
+  }
+
+  @override
+  void didUpdateWidget(_ConversationSearchDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.messages, widget.messages)) {
+      _plainBodies = _stripBodies(widget.messages);
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -464,11 +491,14 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final query = _controller.text.toLowerCase();
-    final results = widget.messages.where(
-      (message) =>
-          (message['content']?.toString() ?? '').toLowerCase().contains(query),
-    );
+    final query = _controller.text.trim().toLowerCase();
+    // An empty query has not started yet, which is not the same as no matches.
+    final results = query.isEmpty
+        ? null
+        : [
+            for (var i = 0; i < _plainBodies.length; i++)
+              if (_plainBodies[i].toLowerCase().contains(query)) i,
+          ];
     return AlertDialog(
       title: Text('Search ${widget.displayName}'),
       content: SizedBox(
@@ -487,16 +517,17 @@ class _ConversationSearchDialogState extends State<_ConversationSearchDialog> {
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                children: query.isEmpty
+                children: results == null
                     ? const [Text('Enter a search term')]
-                    : results
-                          .map(
-                            (message) => ListTile(
-                              dense: true,
-                              title: Text(message['content']?.toString() ?? ''),
-                            ),
-                          )
-                          .toList(),
+                    : results.isEmpty
+                    ? const [Text('No messages match')]
+                    : [
+                        for (final index in results)
+                          ListTile(
+                            dense: true,
+                            title: Text(_plainBodies[index]),
+                          ),
+                      ],
               ),
             ),
           ],
