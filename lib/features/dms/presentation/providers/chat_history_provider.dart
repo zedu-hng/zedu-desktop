@@ -370,12 +370,14 @@ class ChatHistoryNotifier extends ChangeNotifier {
       return;
     }
 
-    final baselineContent =
-        messages.firstWhere(
-              (m) => m['id'] == messageId,
-              orElse: () => <String, dynamic>{},
-            )['content']
-            as String?;
+    final original = messages.firstWhere(
+      (m) => m['id'] == messageId,
+      orElse: () => <String, dynamic>{},
+    );
+    final baselineContent = original['content'] as String?;
+    // Same rule as deleteMessage: a top-level message is its own thread when
+    // the server did not send a separate thread id.
+    final threadId = (original['thread_id'] ?? messageId).toString();
 
     messages = messages.map((m) {
       if (m['id'] == messageId) {
@@ -392,7 +394,12 @@ class ChatHistoryNotifier extends ChangeNotifier {
 
     try {
       final repository = ref.read(dmRepositoryProvider);
-      await repository.editMessage(channelId, content: newContent);
+      await repository.editMessage(
+        channelId,
+        messageId: messageId,
+        threadId: threadId,
+        content: newContent,
+      );
     } catch (_) {
       messages = messages.map((m) {
         if (m['id'] == messageId && m['content'] == newContent) {

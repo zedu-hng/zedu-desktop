@@ -209,10 +209,13 @@ class DmRepository {
     );
   }
 
+  /// Edits a message. The server (`EditMessageRequest`) requires both the
+  /// message's id and its thread id in the body; the channel goes in the path.
   Future<void> editMessage(
     String channelId, {
+    required String messageId,
+    required String threadId,
     required String content,
-    String? threadId,
     List<Map<String, dynamic>>? media,
     List<Map<String, dynamic>>? mentions,
   }) async {
@@ -220,7 +223,8 @@ class DmRepository {
       path: '/dms/messages/$channelId',
       data: {
         'content': content,
-        ...?(threadId != null ? {'thread_id': threadId} : null),
+        'message_id': messageId,
+        'thread_id': threadId,
         ...?(media != null ? {'media': media} : null),
         ...?(mentions != null ? {'mentions': mentions} : null),
       },

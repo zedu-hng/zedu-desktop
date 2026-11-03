@@ -36,9 +36,62 @@ void main() {
       container.dispose();
     });
 
+    test('sends the message id and its own id as thread id when the '
+        'message has no thread_id', () async {
+      when(
+        () => mockRepository.editMessage(
+          any(),
+          messageId: any(named: 'messageId'),
+          threadId: any(named: 'threadId'),
+          content: any(named: 'content'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await notifier.saveEdit('m1', 'edited');
+
+      verify(
+        () => mockRepository.editMessage(
+          'ch-1',
+          messageId: 'm1',
+          threadId: 'm1',
+          content: 'edited',
+        ),
+      ).called(1);
+    });
+
+    test('sends the message thread_id when the message has one', () async {
+      notifier.messages = [
+        {'id': 'm1', 'thread_id': 't1', 'content': 'hello', 'user_id': 'u1'},
+      ];
+      when(
+        () => mockRepository.editMessage(
+          any(),
+          messageId: any(named: 'messageId'),
+          threadId: any(named: 'threadId'),
+          content: any(named: 'content'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await notifier.saveEdit('m1', 'edited');
+
+      verify(
+        () => mockRepository.editMessage(
+          'ch-1',
+          messageId: 'm1',
+          threadId: 't1',
+          content: 'edited',
+        ),
+      ).called(1);
+    });
+
     test('keeps the new content when the edit request succeeds', () async {
       when(
-        () => mockRepository.editMessage(any(), content: any(named: 'content')),
+        () => mockRepository.editMessage(
+          any(),
+          messageId: any(named: 'messageId'),
+          threadId: any(named: 'threadId'),
+          content: any(named: 'content'),
+        ),
       ).thenAnswer((_) async {});
 
       notifier.startEditing('m1');
@@ -52,8 +105,12 @@ void main() {
       'reverts to the original content when the edit request fails',
       () async {
         when(
-          () =>
-              mockRepository.editMessage(any(), content: any(named: 'content')),
+          () => mockRepository.editMessage(
+            any(),
+            messageId: any(named: 'messageId'),
+            threadId: any(named: 'threadId'),
+            content: any(named: 'content'),
+          ),
         ).thenThrow(Exception('network error'));
 
         notifier.startEditing('m1');
@@ -68,8 +125,12 @@ void main() {
       'reverts to null content when the edited message had no content',
       () async {
         when(
-          () =>
-              mockRepository.editMessage(any(), content: any(named: 'content')),
+          () => mockRepository.editMessage(
+            any(),
+            messageId: any(named: 'messageId'),
+            threadId: any(named: 'threadId'),
+            content: any(named: 'content'),
+          ),
         ).thenThrow(Exception('network error'));
 
         notifier.messages = [
@@ -90,8 +151,12 @@ void main() {
         final firstRequest = Completer<void>();
         var callCount = 0;
         when(
-          () =>
-              mockRepository.editMessage(any(), content: any(named: 'content')),
+          () => mockRepository.editMessage(
+            any(),
+            messageId: any(named: 'messageId'),
+            threadId: any(named: 'threadId'),
+            content: any(named: 'content'),
+          ),
         ).thenAnswer((_) {
           callCount++;
           if (callCount == 1) return firstRequest.future;
@@ -117,8 +182,12 @@ void main() {
         final firstRequest = Completer<void>();
         var callCount = 0;
         when(
-          () =>
-              mockRepository.editMessage(any(), content: any(named: 'content')),
+          () => mockRepository.editMessage(
+            any(),
+            messageId: any(named: 'messageId'),
+            threadId: any(named: 'threadId'),
+            content: any(named: 'content'),
+          ),
         ).thenAnswer((_) {
           callCount++;
           if (callCount == 1) return firstRequest.future;
@@ -144,8 +213,12 @@ void main() {
         final firstRequest = Completer<void>();
         var callCount = 0;
         when(
-          () =>
-              mockRepository.editMessage(any(), content: any(named: 'content')),
+          () => mockRepository.editMessage(
+            any(),
+            messageId: any(named: 'messageId'),
+            threadId: any(named: 'threadId'),
+            content: any(named: 'content'),
+          ),
         ).thenAnswer((_) {
           callCount++;
           if (callCount == 1) return firstRequest.future;
@@ -173,7 +246,12 @@ void main() {
 
     test('reverts when two overlapping edits both fail', () async {
       when(
-        () => mockRepository.editMessage(any(), content: any(named: 'content')),
+        () => mockRepository.editMessage(
+          any(),
+          messageId: any(named: 'messageId'),
+          threadId: any(named: 'threadId'),
+          content: any(named: 'content'),
+        ),
       ).thenThrow(Exception('network error'));
 
       notifier.startEditing('m1');
