@@ -52,15 +52,31 @@ class MessageText {
     return text.trim();
   }
 
+  /// The largest value a Unicode code point can take.
+  static const int _maxCodePoint = 0x10FFFF;
+
   static String _decode(String entity) {
     if (entity.startsWith('#x') || entity.startsWith('#X')) {
-      final code = int.tryParse(entity.substring(2), radix: 16);
-      return code == null ? '&$entity;' : String.fromCharCode(code);
+      return _decodeCodePoint(
+        int.tryParse(entity.substring(2), radix: 16),
+        entity,
+      );
     }
     if (entity.startsWith('#')) {
-      final code = int.tryParse(entity.substring(1));
-      return code == null ? '&$entity;' : String.fromCharCode(code);
+      return _decodeCodePoint(int.tryParse(entity.substring(1)), entity);
     }
     return _namedEntities[entity.toLowerCase()] ?? '&$entity;';
+  }
+
+  /// Decodes [codePoint], or keeps the entity as written when it is not one.
+  ///
+  /// Senders put arbitrary text in a message body, and `String.fromCharCode`
+  /// throws above the Unicode range, so a bad entity must stay literal rather
+  /// than take the caller down with it.
+  static String _decodeCodePoint(int? codePoint, String entity) {
+    if (codePoint == null || codePoint < 0 || codePoint > _maxCodePoint) {
+      return '&$entity;';
+    }
+    return String.fromCharCode(codePoint);
   }
 }

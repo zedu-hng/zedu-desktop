@@ -42,6 +42,15 @@ void main() {
       expect(MessageText.stripHtml('a &bogus; b'), 'a &bogus; b');
     });
 
+    test('an out-of-range code point stays literal instead of throwing', () {
+      // Message HTML is whatever a sender posted, so a bad entity must not
+      // take the search dialog down.
+      expect(
+        MessageText.stripHtml('&#99999999; and &#x110000;'),
+        '&#99999999; and &#x110000;',
+      );
+    });
+
     test('collapses the blank lines markup leaves behind', () {
       expect(MessageText.stripHtml('<p>a</p><p></p><p></p><p>b</p>'), 'a\n\nb');
     });
