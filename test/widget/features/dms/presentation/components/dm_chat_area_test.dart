@@ -316,6 +316,7 @@ void main() {
       await tester.enterText(searchField, 'strong');
       await tester.pump();
       expect(find.byType(ListTile), findsNothing);
+      expect(find.text('No messages match'), findsOneWidget);
 
       // Results show the words, not the markup around them.
       await tester.enterText(searchField, 'hello');
