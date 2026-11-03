@@ -327,41 +327,45 @@ void main() {
   });
 
   group('long drafts stay bounded', () {
-    testWidgets('the field is one line tall until it needs more, capped at 8', (
+    composerTest('the field starts one line tall and is capped', (
       tester,
+      field,
     ) async {
-      final field = await pumpComposer(tester);
-
+      // `maxLines: null` grew the box with the draft; the cap is the fix.
       expect(field.minLines, 1);
       expect(field.maxLines, 8);
-
-      field.controller!.clear();
-      await tester.pump(const Duration(milliseconds: 300));
     });
 
-    testWidgets('a 60-line draft scrolls inside the box instead of growing', (
+    composerTest('a draft past the cap stops making the box taller', (
       tester,
+      field,
     ) async {
-      await pumpComposer(tester);
+      const line = 'a long draft line';
 
-      await tester.enterText(find.byType(TextField), 'one line');
-      await tester.pump();
+      await typeAndPlaceCursorAtEnd(tester, field, 'one line');
       final shortHeight = tester.getSize(find.byType(TextField)).height;
 
-      await tester.enterText(
-        find.byType(TextField),
-        List<String>.filled(60, 'a long draft line').join('\n'),
+      await typeAndPlaceCursorAtEnd(
+        tester,
+        field,
+        List<String>.filled(60, line).join('\n'),
       );
-      await tester.pump();
-      final longHeight = tester.getSize(find.byType(TextField)).height;
+      final cappedHeight = tester.getSize(find.byType(TextField)).height;
 
-      // It grows to show the draft, ...
-      expect(longHeight, greaterThan(shortHeight));
-      // ... but stops at the cap, so the history and the Send button stay put.
-      expect(longHeight, lessThanOrEqualTo(180));
+      // The invariant only depends on the cap existing, not on the exact
+      // line height: more text must not make the field any taller.
+      await typeAndPlaceCursorAtEnd(
+        tester,
+        field,
+        List<String>.filled(200, line).join('\n'),
+      );
+      final hugeHeight = tester.getSize(find.byType(TextField)).height;
 
-      tester.widget<TextField>(find.byType(TextField)).controller!.clear();
-      await tester.pump(const Duration(milliseconds: 300));
+      // It still grows enough to read a few lines...
+      expect(cappedHeight, greaterThan(shortHeight));
+      // ...but stops at the cap, so the history and the Send button stay put.
+      expect(hugeHeight, cappedHeight);
+      expect(cappedHeight, lessThan(320));
     });
   });
 }
