@@ -214,9 +214,12 @@ class _TimeSelect extends StatelessWidget {
         ProfileFieldLabel(label),
         const SizedBox(height: 6),
         SizedBox(
-          width: 140,
+          width: 160,
           child: DropdownButtonFormField<String>(
             initialValue: value,
+            // Let the selected time use the field's full width and ellipsize
+            // rather than overflow its box.
+            isExpanded: true,
             decoration: InputDecoration(
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
@@ -246,7 +249,10 @@ class _TimeSelect extends StatelessWidget {
               color: const Color(0xFF111827),
             ),
             items: timeOptions.map((time) {
-              return DropdownMenuItem<String>(value: time, child: Text(time));
+              return DropdownMenuItem<String>(
+                value: time,
+                child: Text(time, maxLines: 1, overflow: TextOverflow.ellipsis),
+              );
             }).toList(),
             onChanged: (newValue) {
               if (newValue != null) {
