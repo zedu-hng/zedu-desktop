@@ -946,8 +946,11 @@ class DmMessageComposerState extends ConsumerState<DmMessageComposer> {
                     child: TextField(
                       controller: _controller,
                       focusNode: _focusNode,
-                      maxLines: null,
+                      // A long draft scrolls inside the box instead of growing
+                      // over the conversation: an unbounded field can push the
+                      // history and the Send button off screen.
                       minLines: 1,
+                      maxLines: 8,
                       decoration: InputDecoration(
                         hintText: _isEditMode
                             ? 'Editing message…'

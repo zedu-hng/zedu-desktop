@@ -325,4 +325,43 @@ void main() {
       expect(controller.selection, const TextSelection.collapsed(offset: 5));
     });
   });
+
+  group('long drafts stay bounded', () {
+    testWidgets('the field is one line tall until it needs more, capped at 8', (
+      tester,
+    ) async {
+      final field = await pumpComposer(tester);
+
+      expect(field.minLines, 1);
+      expect(field.maxLines, 8);
+
+      field.controller!.clear();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+
+    testWidgets('a 60-line draft scrolls inside the box instead of growing', (
+      tester,
+    ) async {
+      await pumpComposer(tester);
+
+      await tester.enterText(find.byType(TextField), 'one line');
+      await tester.pump();
+      final shortHeight = tester.getSize(find.byType(TextField)).height;
+
+      await tester.enterText(
+        find.byType(TextField),
+        List<String>.filled(60, 'a long draft line').join('\n'),
+      );
+      await tester.pump();
+      final longHeight = tester.getSize(find.byType(TextField)).height;
+
+      // It grows to show the draft, ...
+      expect(longHeight, greaterThan(shortHeight));
+      // ... but stops at the cap, so the history and the Send button stay put.
+      expect(longHeight, lessThanOrEqualTo(180));
+
+      tester.widget<TextField>(find.byType(TextField)).controller!.clear();
+      await tester.pump(const Duration(milliseconds: 300));
+    });
+  });
 }
