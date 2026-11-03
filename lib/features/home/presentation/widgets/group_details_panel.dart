@@ -30,9 +30,36 @@ class _GroupDetailsPanelState extends State<GroupDetailsPanel> {
   }
 
   @override
+  void didUpdateWidget(covariant GroupDetailsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.group.id != widget.group.id) {
+      // A different group: drop any half-typed rename from the old one.
+      _isEditingName = false;
+      _nameController.text = widget.group.name;
+    } else if (!_isEditingName && oldWidget.group.name != widget.group.name) {
+      // Same group renamed elsewhere; never overwrite what the user is typing.
+      _nameController.text = widget.group.name;
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  /// The member's display name, falling back to their email when the name is
+  /// missing or blank.
+  static String _displayName(TeamMember member) {
+    final name = member.name?.trim() ?? '';
+    return name.isNotEmpty ? name : member.email;
+  }
+
+  /// First character (grapheme) of the display name, or '?' when there is
+  /// nothing to show. Never indexes an empty string.
+  static String _initial(TeamMember member) {
+    final label = _displayName(member).trim();
+    return label.isEmpty ? '?' : label.characters.first.toUpperCase();
   }
 
   void _saveName() {
@@ -152,7 +179,7 @@ class _GroupDetailsPanelState extends State<GroupDetailsPanel> {
                             alpha: 0.1,
                           ),
                           child: Text(
-                            (member.name ?? member.email)[0],
+                            _initial(member),
                             style: TextStyle(
                               fontSize: 12,
                               color: colors.primary,
@@ -161,7 +188,7 @@ class _GroupDetailsPanelState extends State<GroupDetailsPanel> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          member.name ?? member.email,
+                          _displayName(member),
                           style: TextStyle(color: colors.textPrimary),
                         ),
                       ],
