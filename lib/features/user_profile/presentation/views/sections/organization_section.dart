@@ -103,8 +103,8 @@ class OrganizationSection extends StatelessWidget {
               expand: false,
               height: 44,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFEF4444),
-                side: const BorderSide(color: Color(0xFFEF4444)),
+                foregroundColor: context.colors.error,
+                side: BorderSide(color: context.colors.error),
                 padding: const EdgeInsets.symmetric(horizontal: 18),
               ),
               loading: isSaving,
