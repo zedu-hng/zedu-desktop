@@ -325,4 +325,47 @@ void main() {
       expect(controller.selection, const TextSelection.collapsed(offset: 5));
     });
   });
+
+  group('long drafts stay bounded', () {
+    composerTest('the field starts one line tall and is capped', (
+      tester,
+      field,
+    ) async {
+      // `maxLines: null` grew the box with the draft; the cap is the fix.
+      expect(field.minLines, 1);
+      expect(field.maxLines, 8);
+    });
+
+    composerTest('a draft past the cap stops making the box taller', (
+      tester,
+      field,
+    ) async {
+      const line = 'a long draft line';
+
+      await typeAndPlaceCursorAtEnd(tester, field, 'one line');
+      final shortHeight = tester.getSize(find.byType(TextField)).height;
+
+      await typeAndPlaceCursorAtEnd(
+        tester,
+        field,
+        List<String>.filled(60, line).join('\n'),
+      );
+      final cappedHeight = tester.getSize(find.byType(TextField)).height;
+
+      // The invariant only depends on the cap existing, not on the exact
+      // line height: more text must not make the field any taller.
+      await typeAndPlaceCursorAtEnd(
+        tester,
+        field,
+        List<String>.filled(200, line).join('\n'),
+      );
+      final hugeHeight = tester.getSize(find.byType(TextField)).height;
+
+      // It still grows enough to read a few lines...
+      expect(cappedHeight, greaterThan(shortHeight));
+      // ...but stops at the cap, so the history and the Send button stay put.
+      expect(hugeHeight, cappedHeight);
+      expect(cappedHeight, lessThan(320));
+    });
+  });
 }
