@@ -15,6 +15,12 @@ class _SearchPanelState extends State<SearchPanel> {
   List<String> _results = [];
   bool _isSearching = false;
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _performSearch(String query) {
     if (query.isEmpty) {
       setState(() {
