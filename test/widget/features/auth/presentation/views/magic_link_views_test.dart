@@ -6,18 +6,31 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class FakeMagicLinkNotifier extends MagicLinkNotifier {
-  FakeMagicLinkNotifier({this.sendResult = true, this.onSend, this.error});
+  FakeMagicLinkNotifier({
+    this.sendResult = true,
+    this.onSend,
+    this.error,
+    this.pendingSend,
+  });
 
   final bool sendResult;
   final void Function(String email)? onSend;
   final Object? error;
+  final Future<void>? pendingSend;
+  int sendCalls = 0;
 
   @override
   FutureOr<void> build() {}
 
   @override
   Future<bool> send(String email) async {
+    sendCalls++;
     onSend?.call(email);
+    if (pendingSend != null) {
+      state = const AsyncLoading<void>();
+      await pendingSend;
+      state = const AsyncData<void>(null);
+    }
     if (error != null) {
       state = AsyncError<void>(error!, StackTrace.current);
     }
@@ -165,6 +178,77 @@ void main() {
         await tester.pump(const Duration(seconds: 5));
       },
     );
+
+    testWidgets('pressing Enter in the email field sends the magic link', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? capturedEmail;
+      await tester.pumpWidget(
+        buildMagicLinkRouterUnderTest(
+          magicLinkNotifier: FakeMagicLinkNotifier(
+            onSend: (email) => capturedEmail = email,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextFormField), 'ada@example.com');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(capturedEmail, 'ada@example.com');
+      expect(find.text('Check your email'), findsOneWidget);
+    });
+
+    testWidgets('pressing Enter with an empty email shows the error only', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final notifier = FakeMagicLinkNotifier();
+      await tester.pumpWidget(
+        buildMagicLinkRouterUnderTest(magicLinkNotifier: notifier),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.showKeyboard(find.byType(TextFormField));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Email is required'), findsOneWidget);
+      expect(notifier.sendCalls, 0);
+      expect(find.text('Login with email link'), findsOneWidget);
+    });
+
+    testWidgets('pressing Enter again while sending does not send twice', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1024));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final pending = Completer<void>();
+      final notifier = FakeMagicLinkNotifier(pendingSend: pending.future);
+      await tester.pumpWidget(
+        buildMagicLinkRouterUnderTest(magicLinkNotifier: notifier),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextFormField), 'ada@example.com');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(notifier.sendCalls, 1);
+
+      pending.complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Check your email'), findsOneWidget);
+    });
 
     testWidgets('sign up link navigates to the signup screen', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 1024));
