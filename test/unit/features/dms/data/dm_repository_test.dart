@@ -153,6 +153,43 @@ void main() {
     });
   });
 
+  group('DmRepository.editMessage', () {
+    test('PUTs the message and thread ids the server requires', () async {
+      when(
+        () => api.put<Map<String, dynamic>>(
+          path: '/dms/messages/ch-1',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {},
+        ),
+      );
+
+      await repository.editMessage(
+        'ch-1',
+        messageId: 'm1',
+        threadId: 't1',
+        content: '<p>edited</p>',
+      );
+
+      final body =
+          verify(
+                () => api.put<Map<String, dynamic>>(
+                  path: '/dms/messages/ch-1',
+                  data: captureAny(named: 'data'),
+                ),
+              ).captured.single
+              as Map<String, dynamic>;
+      expect(body, {
+        'content': '<p>edited</p>',
+        'message_id': 'm1',
+        'thread_id': 't1',
+      });
+    });
+  });
+
   group('DmRepository.openConversation', () {
     test('returns the channel and participant ids', () async {
       when(
