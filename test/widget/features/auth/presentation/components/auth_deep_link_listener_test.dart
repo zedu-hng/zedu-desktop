@@ -103,5 +103,32 @@ void main() {
 
       expect(capturedToken, 't-123');
     });
+
+    testWidgets('does not subscribe when disposed during the initial link', (
+      tester,
+    ) async {
+      final initialLink = Completer<Uri?>();
+      when(
+        () => mockAppLinks.getInitialLink(),
+      ).thenAnswer((_) => initialLink.future);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: AuthDeepLinkListener(
+              appLinks: mockAppLinks,
+              child: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+
+      // Dispose while the initial link is still loading.
+      await tester.pumpWidget(const SizedBox.shrink());
+      initialLink.complete(null);
+      await tester.pump();
+
+      verifyNever(() => mockAppLinks.uriLinkStream);
+    });
   });
 }

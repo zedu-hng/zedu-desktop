@@ -23,6 +23,7 @@ class _CreditsPaymentDeepLinkListenerState
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
   String? _lastProcessedSessionId;
+  bool _disposed = false;
 
   static const _tag = 'CreditsPaymentDeepLinkListener';
 
@@ -36,12 +37,17 @@ class _CreditsPaymentDeepLinkListenerState
   Future<void> _initDeepLinks() async {
     try {
       final initialUri = await _appLinks.getInitialLink();
+      if (_disposed) return;
       if (initialUri != null) {
         await _handleUri(initialUri);
       }
     } catch (error) {
       AppLogger.w('Failed to read initial payment deep link', tag: _tag);
     }
+
+    // The widget can be disposed while the initial link is still loading.
+    // Subscribing after that would leave a stream nobody cancels.
+    if (_disposed) return;
 
     _linkSubscription = _appLinks.uriLinkStream.listen(
       (uri) => unawaited(_handleUri(uri)),
@@ -87,6 +93,7 @@ class _CreditsPaymentDeepLinkListenerState
 
   @override
   void dispose() {
+    _disposed = true;
     unawaited(_linkSubscription?.cancel());
     super.dispose();
   }

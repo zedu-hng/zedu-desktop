@@ -17,6 +17,7 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
   String? _lastProcessedToken;
+  bool _disposed = false;
 
   static const _tag = 'AuthDeepLinkListener';
 
@@ -30,12 +31,17 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
   Future<void> _initDeepLinks() async {
     try {
       final initialUri = await _appLinks.getInitialLink();
+      if (_disposed) return;
       if (initialUri != null) {
         await _handleUri(initialUri);
       }
     } catch (error) {
       AppLogger.w('Failed to read initial deep link', tag: _tag);
     }
+
+    // The widget can be disposed while the initial link is still loading.
+    // Subscribing after that would leave a stream nobody cancels.
+    if (_disposed) return;
 
     _linkSubscription = _appLinks.uriLinkStream.listen(
       (uri) {
@@ -79,6 +85,7 @@ class _AuthDeepLinkListenerState extends ConsumerState<AuthDeepLinkListener> {
 
   @override
   void dispose() {
+    _disposed = true;
     _linkSubscription?.cancel();
     super.dispose();
   }
