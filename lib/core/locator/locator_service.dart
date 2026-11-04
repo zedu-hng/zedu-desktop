@@ -10,6 +10,10 @@ void setupLocator() {
   final config = locator<AppConfig>();
   final storage = locator<SecureStorageService>();
 
+  locator.registerLazySingleton<GlobalHotkeyService>(
+    () => GlobalHotkeyService(storage),
+  );
+
   final authInterceptor = AuthInterceptor(storage: storage);
   locator.registerLazySingleton<AuthInterceptor>(() => authInterceptor);
 

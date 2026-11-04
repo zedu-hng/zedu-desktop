@@ -6,6 +6,7 @@ Future<void> main() async {
   await windowManager.ensureInitialized();
   await loadAppEnv();
   setupLocator();
+  await locator<GlobalHotkeyService>().init();
 
   runApp(const ProviderScope(child: App()));
 }

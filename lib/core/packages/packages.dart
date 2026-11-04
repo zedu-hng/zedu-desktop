@@ -18,5 +18,6 @@ export 'package:cross_file/cross_file.dart';
 export 'package:super_clipboard/super_clipboard.dart';
 export 'package:local_notifier/local_notifier.dart';
 export 'package:window_manager/window_manager.dart';
+export 'package:hotkey_manager/hotkey_manager.dart';
 export 'package:tray_manager/tray_manager.dart';
 export 'package:file_picker/file_picker.dart';

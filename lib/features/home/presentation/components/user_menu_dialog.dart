@@ -241,6 +241,17 @@ class UserMenuDialog extends ConsumerWidget {
                 },
               ),
               _MenuItemButton(
+                icon: Icons.keyboard_outlined,
+                label: 'Keyboard shortcut…',
+                onTap: () async {
+                  Navigator.pop(context);
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => const HotkeySettingsDialog(),
+                  );
+                },
+              ),
+              _MenuItemButton(
                 icon: Icons.shopping_cart_outlined,
                 label: 'Buy AI credits',
                 isHighlight: true,
