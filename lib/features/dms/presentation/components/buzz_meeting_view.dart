@@ -1,20 +1,11 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-class BuzzMeetingView extends ConsumerStatefulWidget {
+class BuzzMeetingView extends ConsumerWidget {
   const BuzzMeetingView({super.key});
 
   @override
-  ConsumerState<BuzzMeetingView> createState() => _BuzzMeetingViewState();
-}
-
-class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
-  bool _isMuted = false;
-  bool _isVideoOff = false;
-  bool _isHandRaised = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
     final activeCall = ref.watch(activeCallProvider);
 
@@ -23,6 +14,10 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
     }
 
     final bool isFullPage = activeCall.state.isFullPage;
+    final bool isMiniWindow = activeCall.state.isMiniWindow;
+    final bool isMuted = activeCall.state.isMuted;
+    final bool isVideoOff = activeCall.state.isVideoOff;
+    final bool isHandRaised = activeCall.state.isHandRaised;
     final remoteName = activeCall.state.remoteUserName ?? 'Unknown';
 
     if (!isFullPage) {
@@ -80,6 +75,23 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                       ),
                       const Spacer(),
                       IconButton(
+                        icon: Icon(
+                          isMiniWindow
+                              ? Icons.push_pin
+                              : Icons.push_pin_outlined,
+                          size: 16,
+                        ),
+                        tooltip: isMiniWindow
+                            ? 'Stop keeping the mini window on top'
+                            : 'Keep the mini window on top',
+                        color: isMiniWindow ? colors.primary : colors.textHint,
+                        onPressed: () {
+                          ref
+                              .read(activeCallProvider.notifier)
+                              .setMiniWindow(!isMiniWindow);
+                        },
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.open_in_full, size: 16),
                         tooltip: 'Open full page',
                         color: colors.textHint,
@@ -102,6 +114,7 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                           'You',
                           null,
                           80,
+                          isVideoOff,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -111,6 +124,7 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                           remoteName,
                           activeCall.state.remoteAvatarUrl,
                           80,
+                          false,
                         ),
                       ),
                     ],
@@ -123,35 +137,46 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildControlButton(
-                        icon: _isMuted ? Icons.mic_off : Icons.mic,
-                        tooltip: _isMuted ? 'Unmute' : 'Mute',
-                        color: _isMuted
+                        icon: isMuted ? Icons.mic_off : Icons.mic,
+                        tooltip: isMuted ? 'Unmute' : 'Mute',
+                        color: isMuted
                             ? Colors.red
                             : colors.primary.withValues(alpha: 0.2),
-                        onTap: () => setState(() => _isMuted = !_isMuted),
+                        onTap: () {
+                          ref
+                              .read(activeCallProvider.notifier)
+                              .setMuted(!isMuted);
+                        },
                         small: true,
                       ),
                       const SizedBox(width: 8),
                       _buildControlButton(
-                        icon: _isVideoOff ? Icons.videocam_off : Icons.videocam,
-                        tooltip: _isVideoOff
+                        icon: isVideoOff ? Icons.videocam_off : Icons.videocam,
+                        tooltip: isVideoOff
                             ? 'Turn camera on'
                             : 'Turn camera off',
-                        color: _isVideoOff
+                        color: isVideoOff
                             ? Colors.red
                             : colors.primary.withValues(alpha: 0.2),
-                        onTap: () => setState(() => _isVideoOff = !_isVideoOff),
+                        onTap: () {
+                          ref
+                              .read(activeCallProvider.notifier)
+                              .setVideoOff(!isVideoOff);
+                        },
                         small: true,
                       ),
                       const SizedBox(width: 8),
                       _buildControlButton(
                         icon: Icons.back_hand,
-                        tooltip: _isHandRaised ? 'Lower hand' : 'Raise hand',
-                        color: _isHandRaised
+                        tooltip: isHandRaised ? 'Lower hand' : 'Raise hand',
+                        color: isHandRaised
                             ? Colors.amber
                             : colors.primary.withValues(alpha: 0.2),
-                        onTap: () =>
-                            setState(() => _isHandRaised = !_isHandRaised),
+                        onTap: () {
+                          ref
+                              .read(activeCallProvider.notifier)
+                              .setHandRaised(!isHandRaised);
+                        },
                         small: true,
                       ),
                       const SizedBox(width: 8),
@@ -203,6 +228,14 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                   style: TextStyle(fontSize: 13, color: colors.textHint),
                 ),
                 const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.picture_in_picture_alt_outlined),
+                  tooltip: 'Open mini window',
+                  color: colors.textHint,
+                  onPressed: () {
+                    ref.read(activeCallProvider.notifier).setMiniWindow(true);
+                  },
+                ),
                 Text(
                   'Full page',
                   style: TextStyle(fontSize: 13, color: colors.textPrimary),
@@ -229,6 +262,7 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                       remoteName,
                       activeCall.state.remoteAvatarUrl,
                       double.infinity,
+                      false,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -238,6 +272,7 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                       'You',
                       null,
                       double.infinity,
+                      isVideoOff,
                     ),
                   ),
                 ],
@@ -251,12 +286,14 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildControlButton(
-                  icon: _isMuted ? Icons.mic_off : Icons.mic,
-                  tooltip: _isMuted ? 'Unmute' : 'Mute',
-                  color: _isMuted
+                  icon: isMuted ? Icons.mic_off : Icons.mic,
+                  tooltip: isMuted ? 'Unmute' : 'Mute',
+                  color: isMuted
                       ? Colors.red
                       : colors.primary.withValues(alpha: 0.2),
-                  onTap: () => setState(() => _isMuted = !_isMuted),
+                  onTap: () {
+                    ref.read(activeCallProvider.notifier).setMuted(!isMuted);
+                  },
                   small: false,
                 ),
                 const SizedBox(width: 16),
@@ -273,22 +310,30 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                 ),
                 const SizedBox(width: 16),
                 _buildControlButton(
-                  icon: _isVideoOff ? Icons.videocam_off : Icons.videocam,
-                  tooltip: _isVideoOff ? 'Turn camera on' : 'Turn camera off',
-                  color: _isVideoOff
+                  icon: isVideoOff ? Icons.videocam_off : Icons.videocam,
+                  tooltip: isVideoOff ? 'Turn camera on' : 'Turn camera off',
+                  color: isVideoOff
                       ? Colors.red
                       : colors.primary.withValues(alpha: 0.2),
-                  onTap: () => setState(() => _isVideoOff = !_isVideoOff),
+                  onTap: () {
+                    ref
+                        .read(activeCallProvider.notifier)
+                        .setVideoOff(!isVideoOff);
+                  },
                   small: false,
                 ),
                 const SizedBox(width: 16),
                 _buildControlButton(
                   icon: Icons.back_hand,
-                  tooltip: _isHandRaised ? 'Lower hand' : 'Raise hand',
-                  color: _isHandRaised
+                  tooltip: isHandRaised ? 'Lower hand' : 'Raise hand',
+                  color: isHandRaised
                       ? Colors.amber
                       : colors.primary.withValues(alpha: 0.2),
-                  onTap: () => setState(() => _isHandRaised = !_isHandRaised),
+                  onTap: () {
+                    ref
+                        .read(activeCallProvider.notifier)
+                        .setHandRaised(!isHandRaised);
+                  },
                   small: false,
                 ),
                 const SizedBox(width: 16),
@@ -314,6 +359,7 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
     String name,
     String? avatarUrl,
     double height,
+    bool cameraOff,
   ) {
     return Container(
       height: height,
@@ -332,7 +378,11 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                   ? NetworkImage(avatarUrl)
                   : null,
               child: avatarUrl == null || avatarUrl.isEmpty
-                  ? Icon(Icons.person, size: 24, color: Colors.white)
+                  ? Icon(
+                      cameraOff ? Icons.videocam_off : Icons.person,
+                      size: 24,
+                      color: Colors.white,
+                    )
                   : null,
             ),
           ),

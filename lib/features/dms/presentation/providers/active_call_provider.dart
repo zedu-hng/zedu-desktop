@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -12,6 +14,10 @@ class ActiveCallState {
   final String? remoteAvatarUrl;
   final String? token;
   final bool isFullPage;
+  final bool isMiniWindow;
+  final bool isMuted;
+  final bool isVideoOff;
+  final bool isHandRaised;
   final DateTime? lastCallAt;
 
   const ActiveCallState({
@@ -23,6 +29,10 @@ class ActiveCallState {
     this.remoteAvatarUrl,
     this.token,
     this.isFullPage = false,
+    this.isMiniWindow = false,
+    this.isMuted = false,
+    this.isVideoOff = false,
+    this.isHandRaised = false,
     this.lastCallAt,
   });
 
@@ -35,6 +45,10 @@ class ActiveCallState {
     String? remoteAvatarUrl,
     String? token,
     bool? isFullPage,
+    bool? isMiniWindow,
+    bool? isMuted,
+    bool? isVideoOff,
+    bool? isHandRaised,
     DateTime? lastCallAt,
   }) {
     return ActiveCallState(
@@ -46,6 +60,10 @@ class ActiveCallState {
       remoteAvatarUrl: remoteAvatarUrl ?? this.remoteAvatarUrl,
       token: token ?? this.token,
       isFullPage: isFullPage ?? this.isFullPage,
+      isMiniWindow: isMiniWindow ?? this.isMiniWindow,
+      isMuted: isMuted ?? this.isMuted,
+      isVideoOff: isVideoOff ?? this.isVideoOff,
+      isHandRaised: isHandRaised ?? this.isHandRaised,
       lastCallAt: lastCallAt ?? this.lastCallAt,
     );
   }
@@ -60,8 +78,57 @@ class ActiveCallNotifier extends ChangeNotifier {
   ActiveCallState get state => _state;
 
   void setFullPage(bool isFullPage) {
-    _state = _state.copyWith(isFullPage: isFullPage);
+    _state = _state.copyWith(
+      isFullPage: isFullPage,
+      isMiniWindow: isFullPage ? false : _state.isMiniWindow,
+    );
     notifyListeners();
+    unawaited(_applyAlwaysOnTop());
+  }
+
+  /// Shows the compact call card and pins the app window above other apps, so
+  /// the call stays visible while the user works somewhere else.
+  void setMiniWindow(bool isMiniWindow) {
+    _state = _state.copyWith(
+      isMiniWindow: isMiniWindow,
+      isFullPage: isMiniWindow ? false : _state.isFullPage,
+    );
+    notifyListeners();
+    unawaited(_applyAlwaysOnTop());
+  }
+
+  Future<void> setMuted(bool muted) async {
+    if (_state.isMuted == muted) return;
+    _state = _state.copyWith(isMuted: muted);
+    notifyListeners();
+    try {
+      await _ref.read(buzzEngineProvider).toggleMic(muted);
+    } catch (error) {
+      debugPrint('Could not change microphone state: $error');
+    }
+  }
+
+  Future<void> setVideoOff(bool videoOff) async {
+    if (_state.isVideoOff == videoOff) return;
+    _state = _state.copyWith(isVideoOff: videoOff);
+    notifyListeners();
+    try {
+      await _ref.read(buzzEngineProvider).toggleVideo(videoOff);
+    } catch (error) {
+      debugPrint('Could not change camera state: $error');
+    }
+  }
+
+  void setHandRaised(bool raised) {
+    if (_state.isHandRaised == raised) return;
+    _state = _state.copyWith(isHandRaised: raised);
+    notifyListeners();
+  }
+
+  Future<void> _applyAlwaysOnTop() async {
+    await _ref
+        .read(callWindowServiceProvider)
+        .setAlwaysOnTop(_state.isMiniWindow);
   }
 
   Future<void> initiateCall({
@@ -165,6 +232,7 @@ class ActiveCallNotifier extends ChangeNotifier {
   void endCall() {
     _state = ActiveCallState(lastCallAt: _state.lastCallAt);
     notifyListeners();
+    unawaited(_applyAlwaysOnTop());
   }
 }
 
