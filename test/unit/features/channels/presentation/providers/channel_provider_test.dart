@@ -198,5 +198,123 @@ void main() {
         ),
       ).called(1);
     });
+
+    test(
+      'falls back to fullname when username is empty and does not use email local part',
+      () async {
+        final fallbackContainer = ProviderContainer(
+          overrides: [
+            channelRepositoryProvider.overrideWithValue(repository),
+            workspaceProvider.overrideWith(FakeWorkspaceNotifier.new),
+            authNotifierProvider.overrideWith(() => _AuthNotifierWithUser(
+                  User(
+                    id: 'user-1',
+                    firstName: 'Jane',
+                    lastName: 'Doe',
+                    email: 'jane.doe@example.com',
+                    phone: '',
+                    username: '',
+                    isVerified: true,
+                    isOnboarded: true,
+                    createdAt: DateTime(2026),
+                    currentOrg: 'org-1',
+                    currentOrganisationSlug: 'test-org',
+                    avatarUrl: '',
+                    defaultAvatarUrl: '',
+                  ),
+                )),
+          ],
+        );
+        addTearDown(fallbackContainer.dispose);
+
+        stubCreateChannel(Success<Channel>(_channel('team-heron')));
+        await fallbackContainer.read(channelProvider.future);
+        final notifier = fallbackContainer.read(channelProvider.notifier);
+
+        final result = await notifier.createChannel(
+          name: 'team-heron',
+          description: '',
+          isPrivate: false,
+        );
+
+        expect(result, isA<Success<Channel>>());
+        verify(
+          () => repository.createChannel(
+            name: 'team-heron',
+            description: '',
+            orgId: 'org-1',
+            username: 'Jane Doe',
+            isPrivate: false,
+            topic: null,
+          ),
+        ).called(1);
+      },
+    );
+
+    test(
+      'fails with a clear error and refuses to invent a handle from email when username and fullname are unset',
+      () async {
+        final emptyUserContainer = ProviderContainer(
+          overrides: [
+            channelRepositoryProvider.overrideWithValue(repository),
+            workspaceProvider.overrideWith(FakeWorkspaceNotifier.new),
+            authNotifierProvider.overrideWith(() => _AuthNotifierWithUser(
+                  User(
+                    id: 'user-1',
+                    firstName: '',
+                    lastName: '',
+                    email: 'jane.doe@example.com',
+                    phone: '',
+                    username: '',
+                    isVerified: true,
+                    isOnboarded: true,
+                    createdAt: DateTime(2026),
+                    currentOrg: 'org-1',
+                    currentOrganisationSlug: 'test-org',
+                    avatarUrl: '',
+                    defaultAvatarUrl: '',
+                  ),
+                )),
+          ],
+        );
+        addTearDown(emptyUserContainer.dispose);
+
+        await emptyUserContainer.read(channelProvider.future);
+        final notifier = emptyUserContainer.read(channelProvider.notifier);
+
+        final result = await notifier.createChannel(
+          name: 'team-heron',
+          description: '',
+          isPrivate: false,
+        );
+
+        expect(result, isA<Failure<Channel>>());
+        expect(
+          (result as Failure<Channel>).error.message,
+          'Please set a username or display name in your profile before creating a channel.',
+        );
+        verifyNever(
+          () => repository.createChannel(
+            name: any(named: 'name'),
+            description: any(named: 'description'),
+            orgId: any(named: 'orgId'),
+            username: any(named: 'username'),
+            isPrivate: any(named: 'isPrivate'),
+            topic: any(named: 'topic'),
+          ),
+        );
+      },
+    );
   });
+}
+
+class _AuthNotifierWithUser extends AuthNotifier {
+  _AuthNotifierWithUser(this._user);
+  final User _user;
+
+  @override
+  AuthState build() => AuthState(
+        status: AuthStatus.authenticated,
+        user: _user,
+      );
 }

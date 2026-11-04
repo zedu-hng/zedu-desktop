@@ -52,13 +52,26 @@ class ChannelNotifier extends AsyncNotifier<List<Channel>> {
 
     final String? orgId = ref.read(workspaceProvider).selectedWorkspace?.id;
     final authState = ref.read(authNotifierProvider);
-    final String? username =
-        authState.user?.username ?? authState.user?.email.split('@').first;
+    final String rawUsername = authState.user?.username.trim() ?? '';
+    final String rawFullname = authState.user?.fullname.trim() ?? '';
+    final String? username = rawUsername.isNotEmpty
+        ? rawUsername
+        : (rawFullname.isNotEmpty ? rawFullname : null);
 
-    if (orgId == null || username == null) {
+    if (orgId == null) {
       return const Failure<Channel>(
         ApiFailure(
           message: 'Could not create the channel. Please try again.',
+          kind: ApiFailureKind.client,
+        ),
+      );
+    }
+
+    if (username == null) {
+      return const Failure<Channel>(
+        ApiFailure(
+          message:
+              'Please set a username or display name in your profile before creating a channel.',
           kind: ApiFailureKind.client,
         ),
       );
