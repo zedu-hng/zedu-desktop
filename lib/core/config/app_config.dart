@@ -12,12 +12,17 @@ import 'package:zedu/core/core.dart';
 const String kDefaultDesktopGoogleClientId =
     '764182056638-08g88e196e643mhpa2tuv5dpr7iumd1j.apps.googleusercontent.com';
 
+/// Default Centrifugo websocket endpoint used by desktop staging builds.
+const String kDefaultConnectUrl =
+    'wss://connect.staging.zedu.chat/connection/websocket';
+
 class AppConfig {
   const AppConfig({
     required this.apiBaseUrl,
     required this.usesMockData,
     this.googleClientId = kDefaultDesktopGoogleClientId,
     this.googleClientSecret = '',
+    this.connectUrl = kDefaultConnectUrl,
   });
 
   /// Resolves config after [loadAppEnv] has run in [main] (root `.env` /
@@ -30,11 +35,13 @@ class AppConfig {
     const defineUsesMock = String.fromEnvironment('USE_MOCK_DATA');
     const defineClientId = String.fromEnvironment('GOOGLE_CLIENT_ID');
     const defineClientSecret = String.fromEnvironment('GOOGLE_CLIENT_SECRET');
+    const defineConnectUrl = String.fromEnvironment('CONNECT_URL');
 
     final envApiBaseUrl = dotenv.maybeGet('API_BASE_URL')?.trim();
     final envUsesMock = dotenv.maybeGet('USE_MOCK_DATA')?.trim();
     final envClientId = dotenv.maybeGet('GOOGLE_CLIENT_ID')?.trim();
     final envClientSecret = dotenv.maybeGet('GOOGLE_CLIENT_SECRET')?.trim();
+    final envConnectUrl = dotenv.maybeGet('CONNECT_URL')?.trim();
 
     // Teams point the app at their own backend via --dart-define or .env; Zedu staging is the default.
     String apiBaseUrl = defineApiBaseUrl.isNotEmpty
@@ -67,11 +74,18 @@ class AppConfig {
         ? envClientSecret!
         : '';
 
+    final connectUrl = defineConnectUrl.isNotEmpty
+        ? defineConnectUrl
+        : (envConnectUrl?.isNotEmpty ?? false)
+        ? envConnectUrl!
+        : kDefaultConnectUrl;
+
     return AppConfig(
       apiBaseUrl: apiBaseUrl,
       usesMockData: usesMockData,
       googleClientId: googleClientId,
       googleClientSecret: googleClientSecret,
+      connectUrl: connectUrl.replaceAll('"', '').replaceAll("'", ''),
     );
   }
 
@@ -79,6 +93,7 @@ class AppConfig {
   final bool usesMockData;
   final String googleClientId;
   final String googleClientSecret;
+  final String connectUrl;
 }
 
 bool _parseBool(String raw, {required bool defaultValue}) {
