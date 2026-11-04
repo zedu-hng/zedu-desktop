@@ -5,6 +5,28 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService(ref);
 });
 
+/// Truncates a message preview for a notification body.
+///
+/// [String.substring] counts UTF-16 code units, so a cut that lands inside an
+/// emoji or another non-BMP character leaves an unpaired high surrogate, which
+/// renders as a replacement glyph in the notification. When the cut would fall
+/// between a high and a low surrogate, this backs off one code unit so the pair
+/// stays whole.
+String truncateNotificationPreview(
+  String text, {
+  int maxLength = 80,
+  int keep = 77,
+}) {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  var end = keep;
+  if (end > 0 && (text.codeUnitAt(end - 1) & 0xFC00) == 0xD800) {
+    end -= 1;
+  }
+  return '${text.substring(0, end)}...';
+}
+
 class NotificationService {
   final Ref _ref;
   final Map<String, DateTime> _lastNotificationTimes = {};
@@ -66,9 +88,7 @@ class NotificationService {
       }
     }
 
-    if (contentPreview.length > 80) {
-      contentPreview = '${contentPreview.substring(0, 77)}...';
-    }
+    contentPreview = truncateNotificationPreview(contentPreview);
 
     final notification = LocalNotification(
       title: 'New DM from $senderName',
