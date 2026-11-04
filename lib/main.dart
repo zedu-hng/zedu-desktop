@@ -7,5 +7,9 @@ Future<void> main() async {
   await loadAppEnv();
   setupLocator();
 
+  final windowState = WindowStateStore(locator<SecureStorageService>());
+  await windowState.restore();
+  WindowStateTracker(windowState).attach();
+
   runApp(const ProviderScope(child: App()));
 }
