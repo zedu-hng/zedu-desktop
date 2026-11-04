@@ -36,5 +36,43 @@ void main() {
 
       expect(token, isNull);
     });
+
+    test('extracts token from a trusted subdomain', () {
+      final uri = Uri.parse(
+        'https://app.zedu.chat/auth/magick-link/verify?token=abc123',
+      );
+
+      final token = MagicLinkDeepLinkParser.extractToken(uri);
+
+      expect(token, 'abc123');
+    });
+
+    test('rejects a link from an unrelated host', () {
+      final uri = Uri.parse(
+        'https://evil.example/auth/magick-link/verify?token=abc123',
+      );
+
+      final token = MagicLinkDeepLinkParser.extractToken(uri);
+
+      expect(token, isNull);
+    });
+
+    test('rejects a lookalike host that only ends with the domain', () {
+      final uri = Uri.parse(
+        'https://zedu.chat.evil.example/auth/magick-link/verify?token=abc123',
+      );
+
+      final token = MagicLinkDeepLinkParser.extractToken(uri);
+
+      expect(token, isNull);
+    });
+
+    test('rejects a link whose host is empty', () {
+      final uri = Uri.parse('/auth/magick-link/verify?token=abc123');
+
+      final token = MagicLinkDeepLinkParser.extractToken(uri);
+
+      expect(token, isNull);
+    });
   });
 }
