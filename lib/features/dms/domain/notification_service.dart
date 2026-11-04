@@ -37,7 +37,9 @@ class NotificationService {
     // Never notify about our own messages (unless forced for testing).
     if (!forceShow && (senderId == currentUserId || senderId == 'me')) return;
 
-    if (settings.isDndActive) return;
+    if (_ref.read(notificationSettingsProvider.notifier).notificationsPaused) {
+      return;
+    }
     if (settings.isMuted(senderId)) return;
 
     if (!forceShow) {

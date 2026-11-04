@@ -219,6 +219,17 @@ class UserMenuDialog extends ConsumerWidget {
                       .setDndMode(const Duration(hours: 1));
                 },
               ),
+              _MenuItemButton(
+                icon: Icons.schedule_outlined,
+                label: 'Schedule Do Not Disturb…',
+                onTap: () async {
+                  Navigator.pop(context);
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => const DndScheduleDialog(),
+                  );
+                },
+              ),
               const SizedBox(height: 8),
               Divider(height: 0, color: colors.divider),
               const SizedBox(height: 8),
