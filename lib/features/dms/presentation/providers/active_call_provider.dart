@@ -80,6 +80,8 @@ class ActiveCallNotifier extends ChangeNotifier {
     );
     notifyListeners();
 
+    await _ref.read(callDevicesProvider.notifier).applyToEngine();
+
     try {
       final repo = _ref.read(buzzRepositoryProvider);
       final res = await repo.initiateDirectCall(remoteUserId);
@@ -127,6 +129,8 @@ class ActiveCallNotifier extends ChangeNotifier {
 
   Future<void> acceptCall() async {
     if (_state.status != CallStatus.incoming) return;
+
+    await _ref.read(callDevicesProvider.notifier).applyToEngine();
 
     if (_state.buzzId != null) {
       await _ref

@@ -5,4 +5,5 @@ export 'dm_chat_area.dart';
 export 'dm_message_composer.dart';
 export 'dm_emoji_picker.dart';
 export 'buzz_meeting_view.dart';
+export 'call_device_selector.dart';
 export 'dm_profile_card.dart';

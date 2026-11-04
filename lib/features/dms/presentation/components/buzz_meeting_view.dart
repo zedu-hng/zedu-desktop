@@ -156,6 +156,14 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                       ),
                       const SizedBox(width: 8),
                       _buildControlButton(
+                        icon: Icons.settings_voice_outlined,
+                        tooltip: 'Call devices',
+                        color: colors.primary.withValues(alpha: 0.2),
+                        onTap: () => _openDeviceSetup(context),
+                        small: true,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildControlButton(
                         icon: Icons.call_end,
                         tooltip: 'Leave call',
                         color: Colors.red,
@@ -293,6 +301,14 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
                 ),
                 const SizedBox(width: 16),
                 _buildControlButton(
+                  icon: Icons.settings_voice_outlined,
+                  tooltip: 'Call devices',
+                  color: colors.primary.withValues(alpha: 0.2),
+                  onTap: () => _openDeviceSetup(context),
+                  small: false,
+                ),
+                const SizedBox(width: 16),
+                _buildControlButton(
                   icon: Icons.call_end,
                   tooltip: 'Leave call',
                   color: Colors.red,
@@ -306,6 +322,13 @@ class _BuzzMeetingViewState extends ConsumerState<BuzzMeetingView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openDeviceSetup(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => const CallDeviceSetupDialog(),
     );
   }
 

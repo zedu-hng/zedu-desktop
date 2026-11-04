@@ -95,8 +95,17 @@ class IncomingCallModal extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.settings_voice_outlined, size: 18),
+                    tooltip: 'Call devices',
+                    color: colors.textHint,
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const CallDeviceSetupDialog(),
+                    ),
+                  ),
+                  const Spacer(),
                   TextButton(
                     onPressed: () {
                       ref.read(activeCallProvider.notifier).declineCall();

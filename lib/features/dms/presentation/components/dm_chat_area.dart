@@ -570,8 +570,15 @@ class _DmChatHeader extends StatelessWidget {
           Consumer(
             builder: (context, ref, child) {
               return InkWell(
-                onTap: () {
-                  ref
+                onTap: () async {
+                  final startCall = await showDialog<bool>(
+                    context: context,
+                    builder: (_) =>
+                        const CallDeviceSetupDialog(startCall: true),
+                  );
+                  if (startCall != true) return;
+
+                  await ref
                       .read(activeCallProvider.notifier)
                       .initiateCall(
                         remoteUserId: conversation.participantId,
