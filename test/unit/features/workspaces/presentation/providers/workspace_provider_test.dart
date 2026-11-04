@@ -115,6 +115,23 @@ void main() {
       expect(state.selectedWorkspace?.id, 'org-new');
     });
 
+    test('skips organisations without an id', () async {
+      registerConfig(usesMockData: false);
+      stubOrganisations([
+        {'name': 'Organisation without id', 'logo_url': ''},
+        {'id': 'org-2', 'name': 'Cohort 13', 'logo_url': ''},
+        {'id': '   ', 'name': 'Organisation with blank id', 'logo_url': ''},
+      ]);
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final state = await loadWorkspaces(container);
+
+      expect(state.workspaces.map((w) => w.name), ['Cohort 13']);
+      expect(state.workspaces.single.id, 'org-2');
+      expect(state.selectedWorkspace?.id, 'org-2');
+    });
+
     test('sets an error and no demo data when loading fails', () async {
       registerConfig(usesMockData: false);
       when(
