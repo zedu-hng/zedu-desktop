@@ -65,6 +65,8 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
             .togglePinned(conversation.channelId);
       case 'search_in_conversation':
         await _showConversationSearch();
+      case 'export_transcript':
+        await _exportTranscript();
       case 'view_files':
         await _showConversationFiles();
       case 'clear_history':
@@ -127,6 +129,41 @@ class _DmChatAreaState extends ConsumerState<DmChatArea> {
           ),
         ) ??
         false;
+  }
+
+  Future<void> _exportTranscript() async {
+    final format = await showDialog<TranscriptFormat>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Export transcript'),
+        children: [
+          for (final option in TranscriptFormat.values)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(dialogContext, option),
+              child: Text(option.label),
+            ),
+        ],
+      ),
+    );
+    if (format == null || !mounted) return;
+
+    final user = ref.read(authNotifierProvider).user;
+    try {
+      final path = await ref
+          .read(transcriptExporterProvider)
+          .export(
+            channelId: widget.conversation.channelId,
+            conversationName: widget.conversation.displayName,
+            format: format,
+            currentUserId: user?.id ?? '',
+            currentUserName: user?.fullname ?? 'You',
+          );
+      if (!mounted || path == null) return;
+      _showActionNotice('Transcript saved to $path');
+    } catch (_) {
+      if (!mounted) return;
+      _showActionNotice('Could not export the transcript. Please try again.');
+    }
   }
 
   Future<void> _showConversationSearch() async {
@@ -636,6 +673,13 @@ class _DmChatHeader extends StatelessWidget {
                 value: 'view_files',
                 child: Text(
                   'View files',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'export_transcript',
+                child: Text(
+                  'Export transcript…',
                   style: TextStyle(color: colors.textPrimary),
                 ),
               ),

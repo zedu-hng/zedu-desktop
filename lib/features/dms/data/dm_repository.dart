@@ -78,6 +78,20 @@ class DmRepository {
         .toList();
   }
 
+  /// Pages through the whole conversation history for transcript export.
+  Future<List<Map<String, dynamic>>> getAllMessages(
+    String channelId, {
+    int maxPages = 50,
+  }) async {
+    final all = <Map<String, dynamic>>[];
+    for (var page = 1; page <= maxPages; page++) {
+      final batch = await getMessages(channelId, page: page);
+      all.addAll(batch);
+      if (batch.length < pageSize) break;
+    }
+    return all;
+  }
+
   /// Opens (or creates) the direct message with [participantId].
   Future<({String channelId, String participantId})> openConversation({
     required String orgId,
