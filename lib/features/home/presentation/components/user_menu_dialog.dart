@@ -253,6 +253,44 @@ class UserMenuDialog extends ConsumerWidget {
               Divider(height: 0, color: colors.divider),
               const SizedBox(height: 8),
 
+              // ── Help ───────────────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Text(
+                  'HELP',
+                  style: TextStyle(
+                    color: colors.textHint,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+              _MenuItemButton(
+                icon: Icons.bug_report_outlined,
+                label: 'Export diagnostics…',
+                onTap: () async {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  Navigator.pop(context);
+                  try {
+                    final path = await const DiagnosticsService().export();
+                    if (path == null) return;
+                    messenger?.showSnackBar(
+                      SnackBar(content: Text('Diagnostics saved to $path')),
+                    );
+                  } catch (_) {
+                    messenger?.showSnackBar(
+                      const SnackBar(
+                        content: Text("Couldn't export diagnostics."),
+                      ),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              Divider(height: 0, color: colors.divider),
+              const SizedBox(height: 8),
+
               // ── Sign out ───────────────────────────────────────────────────
               _MenuItemButton(
                 icon: Icons.logout_rounded,

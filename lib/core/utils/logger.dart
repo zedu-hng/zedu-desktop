@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:developer' as dev;
 
 import 'package:zedu/core/core.dart';
@@ -27,6 +28,14 @@ enum LogLevel {
 ///   AppLogger.e('Login failed', tag: 'AuthNotifier', error: e, stackTrace: st);
 abstract final class AppLogger {
   AppLogger._();
+
+  /// How many of the most recent lines are kept for the diagnostics export.
+  static const int maxRecentLines = 500;
+
+  static final ListQueue<String> _recentLines = ListQueue<String>();
+
+  /// The most recent log lines, oldest first, as written to the log sink.
+  static List<String> get recentLogs => List<String>.unmodifiable(_recentLines);
 
   static void v(String message, {String? tag}) =>
       _log(LogLevel.verbose, message, tag: tag);
@@ -85,13 +94,31 @@ abstract final class AppLogger {
   }) {
     if (kReleaseMode && level.value < LogLevel.warning.value) return;
 
+    final now = DateTime.now();
+    final name = tag ?? 'AppLogger';
+    final line = StringBuffer()
+      ..write(now.toUtc().toIso8601String())
+      ..write(' [${level.name.toUpperCase()}] ')
+      ..write(name)
+      ..write(': ')
+      ..write(message);
+    if (error != null) {
+      line
+        ..write(' | ')
+        ..write(error);
+    }
+    _recentLines.addLast(line.toString());
+    while (_recentLines.length > maxRecentLines) {
+      _recentLines.removeFirst();
+    }
+
     dev.log(
       kDebugMode ? '${_prefix(level)}$message\x1B[0m' : message,
-      name: tag ?? 'AppLogger',
+      name: name,
       level: level.value,
       error: error,
       stackTrace: stackTrace,
-      time: DateTime.now(),
+      time: now,
     );
   }
 
