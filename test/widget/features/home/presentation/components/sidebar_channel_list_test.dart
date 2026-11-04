@@ -116,7 +116,9 @@ void main() {
         expect(find.text('a-only'), findsNothing);
       });
 
-      testWidgets('shows no channels when the new load fails', (tester) async {
+      testWidgets('shows an error and retries after the new load fails', (
+        tester,
+      ) async {
         await pumpList(tester, channels: SwitchingChannelNotifier.new);
         expect(find.text('a-only'), findsOneWidget);
 
@@ -128,6 +130,17 @@ void main() {
 
         expect(find.text('a-only'), findsNothing);
         expect(find.text('b-only'), findsNothing);
+        expect(find.text('Unable to load channels.'), findsOneWidget);
+        expect(find.text('Retry'), findsOneWidget);
+
+        SwitchingChannelNotifier.failB = false;
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Unable to load channels.'), findsNothing);
+        expect(find.text('Retry'), findsNothing);
+        expect(find.text('b-only'), findsOneWidget);
+        expect(find.text('a-only'), findsNothing);
       });
     });
 

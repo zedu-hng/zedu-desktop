@@ -11,6 +11,12 @@ class FakeWorkspaceNotifier extends WorkspaceNotifier {
   WorkspaceState build() => const WorkspaceState(
     selectedWorkspace: Workspace(id: 'org-1', name: 'Test org', avatar: ''),
   );
+
+  void switchTo(String id) {
+    state = WorkspaceState(
+      selectedWorkspace: Workspace(id: id, name: 'Test org $id', avatar: ''),
+    );
+  }
 }
 
 class FakeAuthNotifier extends AuthNotifier {
@@ -35,11 +41,11 @@ class FakeAuthNotifier extends AuthNotifier {
   );
 }
 
-Channel _channel(String name) => Channel(
+Channel _channel(String name, {String org = 'org-1'}) => Channel(
   id: 'channel-$name',
   name: name,
   description: '',
-  organisationId: 'org-1',
+  organisationId: org,
   ownerId: 'user-1',
 );
 
@@ -98,6 +104,60 @@ void main() {
       expect(state.requireValue.map((c) => c.name), ['general', 'team-heron']);
       expect(state.isLoading, isFalse);
       expect(state.hasError, isFalse);
+    });
+
+    test('retries a failed load and recovers after the request succeeds', () async {
+      var fetchCalls = 0;
+      when(() => repository.fetchChannels(any())).thenAnswer((_) async {
+        fetchCalls++;
+        if (fetchCalls == 1) {
+          return const Failure<List<Channel>>(
+            ApiFailure(message: 'Network unavailable'),
+          );
+        }
+        return Success<List<Channel>>([_channel('general'), _channel('random')]);
+      });
+
+      await expectLater(
+        container.read(channelProvider.future),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(container.read(channelProvider).hasError, isTrue);
+
+      container.read(channelProvider.notifier).retryLoad();
+      final channels = await container.read(channelProvider.future);
+
+      expect(fetchCalls, 2);
+      expect(channels.map((channel) => channel.name), ['general', 'random']);
+      expect(container.read(channelProvider).hasError, isFalse);
+    });
+
+    test('loads the selected workspace after a failed workspace load', () async {
+      when(() => repository.fetchChannels(any())).thenAnswer((invocation) async {
+        final orgId = invocation.positionalArguments.first as String;
+        if (orgId == 'org-1') {
+          return const Failure<List<Channel>>(
+            ApiFailure(message: 'Network unavailable'),
+          );
+        }
+        return Success<List<Channel>>([_channel('new-org', org: orgId)]);
+      });
+
+      await expectLater(
+        container.read(channelProvider.future),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(container.read(channelProvider).hasError, isTrue);
+
+      (container.read(workspaceProvider.notifier) as FakeWorkspaceNotifier)
+          .switchTo('org-2');
+      final channels = await container.read(channelProvider.future);
+
+      expect(channels.map((channel) => channel.name), ['new-org']);
+      expect(channels.single.organisationId, 'org-2');
+      expect(container.read(channelProvider).hasError, isFalse);
+      verify(() => repository.fetchChannels('org-1')).called(1);
+      verify(() => repository.fetchChannels('org-2')).called(1);
     });
 
     test(

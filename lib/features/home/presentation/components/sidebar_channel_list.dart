@@ -8,6 +8,7 @@ class SidebarChannelList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final channelState = ref.watch(channelProvider);
+    final colors = context.colors;
     final orgId = ref.watch(
       workspaceProvider.select((s) => s.selectedWorkspace?.id),
     );
@@ -32,6 +33,29 @@ class SidebarChannelList extends ConsumerWidget {
         shrinkWrap: true,
         padding: EdgeInsets.zero,
         children: [
+          if (channelState.hasError)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Unable to load channels.',
+                      style: TextStyle(
+                        color: colors.error,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: channelState.isLoading
+                        ? null
+                        : () => ref.read(channelProvider.notifier).retryLoad(),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
           for (final channel in channels)
             _SidebarChannelItem(
               label: channel.name,

@@ -10,6 +10,9 @@ final channelRepositoryProvider = Provider<ChannelRepository>((ref) {
 });
 
 class ChannelNotifier extends AsyncNotifier<List<Channel>> {
+  /// Re-runs the channel load after a failed request.
+  void retryLoad() => ref.invalidateSelf();
+
   @override
   Future<List<Channel>> build() async {
     // Watching the workspace id rebuilds this provider when the workspace
