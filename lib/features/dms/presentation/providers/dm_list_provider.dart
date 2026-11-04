@@ -139,4 +139,17 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _fetchPage(orgId, 1));
   }
+
+  /// Clears the unread badge for [channelId] after the user marks the
+  /// conversation as read from a desktop notification.
+  void markRead(String channelId) {
+    final current = state.value;
+    if (current == null) return;
+    state = AsyncValue.data([
+      for (final conversation in current)
+        conversation.channelId == channelId
+            ? conversation.copyWith(unreadCount: 0)
+            : conversation,
+    ]);
+  }
 }

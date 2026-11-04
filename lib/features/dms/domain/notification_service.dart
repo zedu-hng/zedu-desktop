@@ -39,6 +39,7 @@ class NotificationService {
 
     if (settings.isDndActive) return;
     if (settings.isMuted(senderId)) return;
+    if (settings.isChannelMuted(channelId)) return;
 
     if (!forceShow) {
       final isFocused = await windowManager.isFocused();
@@ -73,16 +74,48 @@ class NotificationService {
     final notification = LocalNotification(
       title: 'New DM from $senderName',
       body: contentPreview,
+      actions: [
+        LocalNotificationAction(text: 'Reply'),
+        LocalNotificationAction(text: 'Mark as read'),
+        LocalNotificationAction(text: 'Mute conversation'),
+      ],
     );
 
     notification.onClick = () async {
-      await windowManager.show();
-      await windowManager.focus();
+      await _openConversation(channelId);
+    };
 
-      final router = locator<GoRouter>();
-      router.go('/dms/$channelId');
+    notification.onClickAction = (actionIndex) async {
+      switch (actionIndex) {
+        case 0:
+          // Desktop notifications cannot collect text inline, so Reply opens
+          // the conversation with the composer ready for the user.
+          await _openConversation(channelId);
+        case 1:
+          _markAsRead(channelId);
+          await notification.close();
+        case 2:
+          _ref
+              .read(notificationSettingsProvider.notifier)
+              .muteChannel(channelId);
+          await notification.close();
+      }
     };
 
     await notification.show();
+  }
+
+  Future<void> _openConversation(String channelId) async {
+    await windowManager.show();
+    await windowManager.focus();
+
+    final router = locator<GoRouter>();
+    router.go('/dms/$channelId');
+  }
+
+  void _markAsRead(String channelId) {
+    final conversations = _ref.read(dmListProvider);
+    if (!conversations.hasValue) return;
+    _ref.read(dmListProvider.notifier).markRead(channelId);
   }
 }
