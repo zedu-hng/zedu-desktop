@@ -12,6 +12,22 @@ import 'package:zedu/core/core.dart';
 const String kDefaultDesktopGoogleClientId =
     '764182056638-08g88e196e643mhpa2tuv5dpr7iumd1j.apps.googleusercontent.com';
 
+/// Zedu's staging API host. Debug and profile builds fall back to it, so local
+/// development never writes to production by accident.
+const String kStagingApiBaseUrl = 'https://api.staging.zedu.chat/api/v1/';
+
+/// Zedu's production API host. Release builds fall back to it, so a shipped
+/// build that omits `API_BASE_URL` cannot silently talk to staging.
+const String kProductionApiBaseUrl = 'https://api.zedu.chat/api/v1/';
+
+/// The API host used when neither `--dart-define` nor `.env` supplies one.
+///
+/// Release builds default to production; debug and profile builds default to
+/// staging. Keeping the choice in one function makes it testable without
+/// rebuilding in release mode.
+String defaultApiBaseUrl({required bool isRelease}) =>
+    isRelease ? kProductionApiBaseUrl : kStagingApiBaseUrl;
+
 class AppConfig {
   const AppConfig({
     required this.apiBaseUrl,
@@ -24,7 +40,8 @@ class AppConfig {
   /// `.env.example`, bundled as assets).
   ///
   /// Precedence: `--dart-define` wins, then dotenv keys from those files, then
-  /// defaults. See [String.fromEnvironment](https://api.flutter.dev/flutter/dart-ui/String/String.fromEnvironment.html).
+  /// the build-mode default from [defaultApiBaseUrl]: staging for debug and
+  /// profile builds, production for release builds. See [String.fromEnvironment](https://api.flutter.dev/flutter/dart-ui/String/String.fromEnvironment.html).
   factory AppConfig.fromEnvironment() {
     const defineApiBaseUrl = String.fromEnvironment('API_BASE_URL');
     const defineUsesMock = String.fromEnvironment('USE_MOCK_DATA');
@@ -36,12 +53,14 @@ class AppConfig {
     final envClientId = dotenv.maybeGet('GOOGLE_CLIENT_ID')?.trim();
     final envClientSecret = dotenv.maybeGet('GOOGLE_CLIENT_SECRET')?.trim();
 
-    // Teams point the app at their own backend via --dart-define or .env; Zedu staging is the default.
+    // Teams point the app at their own backend via --dart-define or .env;
+    // otherwise the build mode decides, so release builds never default to
+    // staging.
     String apiBaseUrl = defineApiBaseUrl.isNotEmpty
         ? defineApiBaseUrl
         : (envApiBaseUrl?.isNotEmpty ?? false)
         ? envApiBaseUrl!
-        : 'https://api.staging.zedu.chat/api/v1/';
+        : defaultApiBaseUrl(isRelease: kReleaseMode);
 
     apiBaseUrl = apiBaseUrl.replaceAll('"', '').replaceAll("'", "");
 
