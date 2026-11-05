@@ -360,18 +360,19 @@ class UserProfileNotifier extends Notifier<UserProfileState> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchRegisteredUsers() async {
+  /// Loads the users registered in the organisation.
+  ///
+  /// A failed request comes back as a [Failure] rather than an empty list, so
+  /// callers can tell "nobody to show" from "could not load".
+  Future<Result<List<Map<String, dynamic>>>> loadRegisteredUsers() async {
     try {
       final api = locator<ApiBaseService>();
       final response = await api.get<Map<String, dynamic>>(path: '/users');
       final data = response.data['data'] as List<dynamic>?;
-      if (data != null) {
-        return data.cast<Map<String, dynamic>>();
-      }
+      return Success(data?.cast<Map<String, dynamic>>() ?? const []);
     } catch (e) {
-      // ignore
+      return Failure(ApiFailure.unknown(e));
     }
-    return [];
   }
 
   Future<void> inviteMember({

@@ -4,15 +4,32 @@ import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 import '../../../../../helpers/helpers.dart';
 
-// Avoids the locator and API: no users to suggest, invites are recorded.
+// Avoids the locator and API: registered users and invites are supplied here.
 class FakeUserProfileNotifier extends UserProfileNotifier {
+  FakeUserProfileNotifier({
+    this.users = const [],
+    this.loadFails = false,
+    this.loadGate,
+  });
+
+  final List<Map<String, dynamic>> users;
+  final bool loadFails;
+
+  /// When set, the users request stays pending until it is completed.
+  final Completer<void>? loadGate;
   final List<String> invited = [];
 
   @override
   UserProfileState build() => const UserProfileState();
 
   @override
-  Future<List<Map<String, dynamic>>> fetchRegisteredUsers() async => [];
+  Future<Result<List<Map<String, dynamic>>>> loadRegisteredUsers() async {
+    if (loadGate != null) await loadGate!.future;
+    if (loadFails) {
+      return Failure(ApiFailure(message: 'Could not load users.'));
+    }
+    return Success(users);
+  }
 
   @override
   Future<void> inviteMember({
@@ -24,20 +41,12 @@ class FakeUserProfileNotifier extends UserProfileNotifier {
   }
 }
 
-class FakeAddEveryoneToChannel extends AddEveryoneToChannel {
-  FakeAddEveryoneToChannel(super.ref, this._result);
-
-  final Future<AddEveryoneResult> Function() _result;
-  int calls = 0;
-
-  @override
-  Future<AddEveryoneResult> call() {
-    calls++;
-    return _result();
-  }
-}
-
-late FakeAddEveryoneToChannel fakeAddEveryone;
+Map<String, dynamic> user(String email, {String? fullName, String? id}) => {
+  'id': id,
+  'email': email,
+  'full_name': fullName,
+  'username': fullName,
+};
 
 // Lets a test open the window while a given channel is open in the sidebar.
 class FakeActiveChatNotifier extends ActiveChatNotifier {
@@ -49,17 +58,18 @@ class FakeActiveChatNotifier extends ActiveChatNotifier {
   ActiveChatState build() => _initial;
 }
 
+late FakeUserProfileNotifier notifierUnderTest;
+
 Widget buildModalUnderTest(
-  Future<AddEveryoneResult> Function() result, {
+  FakeUserProfileNotifier notifier, {
   ActiveChatState chat = ActiveChatState.generalChannel,
 }) {
   return ProviderScope(
     overrides: [
-      userProfileNotifierProvider.overrideWith(FakeUserProfileNotifier.new),
-      activeChatProvider.overrideWith(() => FakeActiveChatNotifier(chat)),
-      addEveryoneToChannelProvider.overrideWith(
-        (ref) => fakeAddEveryone = FakeAddEveryoneToChannel(ref, result),
+      userProfileNotifierProvider.overrideWith(
+        () => notifierUnderTest = notifier,
       ),
+      activeChatProvider.overrideWith(() => FakeActiveChatNotifier(chat)),
     ],
     child: MaterialApp(
       home: Scaffold(
@@ -92,105 +102,175 @@ Future<void> openModal(WidgetTester tester) async {
   expect(find.byType(InviteTeammatesModal), findsOneWidget);
 }
 
+Future<void> tapAddEveryone(WidgetTester tester) async {
+  await tester.tap(find.text('Add everyone'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> typeEmail(WidgetTester tester, String email) async {
+  await tester.enterText(find.byType(TextField), email);
+  await tester.testTextInput.receiveAction(TextInputAction.done);
+  await tester.pump();
+}
+
 void main() {
   group('InviteTeammatesModal "Add everyone"', () {
-    testWidgets('adds everyone, shows how many and closes the window', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        buildModalUnderTest(() async => const AddEveryoneAdded(3, 'general')),
-      );
-      await openModal(tester);
-
-      await tester.tap(find.text('Add everyone'));
-      await tester.pumpAndSettle();
-
-      expect(fakeAddEveryone.calls, 1);
-      expect(find.text('Added 3 people to #general.'), findsOneWidget);
-      expect(find.byType(InviteTeammatesModal), findsNothing);
-    });
-
-    testWidgets('says "person" when one person is added', (tester) async {
-      await tester.pumpWidget(
-        buildModalUnderTest(() async => const AddEveryoneAdded(1, 'general')),
-      );
-      await openModal(tester);
-
-      await tester.tap(find.text('Add everyone'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Added 1 person to #general.'), findsOneWidget);
-    });
-
-    testWidgets('keeps the window open when everyone is already in', (
+    testWidgets('selects every registered user, keeping earlier picks', (
       tester,
     ) async {
       await tester.pumpWidget(
         buildModalUnderTest(
-          () async => const AddEveryoneNobodyToAdd('general'),
+          FakeUserProfileNotifier(
+            users: [
+              user('ada@zedu.chat', fullName: 'Ada'),
+              user('bob@zedu.chat', fullName: 'Bob'),
+              user('cy@zedu.chat', fullName: 'Cy'),
+            ],
+          ),
         ),
       );
       await openModal(tester);
 
-      await tester.tap(find.text('Add everyone'));
-      await tester.pumpAndSettle();
+      await typeEmail(tester, 'bob@zedu.chat');
+      expect(find.byType(Chip), findsOneWidget);
 
+      await tapAddEveryone(tester);
+
+      expect(find.widgetWithText(Chip, 'ada@zedu.chat'), findsOneWidget);
+      expect(find.widgetWithText(Chip, 'bob@zedu.chat'), findsOneWidget);
+      expect(find.widgetWithText(Chip, 'cy@zedu.chat'), findsOneWidget);
+      expect(find.byType(Chip), findsNWidgets(3));
+      expect(find.byType(InviteTeammatesModal), findsOneWidget);
+    });
+
+    testWidgets('clicking again adds nobody twice', (tester) async {
+      await tester.pumpWidget(
+        buildModalUnderTest(
+          FakeUserProfileNotifier(
+            users: [
+              user('ada@zedu.chat', fullName: 'Ada'),
+              user('bob@zedu.chat', fullName: 'Bob'),
+            ],
+          ),
+        ),
+      );
+      await openModal(tester);
+
+      await tapAddEveryone(tester);
+      expect(find.byType(Chip), findsNWidgets(2));
+
+      await tapAddEveryone(tester);
+
+      expect(find.byType(Chip), findsNWidgets(2));
       expect(
-        find.text('Everyone in your organisation is already in #general.'),
+        find.text('Everyone in your organisation is already selected.'),
         findsOneWidget,
       );
-      expect(find.byType(InviteTeammatesModal), findsOneWidget);
     });
 
-    testWidgets('shows the error and keeps the window open on failure', (
-      tester,
-    ) async {
+    testWidgets('ignores users without an email address', (tester) async {
       await tester.pumpWidget(
         buildModalUnderTest(
-          () async => const AddEveryoneFailed('failed to add users to channel'),
+          FakeUserProfileNotifier(
+            users: [
+              user('ada@zedu.chat', fullName: 'Ada'),
+              user(''),
+            ],
+          ),
         ),
       );
       await openModal(tester);
 
-      await tester.tap(find.text('Add everyone'));
-      await tester.pumpAndSettle();
+      await tapAddEveryone(tester);
 
-      expect(find.text('failed to add users to channel'), findsOneWidget);
-      expect(find.byType(InviteTeammatesModal), findsOneWidget);
-      expect(find.text('Add everyone'), findsOneWidget);
+      expect(find.byType(Chip), findsOneWidget);
+      expect(find.widgetWithText(Chip, 'ada@zedu.chat'), findsOneWidget);
     });
 
-    testWidgets('is disabled while adding, so a second click does nothing', (
-      tester,
-    ) async {
-      final pending = Completer<AddEveryoneResult>();
-      await tester.pumpWidget(buildModalUnderTest(() => pending.future));
+    testWidgets('merges case-insensitive duplicates', (tester) async {
+      await tester.pumpWidget(
+        buildModalUnderTest(
+          FakeUserProfileNotifier(
+            users: [
+              user('ada@zedu.chat', fullName: 'Ada'),
+              user('Ada@Zedu.chat', fullName: 'Ada again'),
+            ],
+          ),
+        ),
+      );
       await openModal(tester);
 
-      await tester.tap(find.text('Add everyone'));
-      await tester.pump();
+      await tapAddEveryone(tester);
 
-      expect(find.text('Adding…'), findsOneWidget);
-      final button = tester.widget<TextButton>(
-        find.widgetWithText(TextButton, 'Adding…'),
-      );
-      expect(button.onPressed, isNull);
-
-      await tester.tap(find.text('Adding…'));
-      await tester.pump();
-      expect(fakeAddEveryone.calls, 1);
-
-      pending.complete(const AddEveryoneNobodyToAdd('general'));
-      await tester.pumpAndSettle();
-      expect(find.text('Add everyone'), findsOneWidget);
+      expect(find.byType(Chip), findsOneWidget);
     });
 
-    testWidgets('names the channel that is open, in the title and messages', (
+    testWidgets('explains a failed load instead of doing nothing', (
       tester,
     ) async {
       await tester.pumpWidget(
+        buildModalUnderTest(FakeUserProfileNotifier(loadFails: true)),
+      );
+      await openModal(tester);
+
+      await tapAddEveryone(tester);
+
+      expect(
+        find.text(
+          'Could not load the people in your organisation. Close this window '
+          'and open it again to retry.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(Chip), findsNothing);
+    });
+
+    testWidgets('explains that nobody is left to add', (tester) async {
+      await tester.pumpWidget(
+        buildModalUnderTest(FakeUserProfileNotifier(users: const [])),
+      );
+      await openModal(tester);
+
+      await tapAddEveryone(tester);
+
+      expect(
+        find.text('Everyone in your organisation is already selected.'),
+        findsOneWidget,
+      );
+      expect(find.byType(Chip), findsNothing);
+    });
+
+    testWidgets('waits for the users to load before selecting', (tester) async {
+      final gate = Completer<void>();
+      await tester.pumpWidget(
         buildModalUnderTest(
-          () async => const AddEveryoneAdded(2, 'design'),
+          FakeUserProfileNotifier(
+            users: [user('ada@zedu.chat', fullName: 'Ada')],
+            loadGate: gate,
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+
+      await tapAddEveryone(tester);
+      expect(
+        find.text('Still loading people. Try again shortly.'),
+        findsOneWidget,
+      );
+      expect(find.byType(Chip), findsNothing);
+
+      gate.complete();
+      await tester.pumpAndSettle();
+      await tapAddEveryone(tester);
+
+      expect(find.byType(Chip), findsOneWidget);
+    });
+
+    testWidgets('names the channel that is open in the title', (tester) async {
+      await tester.pumpWidget(
+        buildModalUnderTest(
+          FakeUserProfileNotifier(),
           chat: const ActiveChatState(
             type: ActiveChatType.channel,
             id: 'design',
@@ -201,11 +281,6 @@ void main() {
 
       expect(find.text('Add people to #design'), findsOneWidget);
       expect(find.text('Add people to #general'), findsNothing);
-
-      await tester.tap(find.text('Add everyone'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Added 2 people to #design.'), findsOneWidget);
     });
 
     testWidgets('keeps a very long channel name inside the title', (
@@ -214,7 +289,7 @@ void main() {
       final longName = 'a-very-long-channel-name-' * 8;
       await tester.pumpWidget(
         buildModalUnderTest(
-          () async => AddEveryoneNobodyToAdd(longName),
+          FakeUserProfileNotifier(),
           chat: ActiveChatState(type: ActiveChatType.channel, id: longName),
         ),
       );
@@ -226,11 +301,7 @@ void main() {
     });
 
     testWidgets('leaves Copy Invite Link and Add in place', (tester) async {
-      await tester.pumpWidget(
-        buildModalUnderTest(
-          () async => const AddEveryoneNobodyToAdd('general'),
-        ),
-      );
+      await tester.pumpWidget(buildModalUnderTest(FakeUserProfileNotifier()));
       await openModal(tester);
 
       expect(find.byTooltip('Copy Invite Link'), findsOneWidget);
