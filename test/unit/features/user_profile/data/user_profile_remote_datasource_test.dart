@@ -53,4 +53,47 @@ void main() {
       expect(saved.phoneNumber, '+2348012345678');
     });
   });
+
+  group('UserProfileRemoteDataSourceImpl.getTeamMembers', () {
+    const orgId = '019700db-4e22-7f90-a20e-f9116291ef24';
+
+    test('parses each member status instead of forcing active', () async {
+      final mockApi = MockApiBaseService();
+      final datasource = UserProfileRemoteDataSourceImpl(
+        config: const AppConfig(apiBaseUrl: '', usesMockData: false),
+        apiBaseService: mockApi,
+      );
+
+      when(
+        () => mockApi.get<Map<String, dynamic>>(
+          path: '/organisations/$orgId/users',
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {
+            'data': [
+              {'id': '1', 'email': 'active@example.com', 'status': 'active'},
+              {'id': '2', 'email': 'pending@example.com', 'status': 'pending'},
+              {
+                'id': '3',
+                'email': 'inactive@example.com',
+                'status': 'inactive',
+              },
+              {'id': '4', 'email': 'unknown@example.com'},
+            ],
+          },
+        ),
+      );
+
+      final members = await datasource.getTeamMembers(orgId: orgId);
+
+      expect(members.map((member) => member.status), [
+        TeamMemberStatus.active,
+        TeamMemberStatus.pending,
+        TeamMemberStatus.inactive,
+        TeamMemberStatus.active,
+      ]);
+    });
+  });
 }
