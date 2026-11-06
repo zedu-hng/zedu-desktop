@@ -1,6 +1,4 @@
 import 'dart:async';
-
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'dart:io';
 
 import 'package:zedu/core/core.dart';
@@ -15,46 +13,19 @@ final reachabilityCheckerProvider = Provider<ReachabilityChecker>((ref) {
 });
 
 class NetworkStatusNotifier extends Notifier<NetworkStatus> {
-  final _connectivity = Connectivity();
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  Timer? _checkTimer;
 
   @override
   NetworkStatus build() {
-    _checkAndSetConnectivity();
-    _startListening();
-    return _isOnline ? NetworkStatus.online : NetworkStatus.offline;
+    final checker = ref.watch(reachabilityCheckerProvider);
+    ref.onDispose(() => _checkTimer?.cancel());
+    _startMonitoring(checker);
+    return NetworkStatus.online;
   }
 
-  Future<void> _checkAndSetConnectivity() async {
-    try {
-      final result = await _connectivity.checkConnectivity();
-      final isOnline = result.contains(ConnectivityResult.wifi) ||
-          result.contains(ConnectivityResult.mobile) ||
-          result.contains(ConnectivityResult.ethernet);
-      if (!ref.mounted) return;
-      state = isOnline ? NetworkStatus.online : NetworkStatus.offline;
-    } catch (_) {
-      if (!ref.mounted) return;
-      state = NetworkStatus.offline;
-    }
-  }
-
-  void _startListening() {
-    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-      (result) {
-        final isOnline = result.contains(ConnectivityResult.wifi) ||
-            result.contains(ConnectivityResult.mobile) ||
-            result.contains(ConnectivityResult.ethernet);
-        if (!ref.mounted) return;
-        state = isOnline ? NetworkStatus.online : NetworkStatus.offline;
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _connectivitySubscription?.cancel();
-    super.dispose();
+  static Future<bool> defaultReachabilityChecker() async {
+    final addresses = await InternetAddress.lookup('one.one.one.one');
+    return addresses.isNotEmpty;
   }
 
   void _startMonitoring(ReachabilityChecker checker) {
