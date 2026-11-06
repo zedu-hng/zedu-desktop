@@ -327,7 +327,7 @@ class UserProfileRemoteDataSourceImpl implements UserProfileRemoteDataSource {
           email: user['email'] as String? ?? '',
           role: user['role'] as String? ?? 'User',
           dateJoined: user['created_at'] as String? ?? '',
-          status: TeamMemberStatus.active, // Or parse from user['status']
+          status: TeamMemberModel.statusFromJson(user['status'] as String?),
           name:
               user['name'] as String? ??
               user['username'] as String? ??

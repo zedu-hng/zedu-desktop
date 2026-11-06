@@ -147,13 +147,13 @@ class TeamMemberModel extends TeamMember {
       email: json['email'] as String? ?? 'anonymoususer@gmail.com',
       role: json['role'] as String? ?? 'Administrator',
       dateJoined: json['date_joined'] as String? ?? 'May 3, 2026',
-      status: _statusFromJson(json['status'] as String?),
+      status: statusFromJson(json['status'] as String?),
       name: json['name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
     );
   }
 
-  static TeamMemberStatus _statusFromJson(String? value) {
+  static TeamMemberStatus statusFromJson(String? value) {
     return switch (value) {
       'pending' => TeamMemberStatus.pending,
       'inactive' => TeamMemberStatus.inactive,
