@@ -21,6 +21,7 @@ class ProfileModel {
     this.isOnboarded = true,
     this.currentOrg = '',
     this.currentOrganisationSlug = '',
+    this.status = UserStatus.empty,
   });
 
   final String id;
@@ -37,6 +38,9 @@ class ProfileModel {
   final bool isOnboarded;
   final String currentOrg;
   final String currentOrganisationSlug;
+
+  /// The user's custom status and presence, so they survive a restart.
+  final UserStatus status;
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
     return ProfileModel(
@@ -62,6 +66,7 @@ class ProfileModel {
           '',
       currentOrganisationSlug:
           json['current_organisation_slug'] as String? ?? '',
+      status: _parseStatus(json),
     );
   }
 
@@ -79,7 +84,37 @@ class ProfileModel {
     currentOrganisationSlug: currentOrganisationSlug,
     avatarUrl: avatarUrl,
     defaultAvatarUrl: defaultAvatarUrl,
+    status: status,
   );
+
+  /// Reads `icon`, `text`, `pause_notification`, `status_timeout` and
+  /// `online`. Empty strings mean no status, as in `changeStatus`.
+  static UserStatus _parseStatus(Map<String, dynamic> json) {
+    final icon = json['icon'];
+    final text = json['text'];
+    final online = json['online'];
+    return UserStatus(
+      emoji: icon is String && icon.isNotEmpty ? icon : null,
+      text: text is String && text.isNotEmpty ? text : null,
+      expiresAt: _parseStatusExpiry(json['status_timeout']),
+      pauseNotifications: json['pause_notification'] == true,
+      online: online is bool ? online : true,
+    );
+  }
+
+  /// `status_timeout` holds Unix seconds when the server knows the expiry.
+  /// It can also be empty or hold the raw value the client sent
+  /// ("30 minutes", "dont-clear"). Those give no time, so the status is kept
+  /// without an expiry; the server clears it when it runs out.
+  static DateTime? _parseStatusExpiry(Object? raw) {
+    final seconds = switch (raw) {
+      num value => value.toInt(),
+      String value => int.tryParse(value.trim()),
+      _ => null,
+    };
+    if (seconds == null || seconds <= 0) return null;
+    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+  }
 
   /// Accepts ISO-8601 strings and epoch-seconds strings.
   static DateTime _parseDate(Object? raw) {

@@ -21,15 +21,23 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
   Future<Result<void>> deleteAccount() => _guard(_remote.deleteAccount);
 
   @override
-  Future<Result<NotificationPreferences>> getNotificationPreferences() {
-    return _guard(_remote.getNotificationPreferences);
+  Future<Result<NotificationPreferences>> getNotificationPreferences({
+    required String? orgId,
+  }) {
+    return _guard(() => _remote.getNotificationPreferences(orgId: orgId));
   }
 
   @override
-  Future<Result<NotificationPreferences>> updateNotificationPreferences(
-    NotificationPreferences preferences,
-  ) {
-    return _guard(() => _remote.updateNotificationPreferences(preferences));
+  Future<Result<NotificationPreferences>> updateNotificationPreferences({
+    required String? orgId,
+    required NotificationPreferences preferences,
+  }) {
+    return _guard(
+      () => _remote.updateNotificationPreferences(
+        orgId: orgId,
+        preferences: preferences,
+      ),
+    );
   }
 
   @override
@@ -76,7 +84,7 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
   }
 
   @override
-  Future<Result<void>> deleteOrganization({String? orgId}) {
+  Future<Result<void>> deleteOrganization({required String orgId}) {
     return _guard(() => _remote.deleteOrganization(orgId: orgId));
   }
 
@@ -107,8 +115,8 @@ class UserProfileRepositoryImpl implements UserProfileRepository {
   }
 
   @override
-  Future<Result<List<RolePermission>>> getRolesAndPermissions() {
-    return _guard(_remote.getRolesAndPermissions);
+  Future<Result<List<RolePermission>>> getRolesAndPermissions({String? orgId}) {
+    return _guard(() => _remote.getRolesAndPermissions(orgId: orgId));
   }
 
   @override

@@ -1,14 +1,18 @@
+import 'dart:async';
+import 'dart:io' show Directory, File, Platform;
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
 class MessageComposer extends ConsumerStatefulWidget {
   final ActiveChatState activeChat;
   final ValueChanged<String> onSend;
+  final void Function(String text, List<XFile> media)? onSendMedia;
 
   const MessageComposer({
     super.key,
     required this.activeChat,
     required this.onSend,
+    this.onSendMedia,
   });
 
   @override
@@ -21,7 +25,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
   bool _isFocused = false;
   bool _isRecording = false;
   bool _showMentions = false;
-  final List<String> _attachedFiles = [];
+  final List<XFile> _attachedFiles = [];
   final AudioRecorder _audioRecorder = AudioRecorder();
 
   @override
@@ -60,19 +64,113 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     });
   }
 
+  Future<bool> handlePaste({DataReader? reader}) async {
+    final clipReader = reader ?? await SystemClipboard.instance?.read();
+    if (clipReader == null) return false;
+
+    SimpleFileFormat? matchedFormat;
+    String ext = 'png';
+
+    if (clipReader.canProvide(Formats.png)) {
+      matchedFormat = Formats.png;
+      ext = 'png';
+    } else if (clipReader.canProvide(Formats.jpeg)) {
+      matchedFormat = Formats.jpeg;
+      ext = 'jpg';
+    } else if (clipReader.canProvide(Formats.webp)) {
+      matchedFormat = Formats.webp;
+      ext = 'webp';
+    } else if (clipReader.canProvide(Formats.gif)) {
+      matchedFormat = Formats.gif;
+      ext = 'gif';
+    }
+
+    if (matchedFormat != null) {
+      final completer = Completer<bool>();
+      clipReader.getFile(
+        matchedFormat,
+        (file) async {
+          try {
+            final bytes = await file.readAll();
+            if (bytes.isNotEmpty) {
+              final fileName =
+                  'pasted_image_${DateTime.now().millisecondsSinceEpoch}.$ext';
+              String? tempPath;
+              try {
+                tempPath =
+                    '${Directory.systemTemp.path}${Platform.pathSeparator}$fileName';
+                final tempFile = File(tempPath);
+                await tempFile.writeAsBytes(bytes);
+              } catch (_) {}
+              if (mounted) {
+                setState(() {
+                  _attachedFiles.add(
+                    XFile(
+                      tempPath != null && tempPath.isNotEmpty
+                          ? tempPath
+                          : fileName,
+                      name: fileName,
+                      bytes: bytes,
+                    ),
+                  );
+                });
+              }
+            }
+            if (!completer.isCompleted) completer.complete(true);
+          } catch (_) {
+            if (!completer.isCompleted) completer.complete(false);
+          }
+        },
+        onError: (_) {
+          if (!completer.isCompleted) completer.complete(false);
+        },
+      );
+      return await completer.future;
+    }
+
+    if (clipReader.canProvide(Formats.fileUri)) {
+      clipReader.getValue(Formats.fileUri, (uri) async {
+        if (uri != null && uri.hasScheme && uri.scheme == 'file') {
+          final filePath = uri.toFilePath();
+          final fileExt = filePath.split('.').last.toLowerCase();
+          if (const [
+            'png',
+            'jpg',
+            'jpeg',
+            'webp',
+            'gif',
+            'bmp',
+          ].contains(fileExt)) {
+            final fileName = filePath.split(Platform.pathSeparator).last;
+            if (mounted) {
+              setState(() {
+                _attachedFiles.add(XFile(filePath, name: fileName));
+              });
+            }
+          }
+        }
+      });
+      return true;
+    }
+
+    return false;
+  }
+
   void _handleSend() {
     final text = _controller.text.trim();
     if (text.isEmpty && _attachedFiles.isEmpty) return;
 
+    final mediaToSend = List<XFile>.from(_attachedFiles);
     String finalMessage = text;
     if (_attachedFiles.isNotEmpty) {
       final attachmentsStr = _attachedFiles
-          .map((f) => '[Attachment: $f]')
+          .map((f) => '[Attachment: ${f.path.isNotEmpty ? f.path : f.name}]')
           .join(' ');
       finalMessage = text.isEmpty ? attachmentsStr : '$text\n$attachmentsStr';
     }
 
     widget.onSend(finalMessage);
+    widget.onSendMedia?.call(text, mediaToSend);
     _controller.clear();
     setState(() {
       _attachedFiles.clear();
@@ -155,6 +253,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
         children: [
           if (_showMentions)
             Container(
+              key: const ValueKey('message_composer_mentions'),
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(vertical: 4),
               decoration: BoxDecoration(
@@ -172,7 +271,10 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               child: Column(
                 children: teamMembers.map((member) {
                   final name = member.name ?? member.email;
-                  final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+                  final trimmedName = name.trim();
+                  final initial = trimmedName.isNotEmpty
+                      ? trimmedName.characters.first.toUpperCase()
+                      : '?';
                   return InkWell(
                     onTap: () => _insertMention(name),
                     child: Padding(
@@ -212,6 +314,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
             ),
           if (_isFocused)
             Container(
+              key: const ValueKey('message_composer_toolbar'),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: colors.background,
@@ -250,6 +353,12 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                   ),
                   const Spacer(),
                   _ToolbarButton(
+                    key: const Key('message_composer_formatting_help_button'),
+                    icon: Icons.help_outline_rounded,
+                    onPressed: () => showFormattingHelp(context),
+                    tooltip: 'Formatting help',
+                  ),
+                  _ToolbarButton(
                     icon: Icons.emoji_emotions_outlined,
                     onPressed: () => _insertFormatting('😀', ''),
                     tooltip: 'Emoji',
@@ -258,6 +367,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               ),
             ),
           Container(
+            key: const ValueKey('message_composer_input_box'),
             decoration: BoxDecoration(
               color: colors.background,
               border: Border.all(
@@ -277,10 +387,24 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                   onPressed: () async {
                     FilePickerResult? result = await FilePicker.pickFiles(
                       allowMultiple: true,
+                      type: FileType.any,
                     );
                     if (result != null) {
                       setState(() {
-                        _attachedFiles.addAll(result.names.whereType<String>());
+                        for (final file in result.files) {
+                          final path = file.path;
+                          if (path != null && path.isNotEmpty) {
+                            _attachedFiles.add(XFile(path, name: file.name));
+                          } else if (file.bytes != null) {
+                            _attachedFiles.add(
+                              XFile.fromData(file.bytes!, name: file.name),
+                            );
+                          } else if (file.name.isNotEmpty) {
+                            _attachedFiles.add(
+                              XFile(file.name, name: file.name),
+                            );
+                          }
+                        }
                       });
                     }
                   },
@@ -289,25 +413,52 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                   tooltip: 'Attach file',
                 ),
                 Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    onChanged: _onTextChanged,
-                    minLines: 1,
-                    maxLines: 8,
-                    style: TextStyle(color: colors.textPrimary, fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: widget.activeChat.type == ActiveChatType.groupDm
-                          ? 'Message group...'
-                          : 'Message #${widget.activeChat.id ?? "general"}',
-                      hintStyle: TextStyle(color: colors.textHint),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Focus(
+                    onKeyEvent: (node, event) {
+                      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                      final key = event.logicalKey;
+                      if (key == LogicalKeyboardKey.enter ||
+                          key == LogicalKeyboardKey.numpadEnter) {
+                        // Shift+Enter falls through so the default newline is inserted.
+                        if (HardwareKeyboard.instance.isShiftPressed) {
+                          return KeyEventResult.ignored;
+                        }
+                        _handleSend();
+                        return KeyEventResult.handled;
+                      }
+                      if (key == LogicalKeyboardKey.keyV &&
+                          (HardwareKeyboard.instance.isControlPressed ||
+                              HardwareKeyboard.instance.isMetaPressed)) {
+                        handlePaste();
+                        return KeyEventResult.ignored;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      onChanged: _onTextChanged,
+                      minLines: 1,
+                      maxLines: 8,
+                      style: TextStyle(color: colors.textPrimary, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText:
+                            widget.activeChat.type == ActiveChatType.groupDm
+                            ? 'Message group...'
+                            : 'Message #${widget.activeChat.id ?? "general"}',
+                        hintStyle: TextStyle(color: colors.textHint),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                      ),
+                      onSubmitted: (_) => _handleSend(),
                     ),
-                    onSubmitted: (_) => _handleSend(),
                   ),
                 ),
-                if (_controller.text.isEmpty && !_isRecording)
+                if (_controller.text.isEmpty &&
+                    _attachedFiles.isEmpty &&
+                    !_isRecording)
                   IconButton(
                     onPressed: _startRecording,
                     icon: Icon(Icons.mic_none, color: colors.textHint),
@@ -325,6 +476,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                         onPressed: _stopRecording,
                         icon: Icon(Icons.stop_circle, color: colors.error),
                         splashRadius: 20,
+                        tooltip: 'Stop recording',
                       ),
                     ],
                   )
@@ -333,6 +485,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     onPressed: _handleSend,
                     icon: Icon(Icons.send, color: colors.primary),
                     splashRadius: 20,
+                    tooltip: 'Send message',
                   ),
               ],
             ),
@@ -343,10 +496,11 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _attachedFiles.map((fileName) {
+                children: _attachedFiles.map((file) {
+                  final displayName = file.name.split(RegExp(r'[/\\]')).last;
                   return Chip(
                     label: Text(
-                      fileName,
+                      displayName,
                       style: TextStyle(fontSize: 12, color: colors.textPrimary),
                     ),
                     deleteIcon: Icon(
@@ -356,7 +510,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     ),
                     onDeleted: () {
                       setState(() {
-                        _attachedFiles.remove(fileName);
+                        _attachedFiles.remove(file);
                       });
                     },
                     backgroundColor: colors.background,
@@ -377,6 +531,7 @@ class _ToolbarButton extends StatelessWidget {
   final String tooltip;
 
   const _ToolbarButton({
+    super.key,
     required this.icon,
     required this.onPressed,
     required this.tooltip,

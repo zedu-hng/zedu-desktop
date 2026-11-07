@@ -53,21 +53,27 @@ class _UpdateStatusDialogState extends State<UpdateStatusDialog> {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: colors.divider),
                 ),
-                suffixIcon: GestureDetector(
-                  onTap: () async {
-                    final selectedEmoji = await showDialog<String>(
-                      context: context,
-                      builder: (context) => const EmojiPickerDialog(),
-                    );
-                    if (selectedEmoji != null && mounted) {
-                      setState(() {
-                        _statusController.text += selectedEmoji;
-                      });
-                    }
-                  },
-                  child: Icon(
-                    Icons.emoji_emotions_outlined,
-                    color: colors.accent,
+                suffixIcon: Tooltip(
+                  message: 'Add status emoji',
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () async {
+                        final selectedEmoji = await showDialog<String>(
+                          context: context,
+                          builder: (context) => const EmojiPickerDialog(),
+                        );
+                        if (selectedEmoji != null && mounted) {
+                          setState(() {
+                            _statusController.text += selectedEmoji;
+                          });
+                        }
+                      },
+                      child: Icon(
+                        Icons.emoji_emotions_outlined,
+                        color: colors.accent,
+                      ),
+                    ),
                   ),
                 ),
               ),

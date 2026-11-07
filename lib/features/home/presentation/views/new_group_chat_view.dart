@@ -79,6 +79,22 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
     });
   }
 
+  String _getMemberDisplayName(TeamMember member) {
+    final name = member.name?.trim();
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+    final emailPrefix = member.email.split('@').first.trim();
+    if (emailPrefix.isNotEmpty) {
+      return emailPrefix;
+    }
+    return 'Member';
+  }
+
+  String _getMemberInitials(String displayName) {
+    return avatarInitials(displayName);
+  }
+
   Future<void> _handleCreate() async {
     if (_selectedMembers.length < 2) return;
 
@@ -184,20 +200,14 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
                                 spacing: 8,
                                 runSpacing: 8,
                                 children: _selectedMembers.map((member) {
-                                  final name =
-                                      member.name ??
-                                      member.email.split('@').first;
+                                  final name = _getMemberDisplayName(member);
+                                  final initials = _getMemberInitials(name);
                                   return Chip(
                                     avatar: CircleAvatar(
                                       backgroundColor: colors.primary
                                           .withValues(alpha: 0.15),
                                       child: Text(
-                                        name
-                                            .substring(
-                                              0,
-                                              name.length > 1 ? 2 : 1,
-                                            )
-                                            .toUpperCase(),
+                                        initials,
                                         style: TextStyle(
                                           color: colors.primary,
                                           fontSize: 10,
@@ -248,106 +258,108 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
                             top: 60,
                             left: 0,
                             right: 0,
-                            child: Material(
-                              elevation: 8,
-                              shadowColor: colors.textPrimary.withValues(
-                                alpha: 0.1,
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 250,
+                            // Inside the field's tap region so pressing a row
+                            // doesn't unfocus the field (and hide the list)
+                            // before the tap completes.
+                            child: TextFieldTapRegion(
+                              child: Material(
+                                elevation: 8,
+                                shadowColor: colors.textPrimary.withValues(
+                                  alpha: 0.1,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: colors.divider),
-                                ),
-                                child: ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: _filteredMembers.length,
-                                  itemBuilder: (context, index) {
-                                    final member = _filteredMembers[index];
-                                    final name =
-                                        member.name ??
-                                        member.email.split('@').first;
-                                    return InkWell(
-                                      onTap: () =>
-                                          _toggleMemberSelection(member),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color: colors.divider,
-                                              width: 0.5,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 250,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: colors.divider),
+                                  ),
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: _filteredMembers.length,
+                                    itemBuilder: (context, index) {
+                                      final member = _filteredMembers[index];
+                                      final name = _getMemberDisplayName(
+                                        member,
+                                      );
+                                      final initials = _getMemberInitials(name);
+                                      return InkWell(
+                                        onTap: () =>
+                                            _toggleMemberSelection(member),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 12,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: colors.divider,
+                                                width: 0.5,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            // Avatar
-                                            CircleAvatar(
-                                              radius: 16,
-                                              backgroundColor: colors.primary
-                                                  .withValues(alpha: 0.1),
-                                              child: Text(
-                                                name
-                                                    .substring(
-                                                      0,
-                                                      name.length > 1 ? 2 : 1,
-                                                    )
-                                                    .toUpperCase(),
-                                                style: TextStyle(
-                                                  color: colors.primary,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
+                                          child: Row(
+                                            children: [
+                                              // Avatar
+                                              CircleAvatar(
+                                                radius: 16,
+                                                backgroundColor: colors.primary
+                                                    .withValues(alpha: 0.1),
+                                                child: Text(
+                                                  initials,
+                                                  style: TextStyle(
+                                                    color: colors.primary,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 12),
+                                              const SizedBox(width: 12),
 
-                                            // Text
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    name,
-                                                    style: TextStyle(
-                                                      color: colors.textPrimary,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 14,
+                                              // Text
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      name,
+                                                      style: TextStyle(
+                                                        color:
+                                                            colors.textPrimary,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 14,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    member.email,
-                                                    style: TextStyle(
-                                                      color: colors.textHint,
-                                                      fontSize: 12,
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      member.email,
+                                                      style: TextStyle(
+                                                        color: colors.textHint,
+                                                        fontSize: 12,
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
-                                            ),
 
-                                            // Checkbox / Add icon
-                                            Icon(
-                                              Icons.add_circle_outline,
-                                              color: colors.primary,
-                                              size: 20,
-                                            ),
-                                          ],
+                                              // Checkbox / Add icon
+                                              Icon(
+                                                Icons.add_circle_outline,
+                                                color: colors.primary,
+                                                size: 20,
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
@@ -484,7 +496,7 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
       child: Row(
         children: [
           Text(
-            'New Group Chat',
+            'New message',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -506,22 +518,23 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
       child: Row(
         children: [
           Text(
-            'With: ',
+            'To: ',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: colors.textHint,
+              color: colors.textPrimary,
             ),
           ),
           Expanded(
             child: TextField(
               controller: _searchController,
               focusNode: _focusNode,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: '#a-channel, @somebody, or somebody',
+                hintStyle: TextStyle(color: colors.textHint),
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
               ),
               style: TextStyle(color: colors.textPrimary, fontSize: 15),
             ),
@@ -558,14 +571,16 @@ class _NewGroupChatViewState extends ConsumerState<NewGroupChatView> {
           color: isReady ? colors.success : colors.error,
         ),
         const SizedBox(width: 8),
-        Text(
-          isReady
-              ? 'Ready to create conversation! (Selected: $count members)'
-              : 'Select at least 2 members to start a group DM (Selected: $count/2)',
-          style: TextStyle(
-            color: isReady ? colors.success : colors.error,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+        Expanded(
+          child: Text(
+            isReady
+                ? 'Ready to create conversation! (Selected: $count members)'
+                : 'Select at least 2 members to start a group DM (Selected: $count/2)',
+            style: TextStyle(
+              color: isReady ? colors.success : colors.error,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],

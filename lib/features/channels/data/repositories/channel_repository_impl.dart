@@ -77,6 +77,79 @@ class ChannelRepositoryImpl implements ChannelRepository {
   }
 
   @override
+  Future<Result<List<Channel>>> fetchArchivedChannels(String orgId) async {
+    try {
+      return Success(await remoteDataSource.fetchArchivedChannels(orgId));
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> editChannelMessage({
+    required String channelId,
+    required String threadId,
+    required String content,
+  }) async {
+    try {
+      await remoteDataSource.editChannelMessage(
+        channelId: channelId,
+        threadId: threadId,
+        content: content,
+      );
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> deleteChannelMessage({
+    required String channelId,
+    required String threadId,
+  }) async {
+    try {
+      await remoteDataSource.deleteChannelMessage(
+        channelId: channelId,
+        threadId: threadId,
+      );
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> leaveChannel(String channelId) async {
+    try {
+      await remoteDataSource.leaveChannel(channelId);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<void>> joinChannel(String channelId) async {
+    try {
+      await remoteDataSource.joinChannel(channelId);
+      return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Result<List<String>>> fetchOrganisationMemberIds(String orgId) async {
     try {
       final ids = await remoteDataSource.fetchOrganisationMemberIds(orgId);
@@ -101,6 +174,19 @@ class ChannelRepositoryImpl implements ChannelRepository {
   }
 
   @override
+  Future<Result<List<DmParticipant>>> fetchChannelMembers(
+    String channelId,
+  ) async {
+    try {
+      return Success(await remoteDataSource.fetchChannelMembers(channelId));
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Result<void>> addMembersToChannel({
     required String channelId,
     required List<String> userIds,
@@ -111,6 +197,19 @@ class ChannelRepositoryImpl implements ChannelRepository {
         userIds: userIds,
       );
       return const Success(null);
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Result<List<ChannelMessage>>> fetchChannelMessages(
+    String channelId,
+  ) async {
+    try {
+      return Success(await remoteDataSource.fetchChannelMessages(channelId));
     } on ApiFailure catch (e) {
       return Failure(e);
     } catch (e) {

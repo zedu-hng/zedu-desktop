@@ -153,6 +153,31 @@ void main() {
     });
   });
 
+  group('DmRepository.pinMessage', () {
+    test('pins the thread through the channels pin route', () async {
+      when(
+        () => api.post<Map<String, dynamic>>(
+          path: '/channels/pin/ch-1/thread',
+          data: {'thread_id': 'thread-1'},
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 201,
+          data: {},
+        ),
+      );
+
+      await repository.pinMessage(threadId: 'thread-1', channelId: 'ch-1');
+
+      verify(
+        () => api.post<Map<String, dynamic>>(
+          path: '/channels/pin/ch-1/thread',
+          data: {'thread_id': 'thread-1'},
+        ),
+      ).called(1);
+    });
+  });
+
   group('DmRepository.openConversation', () {
     test('returns the channel and participant ids', () async {
       when(
@@ -197,6 +222,31 @@ void main() {
         repository.openConversation(orgId: 'org-1', participantId: 'u-2'),
         throwsFormatException,
       );
+    });
+  });
+
+  group('DmRepository.editMessage', () {
+    test('sends messageId in the URL path and content in data', () async {
+      when(
+        () => api.put<Map<String, dynamic>>(
+          path: '/dms/messages/msg-123',
+          data: any(named: 'data'),
+        ),
+      ).thenAnswer(
+        (_) async => const ApiResponseModel<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {},
+        ),
+      );
+
+      await repository.editMessage('msg-123', content: 'Updated message text');
+
+      verify(
+        () => api.put<Map<String, dynamic>>(
+          path: '/dms/messages/msg-123',
+          data: {'content': 'Updated message text'},
+        ),
+      ).called(1);
     });
   });
 }

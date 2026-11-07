@@ -1,46 +1,85 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-class SearchPanel extends StatefulWidget {
+/// Searches one conversation's full history on the server.
+class SearchPanel extends ConsumerStatefulWidget {
+  final String channelId;
   final VoidCallback onClose;
 
-  const SearchPanel({super.key, required this.onClose});
+  const SearchPanel({
+    super.key,
+    required this.channelId,
+    required this.onClose,
+  });
 
   @override
-  State<SearchPanel> createState() => _SearchPanelState();
+  ConsumerState<SearchPanel> createState() => _SearchPanelState();
 }
 
-class _SearchPanelState extends State<SearchPanel> {
-  final TextEditingController _searchController = TextEditingController();
-  List<String> _results = [];
-  bool _isSearching = false;
+class _SearchPanelState extends ConsumerState<SearchPanel> {
+  static const _debounce = Duration(milliseconds: 300);
 
-  void _performSearch(String query) {
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounceTimer;
+  List<ConversationSearchHit> _results = [];
+  bool _isSearching = false;
+  bool _failed = false;
+  String _searchedQuery = '';
+  // Only the latest request may update the panel; slower older ones are
+  // dropped so their results never replace newer ones.
+  int _requestId = 0;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_debounce, () => _performSearch(value));
+  }
+
+  Future<void> _performSearch(String value) async {
+    _debounceTimer?.cancel();
+    final query = value.trim();
+    final requestId = ++_requestId;
     if (query.isEmpty) {
       setState(() {
         _results = [];
         _isSearching = false;
+        _failed = false;
+        _searchedQuery = '';
       });
       return;
     }
 
     setState(() {
       _isSearching = true;
-      // Mock search delay
+      _failed = false;
     });
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() {
-          _isSearching = false;
-          _results = [
-            'Found message matching "$query"',
-            'Another result for "$query"',
-            'Older message discussing "$query"',
-          ];
-        });
-      }
-    });
+    try {
+      final hits = await ref
+          .read(dmRepositoryProvider)
+          .searchMessages(channelId: widget.channelId, query: query);
+      if (!mounted || requestId != _requestId) return;
+      setState(() {
+        _results = hits;
+        _isSearching = false;
+        _searchedQuery = query;
+      });
+    } catch (_) {
+      if (!mounted || requestId != _requestId) return;
+      setState(() {
+        _results = [];
+        _isSearching = false;
+        _failed = true;
+        _searchedQuery = query;
+      });
+    }
   }
 
   @override
@@ -77,6 +116,7 @@ class _SearchPanelState extends State<SearchPanel> {
                   onPressed: widget.onClose,
                   icon: Icon(Icons.close, color: colors.textHint),
                   splashRadius: 20,
+                  tooltip: 'Close search',
                 ),
               ],
             ),
@@ -85,6 +125,7 @@ class _SearchPanelState extends State<SearchPanel> {
             padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
+              autofocus: true,
               decoration: InputDecoration(
                 hintText: 'Search messages...',
                 hintStyle: TextStyle(color: colors.textHint),
@@ -106,39 +147,111 @@ class _SearchPanelState extends State<SearchPanel> {
                   vertical: 12,
                 ),
               ),
+              onChanged: _onChanged,
               onSubmitted: _performSearch,
             ),
           ),
-          Expanded(
-            child: _isSearching
-                ? Center(
-                    child: CircularProgressIndicator(color: colors.primary),
-                  )
-                : _results.isEmpty
-                ? Center(
-                    child: Text(
-                      _searchController.text.isEmpty
-                          ? 'Enter a search term'
-                          : 'No results found',
-                      style: TextStyle(color: colors.textHint),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _results.length,
-                    separatorBuilder: (context, index) =>
-                        Divider(color: colors.divider),
-                    itemBuilder: (context, index) {
-                      return MessageBubble(
-                        author: 'Jane Smith',
-                        text: _results[index],
-                        timestamp: 'Yesterday',
-                      );
-                    },
-                  ),
-          ),
+          Expanded(child: _buildResults(colors)),
         ],
       ),
     );
   }
+
+  Widget _buildResults(AppPalette colors) {
+    if (_isSearching) {
+      return Center(child: CircularProgressIndicator(color: colors.primary));
+    }
+    if (_failed) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "Couldn't search messages.",
+              style: TextStyle(color: colors.textHint),
+            ),
+            TextButton(
+              onPressed: () => _performSearch(_searchedQuery),
+              child: const Text('Try again'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_results.isEmpty) {
+      return Center(
+        child: Text(
+          _searchedQuery.isEmpty
+              ? 'Enter a search term'
+              : 'No messages match "$_searchedQuery"',
+          style: TextStyle(color: colors.textHint),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _results.length,
+      separatorBuilder: (context, index) => Divider(color: colors.divider),
+      itemBuilder: (context, index) {
+        final hit = _results[index];
+        final sentAt = hit.sentAtLabel;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              sentAt == null ? hit.userName : '${hit.userName} · $sentAt',
+              style: TextStyle(fontSize: 12, color: colors.textHint),
+            ),
+            const SizedBox(height: 4),
+            Text.rich(
+              highlightMatches(
+                hit.text,
+                _searchedQuery,
+                base: TextStyle(color: colors.textPrimary),
+                match: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                  backgroundColor: colors.primary.withValues(alpha: 0.18),
+                ),
+              ),
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Splits [text] so every case-insensitive occurrence of [query] uses [match].
+@visibleForTesting
+TextSpan highlightMatches(
+  String text,
+  String query, {
+  required TextStyle base,
+  required TextStyle match,
+}) {
+  final needle = query.trim().toLowerCase();
+  if (needle.isEmpty) return TextSpan(text: text, style: base);
+  final haystack = text.toLowerCase();
+  final spans = <TextSpan>[];
+  var start = 0;
+  while (true) {
+    final index = haystack.indexOf(needle, start);
+    if (index < 0) break;
+    if (index > start) {
+      spans.add(TextSpan(text: text.substring(start, index)));
+    }
+    spans.add(
+      TextSpan(
+        text: text.substring(index, index + needle.length),
+        style: match,
+      ),
+    );
+    start = index + needle.length;
+  }
+  if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
+  return TextSpan(style: base, children: spans);
 }

@@ -1,15 +1,68 @@
+import 'dart:async';
+
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
-class DmSidebarList extends ConsumerWidget {
+class DmSidebarList extends ConsumerStatefulWidget {
   const DmSidebarList({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DmSidebarList> createState() => _DmSidebarListState();
+}
+
+class _DmSidebarListState extends ConsumerState<DmSidebarList> {
+  final _searchController = TextEditingController();
+  Timer? _debounce;
+  String _debouncedQuery = '';
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      _debounce?.cancel();
+      setState(() {
+        _debouncedQuery = '';
+      });
+      return;
+    }
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _debouncedQuery = trimmed;
+        });
+      }
+    });
+    setState(() {});
+  }
+
+  void _onSubmitted(String value) {
+    _debounce?.cancel();
+    setState(() {
+      _debouncedQuery = value.trim();
+    });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    setState(() {
+      _debouncedQuery = '';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.colors;
+    final textColor = colors.onPrimary.withValues(alpha: 0.9);
 
     return Container(
-      width: 320,
       color: colors.sidebar,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,19 +85,40 @@ class DmSidebarList extends ConsumerWidget {
                     child: Row(
                       children: [
                         const SizedBox(width: 8),
-                        Icon(
-                          Icons.search,
-                          color: colors.onPrimary.withValues(alpha: 0.9),
-                          size: 16,
-                        ),
+                        Icon(Icons.search, color: textColor, size: 16),
                         const SizedBox(width: 8),
-                        Text(
-                          'Find a Conversation',
-                          style: TextStyle(
-                            color: colors.onPrimary.withValues(alpha: 0.9),
-                            fontSize: 12,
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: _onChanged,
+                            onSubmitted: _onSubmitted,
+                            cursorColor: textColor,
+                            style: TextStyle(color: textColor, fontSize: 12),
+                            decoration: InputDecoration(
+                              hintText: 'Find a Conversation',
+                              hintStyle: TextStyle(
+                                color: textColor,
+                                fontSize: 12,
+                              ),
+                              isDense: true,
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
                         ),
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: _clearSearch,
+                            icon: Icon(Icons.close, color: textColor, size: 14),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints.tightFor(
+                              width: 28,
+                              height: 28,
+                            ),
+                          )
+                        else
+                          const SizedBox(width: 8),
                       ],
                     ),
                   ),
@@ -53,77 +127,97 @@ class DmSidebarList extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: ref
-                .watch(dmListProvider)
-                .when(
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                  error: (err, stack) => Center(
-                    child: Text(
-                      'Failed to load DMs',
-                      style: TextStyle(color: colors.error),
-                    ),
-                  ),
-                  data: (conversations) {
-                    final actions = ref.watch(dmConversationActionsProvider);
-                    final visibleConversations =
-                        conversations
-                            .where(
-                              (conversation) => !actions.deletedIds.contains(
-                                conversation.channelId,
-                              ),
-                            )
-                            .toList()
-                          ..sort((a, b) {
-                            final aPinned = actions.pinnedIds.contains(
-                              a.channelId,
-                            );
-                            final bPinned = actions.pinnedIds.contains(
-                              b.channelId,
-                            );
-                            if (aPinned != bPinned) return aPinned ? -1 : 1;
-                            return b.lastActivityAt.compareTo(a.lastActivityAt);
-                          });
-                    if (visibleConversations.isEmpty) {
-                      return Center(
+            child:
+                (_debouncedQuery.isEmpty
+                        ? ref.watch(dmListProvider)
+                        : ref.watch(dmSearchResultsProvider(_debouncedQuery)))
+                    .when(
+                      loading: () => const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                      error: (err, stack) => Center(
                         child: Text(
-                          'No recent chats',
-                          style: TextStyle(
-                            color: colors.onPrimary.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      );
-                    }
-                    return NotificationListener<ScrollNotification>(
-                      onNotification: (scrollInfo) {
-                        if (scrollInfo is ScrollEndNotification &&
-                            scrollInfo.metrics.pixels >=
-                                scrollInfo.metrics.maxScrollExtent * 0.85) {
-                          final notifier = ref.read(dmListProvider.notifier);
-                          if (notifier.hasMore) {
-                            notifier.loadMore();
-                          }
-                        }
-                        return false;
-                      },
-                      // Transparent Material so each row's hover and
-                      // selected ink paints above the sidebar colour.
-                      child: Material(
-                        type: MaterialType.transparency,
-                        child: ListView.builder(
-                          padding: EdgeInsets.zero,
-                          itemCount: visibleConversations.length,
-                          itemBuilder: (context, index) {
-                            return DmListTile(
-                              conversation: visibleConversations[index],
-                            );
-                          },
+                          'Failed to load DMs',
+                          style: TextStyle(color: colors.error),
                         ),
                       ),
-                    );
-                  },
-                ),
+                      data: (conversations) {
+                        final actions = ref.watch(
+                          dmConversationActionsProvider,
+                        );
+                        final visibleConversations =
+                            conversations
+                                .where(
+                                  (conversation) => !actions.deletedIds
+                                      .contains(conversation.channelId),
+                                )
+                                .toList()
+                              ..sort((a, b) {
+                                final aPinned = actions.pinnedIds.contains(
+                                  a.channelId,
+                                );
+                                final bPinned = actions.pinnedIds.contains(
+                                  b.channelId,
+                                );
+                                if (aPinned != bPinned) return aPinned ? -1 : 1;
+                                return b.lastActivityAt.compareTo(
+                                  a.lastActivityAt,
+                                );
+                              });
+                        if (visibleConversations.isEmpty) {
+                          return Center(
+                            child: Text(
+                              _debouncedQuery.isEmpty
+                                  ? 'No recent chats'
+                                  : 'No conversations match',
+                              style: TextStyle(
+                                color: colors.onPrimary.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          );
+                        }
+                        return NotificationListener<ScrollNotification>(
+                          onNotification: (scrollInfo) {
+                            if (scrollInfo is ScrollEndNotification &&
+                                scrollInfo.metrics.pixels >=
+                                    scrollInfo.metrics.maxScrollExtent * 0.85) {
+                              if (_debouncedQuery.isEmpty) {
+                                final notifier = ref.read(
+                                  dmListProvider.notifier,
+                                );
+                                if (notifier.hasMore) {
+                                  notifier.loadMore();
+                                }
+                              } else {
+                                final notifier = ref.read(
+                                  dmSearchResultsProvider(
+                                    _debouncedQuery,
+                                  ).notifier,
+                                );
+                                if (notifier.hasMore) {
+                                  notifier.loadMore();
+                                }
+                              }
+                            }
+                            return false;
+                          },
+                          // Transparent Material so each row's hover and
+                          // selected ink paints above the sidebar colour.
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: visibleConversations.length,
+                              itemBuilder: (context, index) {
+                                return DmListTile(
+                                  conversation: visibleConversations[index],
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
           ),
         ],
       ),
