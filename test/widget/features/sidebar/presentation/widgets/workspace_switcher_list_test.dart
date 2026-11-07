@@ -1,5 +1,6 @@
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
+
 import '../../../../../helpers/helpers.dart';
 
 class FakeWorkspaceNotifier extends WorkspaceNotifier {
@@ -10,7 +11,22 @@ class FakeWorkspaceNotifier extends WorkspaceNotifier {
   );
 }
 
-Widget buildSwitcherUnderTest() {
+class FailingSwitchNotifier extends WorkspaceNotifier {
+  @override
+  WorkspaceState build() => const WorkspaceState(
+    workspaces: [
+      Workspace(id: '1', name: 'Acme', avatar: 'A'),
+      Workspace(id: '2', name: 'Globex', avatar: 'G'),
+    ],
+    selectedWorkspace: Workspace(id: '1', name: 'Acme', avatar: 'A'),
+  );
+
+  @override
+  Future<String?> switchWorkspace(Workspace workspace) async =>
+      WorkspaceNotifier.switchErrorMessage;
+}
+
+Widget buildSwitcherUnderTest({WorkspaceNotifier Function()? notifier}) {
   final router = GoRouter(
     routes: [
       GoRoute(
@@ -38,7 +54,9 @@ Widget buildSwitcherUnderTest() {
   );
 
   return ProviderScope(
-    overrides: [workspaceProvider.overrideWith(FakeWorkspaceNotifier.new)],
+    overrides: [
+      workspaceProvider.overrideWith(notifier ?? FakeWorkspaceNotifier.new),
+    ],
     child: MaterialApp.router(routerConfig: router),
   );
 }
@@ -60,5 +78,83 @@ void main() {
       expect(find.text('Profile page'), findsOneWidget);
       expect(find.text('Settings'), findsNothing);
     });
+
+    testWidgets(
+      'renders safe initial without crash when workspace name is empty or starts with emoji',
+      (tester) async {
+        tester.platformDispatcher.textScaleFactorTestValue = 0.5;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+        await tester.pumpWidget(buildEmptySwitcherUnderTest());
+        await tester.tap(find.text('Open menu'));
+        await tester.pumpAndSettle();
+
+        // Empty name falls back to 'W' without throwing RangeError
+        expect(find.text('W'), findsWidgets);
+        // Emoji name extracts complete first grapheme '🚀'
+        expect(find.text('🚀'), findsOneWidget);
+      },
+    );
+
+    testWidgets('tells the user when switching organisation fails', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 0.5;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await tester.pumpWidget(
+        buildSwitcherUnderTest(notifier: FailingSwitchNotifier.new),
+      );
+      await tester.tap(find.text('Open menu'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Globex'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text(WorkspaceNotifier.switchErrorMessage), findsOneWidget);
+      // Let the toast's timer run out.
+      await tester.pump(const Duration(seconds: 10));
+    });
   });
+}
+
+class FakeEmptyWorkspaceNotifier extends WorkspaceNotifier {
+  @override
+  WorkspaceState build() => const WorkspaceState(
+    workspaces: [
+      Workspace(id: '1', name: '', avatar: ''),
+      Workspace(id: '2', name: '🚀 Rocket', avatar: ''),
+    ],
+    selectedWorkspace: Workspace(id: '1', name: '', avatar: ''),
+  );
+}
+
+Widget buildEmptySwitcherUnderTest() {
+  final router = GoRouter(
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const Align(
+                  alignment: Alignment.topLeft,
+                  child: WorkspaceSwitcherList(),
+                ),
+              ),
+              child: const Text('Open menu'),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  return ProviderScope(
+    overrides: [workspaceProvider.overrideWith(FakeEmptyWorkspaceNotifier.new)],
+    child: MaterialApp.router(routerConfig: router),
+  );
 }

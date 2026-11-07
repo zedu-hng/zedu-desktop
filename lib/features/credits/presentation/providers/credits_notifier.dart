@@ -3,8 +3,13 @@ import 'package:zedu/features/features.dart';
 
 class CreditsNotifier extends Notifier<CreditsState> {
   late final CreditsRepository _repository;
+  bool _purchaseInFlight = false;
 
   static const _tag = 'CreditsNotifier';
+
+  /// Bumped by every [load]; an older request that finishes later sees a
+  /// different value and stops instead of overwriting newer state.
+  int _loadGeneration = 0;
 
   @override
   CreditsState build() {
@@ -14,8 +19,18 @@ class CreditsNotifier extends Notifier<CreditsState> {
 
   Future<void> load({String? orgId}) async {
     if (orgId == null || orgId.isEmpty) return;
+
+    final generation = ++_loadGeneration;
+    // Another organisation's usage and history must not show for this one.
+    if (state.orgId != orgId) {
+      state = CreditsState(
+        packages: state.packages,
+        lastVerifiedSessionId: state.lastVerifiedSessionId,
+      );
+    }
     state = state.copyWith(
       status: CreditsStatus.loading,
+      orgId: orgId,
       clearError: true,
       clearSuccess: true,
     );
@@ -24,6 +39,11 @@ class CreditsNotifier extends Notifier<CreditsState> {
     final usageResult = await _repository.getUsage(orgId);
     final reportResult = await _repository.getUsageReport(orgId);
     final transactionsResult = await _repository.getTransactions(orgId);
+    // A newer load owns the state now: drop this one's results, success or
+    // failure, so an earlier workspace cannot replace the current balance.
+    if (generation != _loadGeneration) return;
+    // A load for another organisation started meanwhile; its result wins.
+    if (state.orgId != orgId) return;
 
     String? error;
     var packages = state.packages;
@@ -72,35 +92,41 @@ class CreditsNotifier extends Notifier<CreditsState> {
     required CreditPackage package,
     required String email,
   }) async {
-    if (package.isFree) return null;
+    if (package.isFree || _purchaseInFlight) return null;
+    _purchaseInFlight = true;
 
-    state = state.copyWith(
-      status: CreditsStatus.purchasing,
-      purchasingPackageId: package.id,
-      clearError: true,
-      clearSuccess: true,
-    );
+    try {
+      state = state.copyWith(
+        status: CreditsStatus.purchasing,
+        purchasingPackageId: package.id,
+        clearError: true,
+        clearSuccess: true,
+      );
 
-    final result = await _repository.purchaseCredits(
-      planId: package.id,
-      email: email,
-    );
+      final result = await _repository.purchaseCredits(
+        packageId: package.id,
+        planId: package.id,
+        email: email,
+      );
 
-    switch (result) {
-      case Success<CreditCheckoutSession>():
-        state = state.copyWith(
-          status: CreditsStatus.ready,
-          clearPurchasing: true,
-        );
-        return result.value;
-      case Failure<CreditCheckoutSession>():
-        AppLogger.w('Purchase failed — ${result.error.message}', tag: _tag);
-        state = state.copyWith(
-          status: CreditsStatus.error,
-          error: result.error.friendlyMessage,
-          clearPurchasing: true,
-        );
-        return null;
+      switch (result) {
+        case Success<CreditCheckoutSession>():
+          state = state.copyWith(
+            status: CreditsStatus.ready,
+            clearPurchasing: true,
+          );
+          return result.value;
+        case Failure<CreditCheckoutSession>():
+          AppLogger.w('Purchase failed — ${result.error.message}', tag: _tag);
+          state = state.copyWith(
+            status: CreditsStatus.error,
+            error: result.error.friendlyMessage,
+            clearPurchasing: true,
+          );
+          return null;
+      }
+    } finally {
+      _purchaseInFlight = false;
     }
   }
 

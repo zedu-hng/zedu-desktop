@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io' show Directory, File, Platform;
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -21,7 +23,8 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
   bool _isFocused = false;
   bool _isRecording = false;
   bool _showMentions = false;
-  final List<String> _attachedFiles = [];
+  final List<XFile> _attachedFiles = [];
+  XFile? _voiceNote;
   final AudioRecorder _audioRecorder = AudioRecorder();
 
   @override
@@ -39,14 +42,18 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     _controller.dispose();
     _focusNode.dispose();
     _audioRecorder.dispose();
+    if (_voiceNote != null) {
+      File(_voiceNote!.path).delete();
+    }
     super.dispose();
   }
 
   Future<void> _startRecording() async {
     if (await _audioRecorder.hasPermission()) {
       setState(() => _isRecording = true);
-      // In a real app we'd specify a path. Using default temp path for mock.
-      await _audioRecorder.start(const RecordConfig(), path: '');
+      final path =
+          '${Directory.systemTemp.path}${Platform.pathSeparator}zedu-voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _audioRecorder.start(const RecordConfig(), path: path);
     }
   }
 
@@ -55,27 +62,132 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
     setState(() {
       _isRecording = false;
       if (path != null) {
-        _controller.text = '[Voice Note Attached]';
+        _voiceNote = XFile(
+          path,
+          name: 'voice-message-${DateTime.now().millisecondsSinceEpoch}.m4a',
+          mimeType: 'audio/mp4',
+        );
       }
     });
   }
 
-  void _handleSend() {
-    final text = _controller.text.trim();
-    if (text.isEmpty && _attachedFiles.isEmpty) return;
+  Future<bool> handlePaste({DataReader? reader}) async {
+    final clipReader = reader ?? await SystemClipboard.instance?.read();
+    if (clipReader == null) return false;
 
-    String finalMessage = text;
-    if (_attachedFiles.isNotEmpty) {
-      final attachmentsStr = _attachedFiles
-          .map((f) => '[Attachment: $f]')
-          .join(' ');
-      finalMessage = text.isEmpty ? attachmentsStr : '$text\n$attachmentsStr';
+    SimpleFileFormat? matchedFormat;
+    String ext = 'png';
+    String mime = 'image/png';
+
+    if (clipReader.canProvide(Formats.png)) {
+      matchedFormat = Formats.png;
+      ext = 'png';
+    } else if (clipReader.canProvide(Formats.jpeg)) {
+      matchedFormat = Formats.jpeg;
+      ext = 'jpg';
+    } else if (clipReader.canProvide(Formats.webp)) {
+      matchedFormat = Formats.webp;
+      ext = 'webp';
+    } else if (clipReader.canProvide(Formats.gif)) {
+      matchedFormat = Formats.gif;
+      ext = 'gif';
     }
 
-    widget.onSend(finalMessage);
+    if (matchedFormat != null) {
+      final completer = Completer<bool>();
+      clipReader.getFile(
+        matchedFormat,
+        (file) async {
+          try {
+            final bytes = await file.readAll();
+            if (bytes.isNotEmpty) {
+              final fileName =
+                  'pasted_image_${DateTime.now().millisecondsSinceEpoch}.$ext';
+              try {
+                final tempPath =
+                    '${Directory.systemTemp.path}${Platform.pathSeparator}$fileName';
+                final tempFile = File(tempPath);
+                await tempFile.writeAsBytes(bytes);
+                if (mounted) {
+                  setState(() {
+                    _attachedFiles.add(
+                      XFile(tempPath, name: fileName, mimeType: mime),
+                    );
+                  });
+                }
+              } catch (_) {
+                if (mounted) {
+                  setState(() {
+                    _attachedFiles.add(
+                      XFile.fromData(bytes, name: fileName, mimeType: mime),
+                    );
+                  });
+                }
+              }
+            }
+            if (!completer.isCompleted) completer.complete(true);
+          } catch (_) {
+            if (!completer.isCompleted) completer.complete(false);
+          }
+        },
+        onError: (_) {
+          if (!completer.isCompleted) completer.complete(false);
+        },
+      );
+      return await completer.future;
+    }
+
+    if (clipReader.canProvide(Formats.fileUri)) {
+      clipReader.getValue(Formats.fileUri, (uri) async {
+        if (uri != null && uri.hasScheme && uri.scheme == 'file') {
+          final filePath = uri.toFilePath();
+          final fileExt = filePath.split('.').last.toLowerCase();
+          if (const [
+            'png',
+            'jpg',
+            'jpeg',
+            'webp',
+            'gif',
+            'bmp',
+          ].contains(fileExt)) {
+            final fileName = filePath.split(Platform.pathSeparator).last;
+            if (mounted) {
+              setState(() {
+                _attachedFiles.add(XFile(filePath, name: fileName));
+              });
+            }
+          }
+        }
+      });
+      return true;
+    }
+
+    return false;
+  }
+
+  void _handleSend() {
+    final text = _controller.text.trim();
+    final channelId = widget.activeChat.channelId ?? widget.activeChat.id;
+    if (text.isEmpty && _attachedFiles.isEmpty && _voiceNote == null) return;
+    if (channelId == null || channelId.isEmpty) return;
+
+    final media = <XFile>[];
+    media.addAll(_attachedFiles);
+    if (_voiceNote != null) media.add(_voiceNote!);
+
+    ref
+        .read(chatHistoryProvider(channelId))
+        .sendMessage(
+          text,
+          media: media,
+          isChannel: widget.activeChat.type == ActiveChatType.channel,
+        );
+
+    widget.onSend(text);
     _controller.clear();
     setState(() {
       _attachedFiles.clear();
+      _voiceNote = null;
       _isRecording = false;
       _showMentions = false;
     });
@@ -172,7 +284,10 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               child: Column(
                 children: teamMembers.map((member) {
                   final name = member.name ?? member.email;
-                  final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+                  final trimmedName = name.trim();
+                  final initial = trimmedName.isNotEmpty
+                      ? trimmedName.characters.first.toUpperCase()
+                      : '?';
                   return InkWell(
                     onTap: () => _insertMention(name),
                     child: Padding(
@@ -280,7 +395,10 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     );
                     if (result != null) {
                       setState(() {
-                        _attachedFiles.addAll(result.names.whereType<String>());
+                        for (final filePath
+                            in result.names.whereType<String>()) {
+                          _attachedFiles.add(XFile(filePath));
+                        }
                       });
                     }
                   },
@@ -289,25 +407,53 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                   tooltip: 'Attach file',
                 ),
                 Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    onChanged: _onTextChanged,
-                    minLines: 1,
-                    maxLines: 8,
-                    style: TextStyle(color: colors.textPrimary, fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: widget.activeChat.type == ActiveChatType.groupDm
-                          ? 'Message group...'
-                          : 'Message #${widget.activeChat.id ?? "general"}',
-                      hintStyle: TextStyle(color: colors.textHint),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Focus(
+                    onKeyEvent: (node, event) {
+                      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                      final key = event.logicalKey;
+                      if (key == LogicalKeyboardKey.enter ||
+                          key == LogicalKeyboardKey.numpadEnter) {
+                        // Shift+Enter falls through so the default newline is inserted.
+                        if (HardwareKeyboard.instance.isShiftPressed) {
+                          return KeyEventResult.ignored;
+                        }
+                        _handleSend();
+                        return KeyEventResult.handled;
+                      }
+                      if (key == LogicalKeyboardKey.keyV &&
+                          (HardwareKeyboard.instance.isControlPressed ||
+                              HardwareKeyboard.instance.isMetaPressed)) {
+                        handlePaste();
+                        return KeyEventResult.ignored;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      onChanged: _onTextChanged,
+                      minLines: 1,
+                      maxLines: 8,
+                      style: TextStyle(color: colors.textPrimary, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText:
+                            widget.activeChat.type == ActiveChatType.groupDm
+                            ? 'Message group...'
+                            : 'Message #${widget.activeChat.id ?? "general"}',
+                        hintStyle: TextStyle(color: colors.textHint),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                      ),
+                      onSubmitted: (_) => _handleSend(),
                     ),
-                    onSubmitted: (_) => _handleSend(),
                   ),
                 ),
-                if (_controller.text.isEmpty && !_isRecording)
+                if (_controller.text.isEmpty &&
+                    _attachedFiles.isEmpty &&
+                    _voiceNote == null &&
+                    !_isRecording)
                   IconButton(
                     onPressed: _startRecording,
                     icon: Icon(Icons.mic_none, color: colors.textHint),
@@ -325,6 +471,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                         onPressed: _stopRecording,
                         icon: Icon(Icons.stop_circle, color: colors.error),
                         splashRadius: 20,
+                        tooltip: 'Stop recording',
                       ),
                     ],
                   )
@@ -333,6 +480,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     onPressed: _handleSend,
                     icon: Icon(Icons.send, color: colors.primary),
                     splashRadius: 20,
+                    tooltip: 'Send message',
                   ),
               ],
             ),
@@ -343,10 +491,10 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: _attachedFiles.map((fileName) {
+                children: _attachedFiles.map((file) {
                   return Chip(
                     label: Text(
-                      fileName,
+                      file.name,
                       style: TextStyle(fontSize: 12, color: colors.textPrimary),
                     ),
                     deleteIcon: Icon(
@@ -356,7 +504,7 @@ class _MessageComposerState extends ConsumerState<MessageComposer> {
                     ),
                     onDeleted: () {
                       setState(() {
-                        _attachedFiles.remove(fileName);
+                        _attachedFiles.remove(file);
                       });
                     },
                     backgroundColor: colors.background,

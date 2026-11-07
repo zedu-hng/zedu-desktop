@@ -1,8 +1,7 @@
 import 'dart:math' show Random;
 
 import 'package:zedu/core/core.dart';
-
-import '../domain/dm_conversation.dart';
+import 'package:zedu/features/features.dart';
 
 final dmRepositoryProvider = Provider<DmRepository>((ref) {
   final apiClient = locator<ApiBaseService>();
@@ -53,6 +52,21 @@ class DmRepository {
     await _apiClient.delete<Map<String, dynamic>>(
       path: '/organisations/$orgId/dms/$channelId',
     );
+  }
+
+  /// Searches the whole history of one conversation on the server, not just
+  /// the messages loaded on screen.
+  Future<List<ConversationSearchHit>> searchMessages({
+    required String channelId,
+    required String query,
+  }) async {
+    final trimmed = query.trim();
+    if (channelId.isEmpty || trimmed.isEmpty) return const [];
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      path: '/search/channel/$channelId',
+      queryParameters: {'query': trimmed, 'sortBy': 'relevance'},
+    );
+    return ConversationSearchHit.fromResponse(response.data['data']);
   }
 
   Future<List<Map<String, dynamic>>> getMessages(
@@ -209,15 +223,27 @@ class DmRepository {
     );
   }
 
+  /// Pins a message for everyone in the conversation, through the route the
+  /// web app uses for channels and DMs alike.
+  Future<void> pinMessage({
+    required String threadId,
+    required String channelId,
+  }) async {
+    await _apiClient.post<Map<String, dynamic>>(
+      path: '/channels/pin/$channelId/thread',
+      data: {'thread_id': threadId},
+    );
+  }
+
   Future<void> editMessage(
-    String channelId, {
+    String messageId, {
     required String content,
     String? threadId,
     List<Map<String, dynamic>>? media,
     List<Map<String, dynamic>>? mentions,
   }) async {
     await _apiClient.put<Map<String, dynamic>>(
-      path: '/dms/messages/$channelId',
+      path: '/dms/messages/$messageId',
       data: {
         'content': content,
         ...?(threadId != null ? {'thread_id': threadId} : null),
