@@ -169,5 +169,22 @@ class ActiveCallNotifier extends ChangeNotifier {
 }
 
 final activeCallProvider = ChangeNotifierProvider<ActiveCallNotifier>((ref) {
-  return ActiveCallNotifier(ref);
+  final notifier = ActiveCallNotifier(ref);
+  // Nothing called receiveIncomingCall, so the incoming-call modal could never
+  // show (Ziki #2917). Turn an `incoming` event from the repository's call
+  // events into the incoming-call state, and stop when the provider goes away.
+  final subscription = ref.read(buzzRepositoryProvider).callEvents.listen((
+    event,
+  ) {
+    if (event['type'] != 'incoming') return;
+    notifier.receiveIncomingCall(
+      buzzId: '${event['buzzId'] ?? ''}',
+      remoteUserId: '${event['remoteUserId'] ?? ''}',
+      remoteUserName: '${event['remoteUserName'] ?? ''}',
+      channelId: '${event['channelId'] ?? ''}',
+      remoteAvatarUrl: event['remoteAvatarUrl'] as String?,
+    );
+  });
+  ref.onDispose(subscription.cancel);
+  return notifier;
 });
