@@ -140,6 +140,12 @@ class _ChatAreaSwitcher extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(homeSidebarProvider);
     final selectedDm = ref.watch(selectedDmProvider);
+    final activeChat = ref.watch(activeChatProvider);
+
+    if (state == HomeSidebarType.home &&
+        activeChat.type == ActiveChatType.channelDirectory) {
+      return const ChannelDirectoryView();
+    }
 
     if (state == HomeSidebarType.dms) {
       if (selectedDm != null) {
@@ -186,32 +192,44 @@ class _MainSidebar extends ConsumerWidget {
           const SidebarChannelList(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: colors.onPrimary.withValues(alpha: 0.24),
+            child: Material(
+              color: colors.onPrimary.withValues(alpha: 0.12),
+              shape: RoundedRectangleBorder(
+                side: BorderSide(
+                  color: colors.onPrimary.withValues(alpha: 0.45),
                 ),
                 borderRadius: BorderRadius.circular(6),
-                color: colors.onPrimary.withValues(alpha: 0.05),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'View all channels',
-                      style: TextStyle(
-                        color: colors.onPrimary.withValues(alpha: 0.7),
-                        fontSize: 13,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                hoverColor: colors.onPrimary.withValues(alpha: 0.2),
+                onTap: () => ref
+                    .read(activeChatProvider.notifier)
+                    .selectChannelDirectory(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'View all channels',
+                          style: TextStyle(
+                            color: colors.onPrimary,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
-                    ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: colors.onPrimary,
+                        size: 16,
+                      ),
+                    ],
                   ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: colors.onPrimary.withValues(alpha: 0.7),
-                    size: 16,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
