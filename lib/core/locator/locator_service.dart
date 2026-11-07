@@ -10,13 +10,16 @@ void setupLocator() {
   final config = locator<AppConfig>();
   final storage = locator<SecureStorageService>();
 
-  final authInterceptor = AuthInterceptor(storage: storage);
-  locator.registerLazySingleton<AuthInterceptor>(() => authInterceptor);
-
   final baseUrl = config.apiBaseUrl.endsWith('/')
       ? config.apiBaseUrl
       : '${config.apiBaseUrl}/';
   final dio = Dio(ApiBaseService.createOptions(baseUrl));
+  final authInterceptor = AuthInterceptor(
+    storage: storage,
+    dio: dio,
+    onRefreshToken: storage.getAccessToken,
+  );
+  locator.registerLazySingleton<AuthInterceptor>(() => authInterceptor);
   dio.interceptors.add(authInterceptor);
 
   locator.registerLazySingleton<ApiBaseService>(
