@@ -11,6 +11,16 @@ Channel _channel(String name) => Channel(
   ownerId: 'user-1',
 );
 
+/// Answers the pinned messages of every channel.
+class _PinningChannelRepository extends Mock implements ChannelRepository {
+  @override
+  Future<Result<List<PinnedMessage>>> fetchPinnedMessages(
+    String channelId,
+  ) async => const Success([
+    PinnedMessage(id: 'm1', senderName: 'Ada', text: 'Release is on Friday'),
+  ]);
+}
+
 class FakeSecureStorageService extends Fake implements SecureStorageService {
   final _values = <String, String>{};
 
@@ -59,6 +69,7 @@ void main() {
       WidgetTester tester, {
       ChannelNotifier Function() channels = _FakeChannelNotifier.new,
       double width = 1600,
+      ChannelRepository? repository,
     }) async {
       tester.view.physicalSize = Size(width, 1000);
       tester.view.devicePixelRatio = 1;
@@ -69,6 +80,8 @@ void main() {
         ProviderScope(
           overrides: [
             channelProvider.overrideWith(channels),
+            if (repository != null)
+              channelRepositoryProvider.overrideWithValue(repository),
             workspaceProvider.overrideWith(_FakeWorkspaceNotifier.new),
             dmDraftStoreProvider.overrideWith(
               (ref) => DmDraftStore(
@@ -148,5 +161,27 @@ void main() {
       expect(find.text('# $_longName'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'the header icon opens the channel pinned messages (Ziki #17)',
+      (tester) async {
+        await pumpSidebarAndChat(
+          tester,
+          repository: _PinningChannelRepository(),
+        );
+        await tester.tap(find.text('random'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const ValueKey('channel-pinned-messages')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('#random pinned messages'), findsOneWidget);
+        expect(find.text('Release is on Friday'), findsOneWidget);
+
+        await tester.tap(find.text('Close'));
+        await tester.pumpAndSettle();
+        expect(find.text('#random pinned messages'), findsNothing);
+      },
+    );
   });
 }

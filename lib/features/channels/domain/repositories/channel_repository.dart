@@ -23,4 +23,7 @@ abstract class ChannelRepository {
     required String channelId,
     required List<String> userIds,
   });
+
+  /// The messages pinned in the channel.
+  Future<Result<List<PinnedMessage>>> fetchPinnedMessages(String channelId);
 }

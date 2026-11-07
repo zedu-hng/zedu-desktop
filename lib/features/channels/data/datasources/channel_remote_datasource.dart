@@ -23,6 +23,9 @@ abstract class ChannelRemoteDataSource {
     required String channelId,
     required List<String> userIds,
   });
+
+  /// The messages pinned in the channel.
+  Future<List<PinnedMessage>> fetchPinnedMessages(String channelId);
 }
 
 class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
@@ -141,5 +144,19 @@ class ChannelRemoteDataSourceImpl implements ChannelRemoteDataSource {
       message: 'Too many members to load. Please try again later.',
       path: path,
     );
+  }
+
+  @override
+  Future<List<PinnedMessage>> fetchPinnedMessages(String channelId) async {
+    final response = await apiBaseService.get<Map<String, dynamic>>(
+      path: '/channels/pin/$channelId',
+    );
+    final data = response.data['data'];
+    if (data == null) return const [];
+    // A wrong shape throws, so the dialog shows its retry state.
+    return (data as List)
+        .cast<Map<String, dynamic>>()
+        .map(PinnedMessage.fromJson)
+        .toList();
   }
 }
