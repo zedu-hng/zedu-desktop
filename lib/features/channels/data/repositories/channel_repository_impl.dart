@@ -117,4 +117,17 @@ class ChannelRepositoryImpl implements ChannelRepository {
       return Failure(ApiFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Result<List<PinnedMessage>>> fetchPinnedMessages(
+    String channelId,
+  ) async {
+    try {
+      return Success(await remoteDataSource.fetchPinnedMessages(channelId));
+    } on ApiFailure catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(ApiFailure(message: e.toString()));
+    }
+  }
 }
