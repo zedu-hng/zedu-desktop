@@ -9,7 +9,7 @@ class ProfileFieldLabel extends StatelessWidget {
     return Text(
       label,
       style: context.textTheme.labelSmall?.copyWith(
-        color: const Color(0xFF6B7280),
+        color: context.colors.textSecondary,
         fontWeight: FontWeight.w500,
       ),
     );
@@ -37,10 +37,10 @@ class SquareIconButton extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: context.colors.divider),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Icon(icon, size: size * 0.56, color: const Color(0xFF374151)),
+        child: Icon(icon, size: size * 0.56, color: context.colors.textPrimary),
       ),
     );
   }
@@ -57,7 +57,7 @@ class ProfileStatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+        color: isActive ? context.colors.successBg : context.colors.errorBg,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -68,8 +68,8 @@ class ProfileStatusPill extends StatelessWidget {
             height: 6,
             decoration: BoxDecoration(
               color: isActive
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFFEF4444),
+                  ? context.colors.presenceActive
+                  : context.colors.error,
               shape: BoxShape.circle,
             ),
           ),
@@ -77,9 +77,7 @@ class ProfileStatusPill extends StatelessWidget {
           Text(
             status[0].toUpperCase() + status.substring(1),
             style: context.textTheme.labelSmall?.copyWith(
-              color: isActive
-                  ? const Color(0xFF065F46)
-                  : const Color(0xFF991B1B),
+              color: isActive ? context.colors.success : context.colors.error,
               fontWeight: FontWeight.w500,
             ),
           ),
