@@ -5,14 +5,28 @@ class CreditsPaymentDeepLinkParser {
   static const dummySuccessUri =
       'zedu://credits/payment-success?session_id=cs_test_placeholder';
 
-  static String? extractSessionId(Uri uri) {
-    if (!_isSupportedPaymentUri(uri)) return null;
+  /// Documented trusted web callback hosts (staging & production).
+  static const Set<String> defaultTrustedHosts = {
+    'zedu.chat',
+    'staging.zedu.chat',
+    'api.zedu.chat',
+    'api.staging.zedu.chat',
+  };
+
+  static String? extractSessionId(
+    Uri uri, {
+    Set<String> allowedHosts = defaultTrustedHosts,
+  }) {
+    if (!_isSupportedPaymentUri(uri, allowedHosts: allowedHosts)) return null;
     final sessionId = uri.queryParameters['session_id']?.trim();
     if (sessionId == null || sessionId.isEmpty) return null;
     return sessionId;
   }
 
-  static bool _isSupportedPaymentUri(Uri uri) {
+  static bool _isSupportedPaymentUri(
+    Uri uri, {
+    required Set<String> allowedHosts,
+  }) {
     final scheme = uri.scheme.toLowerCase();
     final host = uri.host.toLowerCase();
     final path = _normalizePath(uri.path);
@@ -22,7 +36,9 @@ class CreditsPaymentDeepLinkParser {
     }
 
     if ((scheme == 'https' || scheme == 'http') &&
-        path.endsWith('/credits/payment-success')) {
+        allowedHosts.contains(host) &&
+        (path == '/credits/payment-success' ||
+            path.endsWith('/credits/payment-success'))) {
       return true;
     }
 
