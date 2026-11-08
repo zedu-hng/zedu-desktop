@@ -388,5 +388,14 @@ void main() {
         findsNothing,
       );
     });
+
+    testWidgets('renders OR divider with safe theme color', (tester) async {
+      await pumpDesktopLogin(tester, FakeAuthNotifier());
+
+      final orTextFinder = find.text('OR');
+      expect(orTextFinder, findsOneWidget);
+      final textWidget = tester.widget<Text>(orTextFinder);
+      expect(textWidget.style?.color, isNotNull);
+    });
   });
 }

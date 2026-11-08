@@ -155,11 +155,8 @@ class _LoginViewState extends ConsumerState<LoginView> {
                         child: Text(
                           'OR',
                           style: textTheme.bodySmall?.copyWith(
-                            color: Color(
-                              (((theme.colorScheme.onSurface as dynamic).value
-                                          as int) &
-                                      0x00FFFFFF) |
-                                  (((0.72 * 255).round() & 0xFF) << 24),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.72,
                             ),
                           ),
                         ),
