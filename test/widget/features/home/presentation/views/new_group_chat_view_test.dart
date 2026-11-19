@@ -48,6 +48,8 @@ Future<void> _pumpView(WidgetTester tester, List<TeamMember> members) async {
         userProfileNotifierProvider.overrideWith(
           () => _FakeUserProfileNotifier(members),
         ),
+        // The view reads the signed-in user to leave them out.
+        authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
       ],
       child: buildTestMaterialApp(const Scaffold(body: NewGroupChatView())),
     ),
@@ -59,6 +61,18 @@ Future<void> _pumpView(WidgetTester tester, List<TeamMember> members) async {
 final _desktopPointer = TargetPlatformVariant.only(TargetPlatform.macOS);
 
 void main() {
+  // The widgets reach the auth and workspace providers, which read AppConfig.
+  setUp(() {
+    if (locator.isRegistered<AppConfig>()) locator.unregister<AppConfig>();
+    locator.registerSingleton<AppConfig>(
+      const AppConfig(apiBaseUrl: 'http://test', usesMockData: false),
+    );
+  });
+
+  tearDown(() {
+    if (locator.isRegistered<AppConfig>()) locator.unregister<AppConfig>();
+  });
+
   final testMembers = [
     const TeamMember(
       id: 'member-1',
