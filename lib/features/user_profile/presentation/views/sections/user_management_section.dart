@@ -40,6 +40,16 @@ class _UserManagementSectionState extends State<UserManagementSection> {
   String _roleFilter = 'All Roles';
   int _currentPage = 1;
   static const int _pageSize = 10;
+
+  // The theme's button padding (24 x 18) is sized for 57px buttons: in these
+  // 36px pagination buttons the top and bottom padding left the label no
+  // height, so it spilled out off-centre (Ziki #173). Pad sideways only, the
+  // same for Previous, Go and Next; colours and border still come from the
+  // theme.
+  static final _paginationButtonStyle = OutlinedButton.styleFrom(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+  );
+
   _UserManagementTab _currentTab = _UserManagementTab.members;
 
   @override
@@ -398,6 +408,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                       children: [
                         AppButton.outlined(
                           label: 'Previous',
+                          style: _paginationButtonStyle,
                           expand: false,
                           height: 36,
                           disabled: currentPage <= 1,
@@ -482,6 +493,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                                 'user_management_page_jump_button',
                               ),
                               label: 'Go',
+                              style: _paginationButtonStyle,
                               expand: false,
                               height: 36,
                               onPressed: () => _jumpToPage(
@@ -494,6 +506,7 @@ class _UserManagementSectionState extends State<UserManagementSection> {
                         const Spacer(),
                         AppButton.outlined(
                           label: 'Next',
+                          style: _paginationButtonStyle,
                           expand: false,
                           height: 36,
                           disabled: currentPage >= totalPages,
