@@ -55,6 +55,25 @@ class ChannelMessage {
     this.reactions = const [],
   }) : rawContent = rawContent ?? text;
 
+  ChannelMessage copyWith({
+    String? text,
+    String? rawContent,
+  }) {
+    return ChannelMessage(
+      id: id,
+      senderName: senderName,
+      text: text ?? this.text,
+      rawContent: rawContent ?? this.rawContent,
+      avatarUrl: avatarUrl,
+      createdAt: createdAt,
+      status: status,
+      media: media,
+      threadId: threadId,
+      userId: userId,
+      reactions: reactions,
+    );
+  }
+
   static List<dynamic> mediaFrom(dynamic raw) {
     if (raw is List) {
       return raw.whereType<Map<dynamic, dynamic>>().toList();

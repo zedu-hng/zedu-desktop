@@ -59,6 +59,21 @@ class ChannelHistoryNotifier extends AsyncNotifier<ChannelHistoryState> {
     );
   }
 
+  /// Applies a successful edit locally so the updated text shows right away.
+  void applyEdit(String messageId, String content) {
+    final current = state.value;
+    if (current == null) return;
+    var changed = false;
+    final messages = current.messages.map((m) {
+      final matches = m.id == messageId || m.threadId == messageId;
+      if (!matches || m.text == content) return m;
+      changed = true;
+      return m.copyWith(text: content, rawContent: content);
+    }).toList();
+    if (!changed) return;
+    state = AsyncData(current.copyWith(messages: messages));
+  }
+
   /// Loads the next older page and appends it. Does nothing while a page is
   /// loading or after the last one. After a failure, call it again to retry.
   Future<void> loadMore() async {

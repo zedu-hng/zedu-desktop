@@ -306,6 +306,36 @@ void main() {
       expect(notifier.messages.single['content'], 'edited');
     });
 
+    test('re-applies the edit when a poll lands during save', () async {
+      final saving = Completer<void>();
+      when(
+        () => mockRepository.editMessage(
+          any(),
+          content: any(named: 'content'),
+          threadId: any(named: 'threadId'),
+        ),
+      ).thenAnswer((_) => saving.future);
+      when(
+        () => mockRepository.getMessages(any(), page: any(named: 'page')),
+      ).thenAnswer(
+        (_) async => [
+          {'id': 'm1', 'content': 'hello', 'user_id': 'u1'},
+        ],
+      );
+
+      notifier.startEditing('m1');
+      final edit = notifier.saveEdit('m1', 'edited');
+      await pumpEventQueue();
+
+      // Simulate stale poll while save is in flight.
+      await notifier.debugPollForTest();
+
+      saving.complete();
+      await edit;
+
+      expect(notifier.messages.single['content'], 'edited');
+    });
+
     test(
       'reverts to the original content when the edit request fails',
       () async {

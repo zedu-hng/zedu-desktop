@@ -660,7 +660,8 @@ void main() {
           content: 'fixed text',
         ),
       ).called(1);
-      verify(() => repository.fetchChannelMessages('ch-1')).called(2);
+      expect(find.text('fixed text'), findsOneWidget);
+      verify(() => repository.fetchChannelMessages('ch-1')).called(1);
     });
 
     testWidgets('Delete asks first, then deletes and reloads', (tester) async {
