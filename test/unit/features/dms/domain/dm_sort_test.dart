@@ -108,5 +108,60 @@ void main() {
 
       expect(result.map((c) => c.displayName), ['Zara', 'Ada']);
     });
+
+    test('orders by newest thread when conversations have multiple threads', () {
+      final ada = DmConversation(
+        channelId: 'ada',
+        username: 'Ada',
+        participantId: 'p-ada',
+        previewMessage: '',
+        unreadCount: 0,
+        previewThreads: [
+          DmPreviewThread(
+            threadId: 't1',
+            message: 'Old',
+            userId: 'u1',
+            username: 'Ada',
+            createdAt: oldest,
+          ),
+          DmPreviewThread(
+            threadId: 't2',
+            message: 'Newest',
+            userId: 'u1',
+            username: 'Ada',
+            createdAt: newest,
+          ),
+        ],
+      );
+
+      final bola = DmConversation(
+        channelId: 'bola',
+        username: 'Bola',
+        participantId: 'p-bola',
+        previewMessage: '',
+        unreadCount: 0,
+        previewThreads: [
+          DmPreviewThread(
+            threadId: 't3',
+            message: 'Middle',
+            userId: 'u2',
+            username: 'Bola',
+            createdAt: middle,
+          ),
+        ],
+      );
+
+      final result = sorted(DmSort.recentActivity, [bola, ada]);
+      expect(result.map((c) => c.displayName), ['Ada', 'Bola']);
+    });
+
+    test('falls back to alphabetical when recent activity timestamps are equal', () {
+      final zara = conversation('Zara', at: middle);
+      final ada = conversation('Ada', at: middle);
+      final bola = conversation('Bola', at: middle);
+
+      final result = sorted(DmSort.recentActivity, [zara, bola, ada]);
+      expect(result.map((c) => c.displayName), ['Ada', 'Bola', 'Zara']);
+    });
   });
 }

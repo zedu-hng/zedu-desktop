@@ -74,7 +74,9 @@ List<DmConversation> homeSidebarDmOrder(
           final aPinned = actions.pinnedIds.contains(a.channelId);
           final bPinned = actions.pinnedIds.contains(b.channelId);
           if (aPinned != bPinned) return aPinned ? -1 : 1;
-          return b.lastActivityAt.compareTo(a.lastActivityAt);
+          final byTime = b.lastActivityAt.compareTo(a.lastActivityAt);
+          if (byTime != 0) return byTime;
+          return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
         });
   final ownIndex = visible.indexWhere((c) => c.isOwnSpaceFor(ownUserId));
   if (ownIndex > 0) visible.insert(0, visible.removeAt(ownIndex));

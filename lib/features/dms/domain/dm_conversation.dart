@@ -57,7 +57,14 @@ class DmConversation {
 
   DateTime get lastActivityAt {
     if (previewThreads.isNotEmpty) {
-      return previewThreads.first.createdAt;
+      var latest = previewThreads.first.createdAt;
+      for (var i = 1; i < previewThreads.length; i++) {
+        final threadAt = previewThreads[i].createdAt;
+        if (threadAt.isAfter(latest)) {
+          latest = threadAt;
+        }
+      }
+      return latest;
     }
     return lastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0);
   }

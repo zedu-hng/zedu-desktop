@@ -319,7 +319,7 @@ class _PreviewCard extends StatelessWidget {
                           ),
                           IconButton(
                             tooltip: 'Copy file name',
-                            visualDensity: VisualDensity.compact(
+                            visualDensity: VisualDensity(
                               horizontal: VisualDensity.minimumDensity,
                               vertical: VisualDensity.minimumDensity,
                             ),

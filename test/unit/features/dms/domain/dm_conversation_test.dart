@@ -49,5 +49,44 @@ void main() {
       expect(conversation.lastReadAt!.toUtc(), DateTime.utc(2026, 11, 5, 8));
       expect(conversation.hasActivity, isTrue);
     });
+
+    test('determines lastActivityAt as the newest createdAt across preview threads', () {
+      final tOld = DateTime.utc(2026, 11, 1, 10);
+      final tNew = DateTime.utc(2026, 11, 2, 14);
+      final tMid = DateTime.utc(2026, 11, 1, 18);
+
+      final conversation = DmConversation(
+        channelId: 'dm-threads',
+        username: 'Bayo',
+        participantId: 'user-2',
+        previewMessage: 'Latest msg',
+        unreadCount: 0,
+        previewThreads: [
+          DmPreviewThread(
+            threadId: 't1',
+            message: 'First',
+            userId: 'u1',
+            username: 'Bayo',
+            createdAt: tOld,
+          ),
+          DmPreviewThread(
+            threadId: 't2',
+            message: 'Newest',
+            userId: 'u1',
+            username: 'Bayo',
+            createdAt: tNew,
+          ),
+          DmPreviewThread(
+            threadId: 't3',
+            message: 'Middle',
+            userId: 'u1',
+            username: 'Bayo',
+            createdAt: tMid,
+          ),
+        ],
+      );
+
+      expect(conversation.lastActivityAt, tNew);
+    });
   });
 }

@@ -68,7 +68,11 @@ class DmRepository {
         .map(DmConversation.fromJson)
         .toList();
 
-    list.sort((a, b) => b.lastActivityAt.compareTo(a.lastActivityAt));
+    list.sort((a, b) {
+      final byTime = b.lastActivityAt.compareTo(a.lastActivityAt);
+      if (byTime != 0) return byTime;
+      return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+    });
 
     var pagination = data['pagination'];
     if (pagination is List) {
