@@ -183,13 +183,13 @@ void main() {
         verifyNever(
           () => dmRepository.editMessage(any(), content: any(named: 'content')),
         );
-        // The channel's messages are loaded again, so the edit shows.
+        // The edited text is applied locally, so no history reload is needed.
         verify(
           () => channelRepository.fetchChannelMessages(
             'channel-1',
             page: any(named: 'page'),
           ),
-        ).called(greaterThanOrEqualTo(2));
+        ).called(1);
         expect(container.read(channelHistoryProvider('channel-1')), isNotNull);
       });
 

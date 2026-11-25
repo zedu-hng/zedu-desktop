@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:zedu/core/core.dart';
 import 'package:zedu/features/features.dart';
 
@@ -272,6 +273,21 @@ class ChatHistoryNotifier extends ChangeNotifier {
       return updated;
     }).toList();
     return changed;
+  }
+
+  /// Ensures a just-saved edit is visible even if a poll or reload landed with
+  /// stale content while the save was in flight.
+  void _patchEditedMessage(String messageId, String newContent) {
+    var changed = false;
+    messages = messages.map((m) {
+      if (m['id']?.toString() != messageId) return m;
+      if (m['content'] == newContent) return m;
+      final updated = Map<String, dynamic>.from(m);
+      updated['content'] = newContent;
+      changed = true;
+      return updated;
+    }).toList();
+    if (changed) notifyListeners();
   }
 
   /// Whether [messageId] is being sent right now.
@@ -755,6 +771,9 @@ class ChatHistoryNotifier extends ChangeNotifier {
     }
   }
 
+  @visibleForTesting
+  Future<void> debugPollForTest() => _pollForNewMessages();
+
   Future<void> saveEdit(String messageId, String newContent) {
     final previous = _saveEditChains[messageId] ?? Future<void>.value();
     final task = previous.then((_) => _runSaveEdit(messageId, newContent));
@@ -794,6 +813,9 @@ class ChatHistoryNotifier extends ChangeNotifier {
         content: newContent,
         threadId: threadId,
       );
+      // Polling or a fresh load can land while the save is in flight and leave
+      // the old content in place. Re-apply the edit so it shows right away.
+      _patchEditedMessage(messageId, newContent);
       // Only clear editing state after successful save
       if (editingMessageId == messageId) {
         editingMessageId = null;
