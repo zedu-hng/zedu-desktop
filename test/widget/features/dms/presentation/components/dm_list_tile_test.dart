@@ -227,6 +227,65 @@ void main() {
       expect(find.text('5/3/2026'), findsOneWidget);
     });
 
+    testWidgets('shows the timestamp of the newest thread when multiple threads exist unordered', (
+      tester,
+    ) async {
+      await pumpTile(
+        tester,
+        conversation(
+          previewThreads: [
+            DmPreviewThread(
+              threadId: 'thread-old',
+              message: 'Old thread',
+              userId: 'user-1',
+              username: 'Ada',
+              createdAt: DateTime(2026, 1, 10, 10, 0),
+            ),
+            DmPreviewThread(
+              threadId: 'thread-new',
+              message: 'Newest thread',
+              userId: 'user-1',
+              username: 'Ada',
+              createdAt: DateTime(2026, 5, 20, 14, 0),
+            ),
+            DmPreviewThread(
+              threadId: 'thread-mid',
+              message: 'Mid thread',
+              userId: 'user-1',
+              username: 'Ada',
+              createdAt: DateTime(2026, 3, 15, 12, 0),
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('20/5/2026'), findsOneWidget);
+      expect(find.text('10/1/2026'), findsNothing);
+    });
+
+    testWidgets('shows formatted 12-hour time for today messages', (
+      tester,
+    ) async {
+      final now = DateTime.now();
+      final todayMessage = DateTime(now.year, now.month, now.day, 14, 30);
+      await pumpTile(
+        tester,
+        conversation(
+          previewThreads: [
+            DmPreviewThread(
+              threadId: 'thread-today',
+              message: 'Hello today',
+              userId: 'user-1',
+              username: 'Ada',
+              createdAt: todayMessage,
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('2:30 PM'), findsOneWidget);
+    });
+
     testWidgets('shows the last read date when there are no messages', (
       tester,
     ) async {

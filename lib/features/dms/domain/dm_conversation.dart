@@ -48,6 +48,42 @@ class DmConversation {
       ? avatarUrl
       : defaultAvatarUrl;
 
+  DmConversation copyWith({
+    String? channelId,
+    String? username,
+    String? participantId,
+    String? participantEmail,
+    String? avatarUrl,
+    String? defaultAvatarUrl,
+    String? channelType,
+    bool? isFavourite,
+    int? threadCount,
+    String? lastThreadId,
+    DateTime? lastReadAt,
+    String? previewMessage,
+    List<DmPreviewThread>? previewThreads,
+    List<DmParticipant>? participants,
+    int? unreadCount,
+  }) {
+    return DmConversation(
+      channelId: channelId ?? this.channelId,
+      username: username ?? this.username,
+      participantId: participantId ?? this.participantId,
+      participantEmail: participantEmail ?? this.participantEmail,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      defaultAvatarUrl: defaultAvatarUrl ?? this.defaultAvatarUrl,
+      channelType: channelType ?? this.channelType,
+      isFavourite: isFavourite ?? this.isFavourite,
+      threadCount: threadCount ?? this.threadCount,
+      lastThreadId: lastThreadId ?? this.lastThreadId,
+      lastReadAt: lastReadAt ?? this.lastReadAt,
+      previewMessage: previewMessage ?? this.previewMessage,
+      previewThreads: previewThreads ?? this.previewThreads,
+      participants: participants ?? this.participants,
+      unreadCount: unreadCount ?? this.unreadCount,
+    );
+  }
+
   /// False when the conversation has no messages and was never read, so
   /// [lastActivityAt] is only the epoch-0 placeholder used for sorting.
   bool get hasActivity => previewThreads.isNotEmpty || lastReadAt != null;
@@ -57,7 +93,14 @@ class DmConversation {
 
   DateTime get lastActivityAt {
     if (previewThreads.isNotEmpty) {
-      return previewThreads.first.createdAt;
+      var latest = previewThreads.first.createdAt;
+      for (var i = 1; i < previewThreads.length; i++) {
+        final threadAt = previewThreads[i].createdAt;
+        if (threadAt.isAfter(latest)) {
+          latest = threadAt;
+        }
+      }
+      return latest;
     }
     return lastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0);
   }

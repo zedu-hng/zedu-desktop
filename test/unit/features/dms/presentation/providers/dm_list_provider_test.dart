@@ -329,6 +329,37 @@ void _noFakeDmTests() {
         expect(testContainer.read(dmListProvider.notifier).hasMore, isFalse);
       },
     );
+
+    test(
+      'recordMessage updates conversation preview message, threads, and timestamp',
+      () async {
+        final real = DmConversation(
+          channelId: 'channel-1',
+          username: 'Ada',
+          participantId: 'user-1',
+          previewMessage: 'Hi',
+          unreadCount: 0,
+        );
+        final testContainer = containerFor([real]);
+        await testContainer.read(dmListProvider.future);
+        final newTime = DateTime(2026, 11, 26, 15, 30);
+
+        testContainer.read(dmListProvider.notifier).recordMessage(
+          channelId: 'channel-1',
+          message: 'New message preview',
+          timestamp: newTime,
+          threadId: 't-123',
+          username: 'Ada',
+        );
+
+        final updated = testContainer.read(dmListProvider).value!;
+        final updatedConv = updated.firstWhere((c) => c.channelId == 'channel-1');
+        expect(updatedConv.previewMessage, 'New message preview');
+        expect(updatedConv.previewThreads.first.message, 'New message preview');
+        expect(updatedConv.previewThreads.first.createdAt, newTime);
+        expect(updatedConv.lastActivityAt, newTime);
+      },
+    );
   });
 }
 

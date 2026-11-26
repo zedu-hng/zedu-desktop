@@ -237,6 +237,22 @@ class ChatHistoryNotifier extends ChangeNotifier {
             .toList();
         if (newOnly.isNotEmpty) {
           messages = [...newOnly, ...messages];
+          final latestMsg = newOnly.first;
+          final createdAt = latestMsg['created_at'] != null
+              ? DateTime.tryParse(latestMsg['created_at'].toString())?.toLocal() ?? DateTime.now()
+              : DateTime.now();
+          final content = (latestMsg['content'] ?? latestMsg['message'] ?? '').toString();
+          final id = latestMsg['id']?.toString();
+          final senderId = (latestMsg['user_id'] ?? latestMsg['userId'])?.toString();
+          final senderName = (latestMsg['sender_name'] ?? latestMsg['username'])?.toString();
+          ref.read(dmListProvider.notifier).recordMessage(
+            channelId: channelId,
+            message: content,
+            timestamp: createdAt,
+            threadId: id,
+            userId: senderId,
+            username: senderName,
+          );
           notifyListeners();
           return;
         }
@@ -534,6 +550,13 @@ class ChatHistoryNotifier extends ChangeNotifier {
         }
         return m;
       }).toList();
+
+      ref.read(dmListProvider.notifier).recordMessage(
+        channelId: channelId,
+        message: content,
+        timestamp: DateTime.now(),
+        threadId: threadId,
+      );
     } catch (e, st) {
       AppLogger.e(
         'Failed to send message in channel $channelId',

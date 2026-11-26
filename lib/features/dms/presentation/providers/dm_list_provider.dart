@@ -203,6 +203,50 @@ class DmListNotifier extends AsyncNotifier<List<DmConversation>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() => _fetchPage(orgId, 1));
   }
+
+  /// Records a new message (sent or received) into the conversation in the
+  /// list so the sidebar tile immediately updates its latest timestamp and preview.
+  void recordMessage({
+    required String channelId,
+    required String message,
+    required DateTime timestamp,
+    String? threadId,
+    String? userId,
+    String? username,
+    bool incrementUnread = false,
+  }) {
+    final current = state.value;
+    if (current == null) return;
+
+    final index = current.indexWhere((c) => c.channelId == channelId);
+    if (index == -1) return;
+
+    final target = current[index];
+    final newThread = DmPreviewThread(
+      threadId: threadId ?? '',
+      message: message,
+      userId: userId ?? '',
+      username: username ?? '',
+      createdAt: timestamp,
+    );
+
+    final remainingThreads = (threadId != null && threadId.isNotEmpty)
+        ? target.previewThreads.where((t) => t.threadId != threadId).toList()
+        : target.previewThreads;
+
+    final updated = target.copyWith(
+      previewMessage: message,
+      previewThreads: [newThread, ...remainingThreads],
+      threadCount: target.threadCount + 1,
+      lastThreadId: threadId ?? target.lastThreadId,
+      unreadCount:
+          incrementUnread ? target.unreadCount + 1 : target.unreadCount,
+    );
+
+    final updatedList = List<DmConversation>.from(current);
+    updatedList[index] = updated;
+    state = AsyncValue.data(updatedList);
+  }
 }
 
 class DmSearchResultsNotifier extends AsyncNotifier<List<DmConversation>> {

@@ -26,7 +26,10 @@ enum DmSort {
     };
     if (primary != 0) return primary;
     // Same name, or the same timestamp: keep the list stable.
-    return _byRecentActivity(a, b);
+    return switch (this) {
+      DmSort.alphabetical => _byRecentActivity(a, b),
+      DmSort.recentActivity => _byName(a, b),
+    };
   }
 
   static int _byName(DmConversation a, DmConversation b) =>

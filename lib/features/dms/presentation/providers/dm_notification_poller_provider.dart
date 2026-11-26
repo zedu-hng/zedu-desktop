@@ -77,14 +77,29 @@ class DmNotificationPollerNotifier extends Notifier<void> {
 
         seen.add(id);
 
+        final createdAt = msg['created_at'] != null
+            ? DateTime.tryParse(msg['created_at'].toString())?.toLocal() ?? DateTime.now()
+            : DateTime.now();
+        final content = (msg['content'] ?? msg['message'] ?? '').toString();
+        final senderId = (msg['user_id'] ?? msg['userId']).toString();
+        final senderName = (msg['sender_name'] ?? msg['username'] ?? 'Someone')
+            .toString();
+
+        ref.read(dmListProvider.notifier).recordMessage(
+          channelId: channelId,
+          message: content,
+          timestamp: createdAt,
+          threadId: id,
+          userId: senderId,
+          username: senderName,
+          incrementUnread: true,
+        );
+
         // Only notify for messages from other users.
         final authState = ref.read(authNotifierProvider);
         final currentUserId = authState.user?.id ?? '';
-        final senderId = (msg['user_id'] ?? msg['userId']).toString();
         if (senderId == currentUserId || senderId == 'me') continue;
 
-        final senderName = (msg['sender_name'] ?? msg['username'] ?? 'Someone')
-            .toString();
         ref
             .read(notificationServiceProvider)
             .handleIncomingMessage(msg, channelId, senderName);
