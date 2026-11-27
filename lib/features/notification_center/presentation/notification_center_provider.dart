@@ -92,7 +92,12 @@ class NotificationCenterNotifier extends Notifier<NotificationCenterState> {
     );
     // Only signed in is there a workspace to load notifications for; this
     // also keeps the workspaces from loading where nobody is.
-    _orgId = _userId == null
+    // Without the app's services (widget tests that show the rail) there is
+    // nothing to load, and the workspaces must not start loading either.
+    _orgId =
+        _userId == null ||
+            !locator.isRegistered<ApiBaseService>() ||
+            !locator.isRegistered<SecureStorageService>()
         ? null
         : _watchOrNull(
             () => ref.watch(
