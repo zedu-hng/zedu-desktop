@@ -51,6 +51,14 @@ class NotificationCenterRepository {
     return (items: items, hasMore: hasMore);
   }
 
+  /// Marks [notificationId] read on the server for the signed-in user, so
+  /// Zedu web (which treats `status: read` as read) clears it too.
+  Future<void> markRead(String notificationId) async {
+    await _api.put<Map<String, dynamic>>(
+      path: '/users/onesignal-notifications/$notificationId/read',
+    );
+  }
+
   static String _readKey(String userId, String orgId) =>
       'zedu_read_notifications_${userId}_$orgId';
   static String _seenAtKey(String userId, String orgId) =>

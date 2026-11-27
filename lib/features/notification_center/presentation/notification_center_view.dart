@@ -108,7 +108,9 @@ class _NotificationListState extends ConsumerState<_NotificationList> {
   void initState() {
     super.initState();
     _controller.addListener(() {
-      if (_controller.position.extentAfter < 200) {
+      // After a failed page, wait for Retry instead of retrying on scroll.
+      if (_controller.position.extentAfter < 200 &&
+          ref.read(notificationCenterProvider).loadMoreError == null) {
         ref.read(notificationCenterProvider.notifier).loadMore();
       }
     });
@@ -166,13 +168,23 @@ class _NotificationListState extends ConsumerState<_NotificationList> {
     } else {
       body = ListView.separated(
         controller: _controller,
-        itemCount: state.items.length + (state.isLoadingMore ? 1 : 0),
+        // One extra row at the end: the spinner while the next page loads,
+        // or the error and Retry when it failed.
+        itemCount:
+            state.items.length +
+            (state.isLoadingMore || state.loadMoreError != null ? 1 : 0),
         separatorBuilder: (_, _) => Divider(
           height: 1,
           thickness: 1,
           color: colors.onPrimary.withValues(alpha: 0.15),
         ),
         itemBuilder: (context, index) {
+          if (index >= state.items.length && state.loadMoreError != null) {
+            return _LoadMoreError(
+              message: state.loadMoreError!,
+              onRetry: notifier.loadMore,
+            );
+          }
           if (index >= state.items.length) {
             return Padding(
               padding: const EdgeInsets.all(16),
@@ -311,9 +323,8 @@ class _NotificationRow extends StatelessWidget {
                                 : notification.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: context.textTheme.titleSmall?.copyWith(
                               color: colors.onPrimary,
-                              fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -322,9 +333,8 @@ class _NotificationRow extends StatelessWidget {
                           const SizedBox(width: 8),
                           Text(
                             formatNotificationTime(context, time),
-                            style: TextStyle(
+                            style: context.textTheme.bodySmall?.copyWith(
                               color: colors.onPrimary.withValues(alpha: 0.7),
-                              fontSize: 12,
                             ),
                           ),
                         ],
@@ -335,9 +345,8 @@ class _NotificationRow extends StatelessWidget {
                       notification.message,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: context.textTheme.bodyMedium?.copyWith(
                         color: colors.onPrimary.withValues(alpha: 0.85),
-                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -346,6 +355,40 @@ class _NotificationRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The last row when loading the next page failed: why, and a Retry.
+class _LoadMoreError extends StatelessWidget {
+  const _LoadMoreError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      key: const ValueKey('notifications_load_more_error'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              message,
+              style: context.textTheme.bodySmall?.copyWith(
+                color: colors.onPrimary,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: colors.onPrimary),
+            child: const Text('Retry'),
+          ),
+        ],
       ),
     );
   }

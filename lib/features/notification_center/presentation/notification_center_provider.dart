@@ -10,6 +10,7 @@ class NotificationCenterState {
     this.isLoadingMore = false,
     this.hasMore = false,
     this.error,
+    this.loadMoreError,
     this.selectedId,
     this.readIds = const {},
     this.seenAt,
@@ -21,6 +22,9 @@ class NotificationCenterState {
   final bool isLoadingMore;
   final bool hasMore;
   final String? error;
+
+  /// Why loading the next page failed; the list shows it with a Retry.
+  final String? loadMoreError;
   final String? selectedId;
 
   /// Ids read on this device (zedu-fe keeps the same set).
@@ -56,6 +60,8 @@ class NotificationCenterState {
     bool? hasMore,
     String? error,
     bool clearError = false,
+    String? loadMoreError,
+    bool clearLoadMoreError = false,
     String? selectedId,
     bool clearSelection = false,
     Set<String>? readIds,
@@ -67,6 +73,9 @@ class NotificationCenterState {
     isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     hasMore: hasMore ?? this.hasMore,
     error: clearError ? null : error ?? this.error,
+    loadMoreError: clearLoadMoreError
+        ? null
+        : loadMoreError ?? this.loadMoreError,
     selectedId: clearSelection ? null : selectedId ?? this.selectedId,
     readIds: readIds ?? this.readIds,
     seenAt: seenAt ?? this.seenAt,
@@ -127,7 +136,9 @@ class NotificationCenterNotifier extends Notifier<NotificationCenterState> {
     }
   }
 
-  /// Reloads the first page, keeping the selection when it is still listed.
+  /// Reloads the first page and merges it into what is already loaded: new
+  /// notifications go on top and changed ones are updated, while later pages
+  /// and the selected notification stay (they were dropped before).
   Future<void> refresh() async {
     final userId = _userId;
     final orgId = _orgId;
@@ -144,16 +155,19 @@ class NotificationCenterNotifier extends Notifier<NotificationCenterState> {
       seenAt ??= await repository.markSeenNow(userId, orgId);
       final page = await repository.load(orgId);
       if (!ref.mounted || generation != _generation) return;
-      final keepSelection = page.items.any((i) => i.id == state.selectedId);
+      final merged = mergeFirstPage(page.items, state.items);
+      final keepsLaterPages = state.page > 1;
       state = state.copyWith(
-        items: page.items,
-        hasMore: page.hasMore,
-        page: 1,
-        readIds: readIds,
+        items: merged,
+        hasMore: keepsLaterPages ? state.hasMore : page.hasMore,
+        page: keepsLaterPages ? state.page : 1,
+        // Union, so an item marked read while this refresh was loading stays
+        // read even if its save hadn't landed yet.
+        readIds: {...readIds, ...state.readIds},
         seenAt: seenAt,
         isLoading: false,
         clearError: true,
-        clearSelection: !keepSelection,
+        clearSelection: !merged.any((i) => i.id == state.selectedId),
       );
     } on Object catch (error) {
       if (!ref.mounted || generation != _generation) return;
@@ -176,7 +190,7 @@ class NotificationCenterNotifier extends Notifier<NotificationCenterState> {
       return;
     }
     final generation = _generation;
-    state = state.copyWith(isLoadingMore: true);
+    state = state.copyWith(isLoadingMore: true, clearLoadMoreError: true);
     try {
       final page = await ref
           .read(notificationCenterRepositoryProvider)
@@ -192,13 +206,22 @@ class NotificationCenterNotifier extends Notifier<NotificationCenterState> {
         page: state.page + 1,
         isLoadingMore: false,
       );
-    } on Object {
+    } on Object catch (error) {
       if (!ref.mounted || generation != _generation) return;
-      state = state.copyWith(isLoadingMore: false, hasMore: false);
+      // Not the end of the list: keep hasMore so Retry can load it again.
+      state = state.copyWith(
+        isLoadingMore: false,
+        loadMoreError: error is ApiFailure
+            ? error.friendlyMessage
+            : 'Could not load more notifications.',
+      );
     }
   }
 
-  /// Shows [item] in the detail pane and marks it read.
+  /// Shows [item] in the detail pane and marks it read: on the server
+  /// (`PUT /users/onesignal-notifications/{id}/read`), so Zedu web and other
+  /// devices clear it too, and in the local set straight away, which also
+  /// covers a failed or offline request.
   Future<void> select(AppNotification item) async {
     state = state.copyWith(selectedId: item.id);
     if (!state.isUnread(item)) return;
@@ -207,19 +230,42 @@ class NotificationCenterNotifier extends Notifier<NotificationCenterState> {
     final userId = _userId;
     final orgId = _orgId;
     if (userId == null || orgId == null) return;
+    final repository = ref.read(notificationCenterRepositoryProvider);
     try {
-      await ref
-          .read(notificationCenterRepositoryProvider)
-          .saveReadIds(userId, orgId, readIds);
+      await repository.saveReadIds(userId, orgId, readIds);
     } on Object catch (error) {
       AppLogger.w(
         'Could not save read notifications: $error',
         tag: 'NotificationCenter',
       );
     }
+    try {
+      await repository.markRead(item.id);
+    } on Object catch (error) {
+      AppLogger.w(
+        'Could not mark notification ${item.id} read on the server: $error',
+        tag: 'NotificationCenter',
+      );
+    }
   }
 
   void clearSelection() => state = state.copyWith(clearSelection: true);
+}
+
+/// [firstPage] merged into [loaded]: notifications only in [firstPage] go on
+/// top, ones in both take [firstPage]'s newer copy in its place, and the rest
+/// of [loaded] (later pages) keeps its order below.
+@visibleForTesting
+List<AppNotification> mergeFirstPage(
+  List<AppNotification> firstPage,
+  List<AppNotification> loaded,
+) {
+  final fresh = {for (final item in firstPage) item.id: item};
+  final loadedIds = loaded.map((i) => i.id).toSet();
+  return [
+    ...firstPage.where((i) => !loadedIds.contains(i.id)),
+    for (final item in loaded) fresh[item.id] ?? item,
+  ];
 }
 
 final notificationCenterProvider =

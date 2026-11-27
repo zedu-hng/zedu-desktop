@@ -16,8 +16,10 @@ class _FakeNotificationCenter extends NotificationCenterNotifier {
   @override
   Future<void> refresh() async {}
 
+  int loadMoreCalls = 0;
+
   @override
-  Future<void> loadMore() async {}
+  Future<void> loadMore() async => loadMoreCalls++;
 
   @override
   Future<void> select(AppNotification item) async {
@@ -174,5 +176,26 @@ void main() {
       );
       expect(state.isUnread(older), isFalse);
     });
+  });
+
+  testWidgets('a failed page shows the error with a Retry (Ziki #33700)', (
+    tester,
+  ) async {
+    final fake = await _pump(
+      tester,
+      NotificationCenterState(
+        items: [_dm, _mention],
+        hasMore: true,
+        loadMoreError: 'Could not load more notifications.',
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('notifications_load_more_error')),
+      findsOneWidget,
+    );
+    expect(find.text('Could not load more notifications.'), findsOneWidget);
+    await tester.tap(find.text('Retry'));
+    expect(fake.loadMoreCalls, 1);
   });
 }
